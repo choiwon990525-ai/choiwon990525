@@ -1,0 +1,215 @@
+/* 레퍼런스 보드 GAS v13 (배포 버전 13, 2026-09-30 18:03) — 📋 텍틱 시트로 추가분 사본
+   편집기 원본: '조합 레퍼런스 보드 연결' (다른 세션 함수 포함 60,045자). 이 파일은 참고용 사본(편집기가 원본)
+   v13 바뀐 점: 조합별 파일 찾기(tkFiles_)·자동 선택(tacticTabs_ teams 점수)·fileId로 보내기(tkOpen_)·새 조합 파일(tacticNewFile_)
+                서식은 라이브러리 TK('텍틱 서식 라이브러리 (지우지 마세요)', 스크립트 ID 1W-wrxmjcatM5pWdd6jAxg3iPatAv-j0iEKyXyITIMVUCmOj5LhJZCBEG, HEAD)
+   doPost에 추가된 줄: if (d.kind === 'tacticTabs') … / if (d.kind === 'tactic') … / if (d.kind === 'tacticNewFile') return json_(tacticNewFile_(d)); */
+
+/* ======================= v11~v13: 📋 텍틱 시트로 (2026-09-30) =======================
+   확장 보드·장면·스크린샷 → 맵별 텍틱 시트의 탭 · 단계(## 띠) 옆에 그림, 그 단계 아래 B열에 메모 줄
+   v13: 한 맵에 조합별 파일이 여러 개 — 이름 '텍틱 - 어비스 - 하버 오멘 소바 요루 웨이레이' ('텍틱 - 맵'만 있으면 기본 파일, TK_FILES 상수 파일도 기본)
+   doPost {kind:'tacticTabs', mapKo, fileId?, teams:[[요원…],[요원…]]} → 파일 목록(조합 점수) + 고른 파일의 탭·단계
+          {kind:'tactic', mapKo, fileId, tab, band:{row,text}|null, newBand, memo, caption, jpeg, imgW, imgH, width}
+          {kind:'tacticNewFile', mapKo, agents:[…5]} → 템플릿 복사 + B3 요원 + 서식 (같은 이름 있으면 그 파일)
+   서식 규칙은 '텍틱 서식 라이브러리 (지우지 마세요)' 한 곳(라이브러리 TK, HEAD) — 텍틱 파일 13개 스크립트와 여기가 같이 씀 */
+const TK_FOLDER = '1K5wBBVApIlPF0a4eTzgosRwnW0UcXW9A';
+const TK_FILES = {
+  '어비스': '12HkN4wJLg9AMBJL4HG83qLDxSttDR8FBZGwBLTYW5Lk', '어센트': '124PjyrTITLgWpvz1EjZ9Cjvp0fkR9WxZpmEvtONQapE', '바인드': '1Ms74DAxcnQh5SBbxyGiCdXigpxvXEaKbEf7nREQBjI4',
+  '브리즈': '1buahWzPsolfHTvO28sl7itYE8ED2oAjDIBhq8bGUhBY', '코로드': '1tRggUC7bC8N3gu3szMNZhZTPKUuGdkrDrTMCLi12_qQ', '프랙처': '18Kt2BnrwQvHssMRe_e1Sr927LNeuPbOFm0WUixsCsBw',
+  '헤이븐': '1Q0cJlbNDDbCoiFtaSBSVp87tzlybYSodiNEDy6LJs-U', '로터스': '1l2QUM6vwDSG7enwNPtEgneTxRTz3bp1UijhvXCDUdHo', '펄': '1Foj8A4xHJtlefz8x4FxYIB_P1E_SrZ52t-6M1ZTSS1o',
+  '스플릿': '1x2enD8nygZvMi43Hd5Us8Pp0-BkUKzfrCB7yiDGdltU', '서밋': '1WFIsw95RwKmivzomqxN6R0t4n1Twp_K2_mzatwZFORk', '선셋': '1yG7VVE_-nqchM-3mYyoVBPfJ4sHmrogrzgYXpMrMh-0'
+};
+const TK_TEMPLATE = '1zQJ0skTOTWFhLc-3DXU1rfWw8Seiy8_LEAZoiTmtGGA', TK_MIME = 'application/vnd.google-apps.spreadsheet';
+const TK_BAND = '#EAF2FA', TK_FIRST = 6;
+const TK_IMG_COL = 3, TK_IMG_X = 12, TK_GAP = 14, TK_ROW_H = 21;
+
+function tkFile_(mapKo) {
+  const id = TK_FILES[mapKo];
+  if (id) { try { return SpreadsheetApp.openById(id); } catch (e) {} }
+  const it = DriveApp.getFolderById(TK_FOLDER).getFilesByName('텍틱 - ' + mapKo);
+  return it.hasNext() ? SpreadsheetApp.open(it.next()) : null;
+}
+function tkNorm_(t) { return String(t || '').replace(/[\u00a0\u3000]/g, ' ').replace(/\s+/g, ' ').trim(); }
+function tkIsTactic_(sh) { return String(sh.getRange('B4').getValue()).indexOf('텍틱') >= 0; }
+function tkLastRow_(sh) {   // B열 글이 있는 마지막 행 (없으면 TK_FIRST-1)
+  const n = sh.getMaxRows() - TK_FIRST + 1; if (n < 1) return TK_FIRST - 1;
+  const v = sh.getRange(TK_FIRST, 2, n, 1).getValues();
+  for (let i = v.length - 1; i >= 0; i--) if (String(v[i][0]).trim()) return TK_FIRST + i;
+  return TK_FIRST - 1;
+}
+function tkBands_(sh) {   // ## 띠 줄: A열 코드 S 또는 B열 띠 배경
+  const last = tkLastRow_(sh); if (last < TK_FIRST) return [];
+  const rng = sh.getRange(TK_FIRST, 1, last - TK_FIRST + 1, 2), v = rng.getDisplayValues(), bg = rng.getBackgrounds(), out = [];
+  for (let i = 0; i < v.length; i++) {
+    const t = tkNorm_(v[i][1]);
+    if (t && (v[i][0] === 'S' || String(bg[i][1]).toLowerCase() === TK_BAND.toLowerCase())) out.push({ row: TK_FIRST + i, text: t });
+  }
+  return out;
+}
+function tkKey_(s) { return tkNorm_(s).replace(/\s/g, '').toLowerCase(); }
+function tkFiles_(mapKo) {   // 이 맵의 텍틱 파일들: TK_FILES 상수 파일 + 폴더·드라이브에서 이름이 '텍틱 - 맵' 또는 '텍틱 - 맵 - 요원…'
+  const base = '텍틱 - ' + mapKo, out = [], seen = {};
+  const add = function (f) {
+    const id = f.getId(); if (seen[id]) return; seen[id] = 1;
+    const n = tkNorm_(f.getName()), rest = n.indexOf(base + ' - ') === 0 ? n.slice(base.length + 3) : '';
+    out.push({ id: id, name: n, url: f.getUrl(), agents: rest ? rest.split(/[\s·,\/]+/).filter(function (s) { return s; }) : [], base: !rest, t: f.getLastUpdated().getTime() });
+  };
+  const ok = function (f) { const n = tkNorm_(f.getName()); return (n === base || n.indexOf(base + ' - ') === 0) && f.getMimeType() === TK_MIME && !f.isTrashed(); };
+  if (TK_FILES[mapKo]) { try { const f = DriveApp.getFileById(TK_FILES[mapKo]); if (!f.isTrashed()) add(f); } catch (e) {} }
+  try { const it = DriveApp.getFolderById(TK_FOLDER).getFiles(); while (it.hasNext()) { const f = it.next(); if (ok(f)) add(f); } } catch (e) {}
+  try { const it = DriveApp.searchFiles("title contains '텍틱' and title contains '" + mapKo.replace(/'/g, '') + "' and mimeType = '" + TK_MIME + "' and trashed = false"); while (it.hasNext()) { const f = it.next(); if (ok(f)) add(f); } } catch (e) {}
+  out.sort(function (x, y) { return (y.base - x.base) || x.name.localeCompare(y.name); });
+  return out;
+}
+function tkOpen_(d) {   // 보낼 파일: fileId(텍틱 파일만) → 없으면 그 맵 기본 파일
+  if (d.fileId) {
+    try { const ss = SpreadsheetApp.openById(d.fileId); if (tkNorm_(ss.getName()).indexOf('텍틱 - ') === 0 || d.fileId === TK_FILES[d.mapKo]) return ss; } catch (e) {}
+    return null;
+  }
+  return tkFile_(d.mapKo);
+}
+function tacticTabs_(d) {
+  const files = tkFiles_(d.mapKo);
+  if (!files.length) return { ok: false, files: [], err: '"텍틱 - ' + d.mapKo + '" 파일이 없어요' };
+  const teams = (d.teams || []).map(function (t) { return (t || []).map(tkKey_); });
+  files.forEach(function (f) {   // 조합 점수 = 이 파일 이름의 요원이 어느 한 팀 조합과 겹치는 수(최대)
+    const ks = f.agents.map(tkKey_); f.score = 0; f.team = -1;
+    teams.forEach(function (t, ti) { const s = ks.filter(function (k) { return t.indexOf(k) >= 0; }).length; if (s > f.score) { f.score = s; f.team = ti; } });
+  });
+  let pick = d.fileId ? files.filter(function (f) { return f.id === d.fileId; })[0] : null, auto = !pick;
+  if (!pick) pick = files.slice().sort(function (x, y) { return (y.score - x.score) || (y.base - x.base) || (y.t - x.t); })[0];
+  const ss = SpreadsheetApp.openById(pick.id);
+  return { ok: true, files: files.map(function (f) { return { id: f.id, name: f.name, url: f.url, agents: f.agents, base: f.base, score: f.score, team: f.team }; }), fileId: pick.id, auto: auto, file: ss.getName(), url: ss.getUrl(),
+    tabs: ss.getSheets().map(function (sh) { const t = tkIsTactic_(sh); return { name: sh.getName(), tactic: t, bands: t ? tkBands_(sh) : [] }; }) };
+}
+function tacticNewFile_(d) {   // 템플릿을 복사해 '텍틱 - 맵 - 요원 5명' 파일을 만들고 B3에 요원(서식은 라이브러리)
+  const ags = (d.agents || []).map(tkNorm_).filter(function (s) { return s; });
+  if (!d.mapKo || !ags.length) return { ok: false, err: '맵·요원이 없어요' };
+  const name = '텍틱 - ' + d.mapKo + ' - ' + ags.join(' ');
+  const lock = LockService.getScriptLock(); lock.waitLock(30000);
+  try {
+    const ex = tkFiles_(d.mapKo).filter(function (f) { return tkKey_(f.name) === tkKey_(name); })[0];
+    if (ex) return { ok: true, created: false, id: ex.id, name: ex.name, url: ex.url };
+    const f = DriveApp.getFileById(TK_TEMPLATE).makeCopy(name, DriveApp.getFolderById(TK_FOLDER));
+    const ss = SpreadsheetApp.openById(f.getId());
+    ss.getSheets().forEach(function (sh) { if (tkIsTactic_(sh) && sh.getName() !== '예시') { sh.getRange('B3').setValue(ags.join(' · ')); TK.reformatSheet(sh); } });
+    SpreadsheetApp.flush();
+    return { ok: true, created: true, id: ss.getId(), name: name, url: ss.getUrl() };
+  } finally { lock.releaseLock(); }
+}
+function tkTops_(sh, base) {   // base행 위쪽을 0으로 한 y(px) — 필요한 만큼만 행 높이를 읽음 (행 높이 읽기가 느려서 base 앞은 안 읽음)
+  const max = sh.getMaxRows(), tops = [0]; base = base || 1;
+  return { at: function (r) { const i = r - base; while (tops.length <= i) { const k = base + tops.length - 1; tops.push(tops[tops.length - 1] + (k <= max ? sh.getRowHeight(k) : TK_ROW_H)); } return tops[i]; } };
+}
+function tkImgEndRow_(sh, im) {   // 그림 아래 끝이 걸치는 행
+  const r0 = im.getAnchorCell().getRow(), T = tkTops_(sh, r0), bottom = im.getAnchorCellYOffset() + im.getHeight();
+  let r = r0; while (T.at(r + 1) < bottom) r++;
+  return r;
+}
+function putTactic_(d) {
+  const ss = tkOpen_(d);
+  if (!ss) return { ok: false, err: '텍틱 파일을 못 열었어요 — 창의 ↻로 목록을 다시 읽어 주세요' };
+  const sh = ss.getSheetByName(d.tab);
+  if (!sh) return { ok: false, err: '탭 "' + d.tab + '"이 없어요 — 창의 ↻로 목록을 다시 읽어 주세요' };
+  const t0 = Date.now(), lock = LockService.getScriptLock(); lock.waitLock(30000);
+  try {
+    const agents = tkAgents_(sh);
+    let band = null;
+    if (d.newBand) {   // 탭 맨 아래에 ## 띠 새로
+      const last = tkLastRow_(sh);
+      let imgEnd = 0;   // 떠 있는 그림이 글보다 아래까지 내려오면 그 아래에 새 띠
+      sh.getImages().forEach(function (im) { const a = im.getAnchorCell(); if (a.getColumn() >= TK_IMG_COL) imgEnd = Math.max(imgEnd, tkImgEndRow_(sh, im)); });
+      const row = last < TK_FIRST && !imgEnd ? TK_FIRST : Math.max(last + 2, imgEnd + 2);
+      if (row > sh.getMaxRows()) sh.insertRowsAfter(sh.getMaxRows(), row - sh.getMaxRows() + 5);
+      sh.getRange(row, 1, 1, 2).setBackground(null);
+      sh.getRange(row, 2).setValue('## ' + d.newBand);
+      tkFormatRow_(sh, row, agents, true);
+      band = { row: row, text: tkNorm_(sh.getRange(row, 2).getDisplayValue()) };
+    } else if (d.band) {
+      const bs = tkBands_(sh);
+      const want = tkNorm_(d.band.text); band = bs.filter(function (b) { return b.row === d.band.row && b.text === want; })[0] || bs.filter(function (b) { return b.text === want; })[0] || null;
+      if (!band) return { ok: false, err: '단계 "' + d.band.text + '"를 못 찾았어요 — 창의 ↻로 다시 읽어 주세요' };
+    }
+    // 1) 메모 글: 그 단계 맨 아래(다음 띠 바로 위의 마지막 글 줄 다음)에 줄을 끼워 넣음
+    const lines = String(d.memo || '').split(/\r?\n/).map(function (s) { return s.replace(/\s+$/, ''); }).filter(function (s) { return s.trim(); });
+    let textRow = null;
+    if (lines.length) {
+      let after;
+      if (band) {
+        const next = tkBands_(sh).filter(function (b) { return b.row > band.row; })[0];
+        const end = next ? next.row - 1 : Math.max(tkLastRow_(sh), band.row);
+        after = band.row;
+        if (end > band.row) { const v = sh.getRange(band.row + 1, 2, end - band.row, 1).getValues(); v.forEach(function (x, i) { if (String(x[0]).trim()) after = band.row + 1 + i; }); }
+      } else after = Math.max(tkLastRow_(sh), TK_FIRST - 1);
+      sh.insertRowsAfter(after, lines.length);
+      textRow = after + 1;
+      sh.setRowHeights(textRow, lines.length, TK_ROW_H);
+      const rg = sh.getRange(textRow, 1, lines.length, 2); rg.setBackground(null); rg.clearContent();
+      sh.getRange(textRow, 2, lines.length, 1).setValues(lines.map(function (s) { s = s.replace(/^\s+/, function (m) { return m.replace(/\t/g, '  '); }); return [/^\s*[=+]/.test(s) ? "'" + s : s]; }));   // = + 로 시작하면 수식이 되지 않게
+      for (let i = 0; i < lines.length; i++) tkFormatRow_(sh, textRow + i, agents, true);
+      if (band) band.text = tkNorm_(sh.getRange(band.row, 2).getDisplayValue());
+    }
+    // 2) 그림: 그 단계 띠 줄 높이에서 시작, 이미 있는 그림(C열 이후)과 안 겹치게 아래로 — 다음 단계 그림을 침범하면 다음 띠 앞에 빈 줄을 넣어 밀어냄
+    let row = null, count = 0;
+    if (d.jpeg && d.width) {
+      const W = Math.max(200, Math.min(1000, +d.width || 640)), H = Math.round(W * (+d.imgH || 1) / (+d.imgW || 1));
+      const startRow = band ? band.row : (textRow || Math.max(TK_FIRST, tkLastRow_(sh) + 1));
+      const next = band ? tkBands_(sh).filter(function (b) { return b.row > band.row; })[0] : null;
+      const raw = sh.getImages().filter(function (im) { const a = im.getAnchorCell(); return a.getColumn() >= TK_IMG_COL && a.getRow() >= startRow && (!next || a.getRow() < next.row); });   // 이 단계 칸에 기준을 둔 그림만
+      let T = tkTops_(sh, startRow);
+      const imgs = raw.map(function (im) { const top = T.at(im.getAnchorCell().getRow()) + im.getAnchorCellYOffset(); return { top: top, bottom: top + im.getHeight() }; });
+      const secEndY = next ? T.at(next.row) : Infinity;
+      let y = 0;
+      imgs.forEach(function (im) { y = Math.max(y, im.bottom + TK_GAP); });
+      sh.getImages().forEach(function (im) {   // 앞쪽에 기준을 두고 이 단계까지 내려온 그림(코치가 직접 넣은 큰 맵 그림 등)도 피함
+        const a = im.getAnchorCell(); if (a.getColumn() < TK_IMG_COL || a.getRow() >= startRow) return;
+        const end = tkImgEndRow_(sh, im); if (end >= startRow) y = Math.max(y, T.at(end + 1) + TK_GAP);
+      });
+      count = imgs.length + 1;
+      if (next && y + H + TK_GAP > secEndY) {   // 다음 단계 띠보다 길어지면 다음 띠 앞에 빈 줄을 넣어 다음 단계(글·그림)를 통째로 밀어냄
+        const k = Math.ceil((y + H + TK_GAP - secEndY) / TK_ROW_H);
+        sh.insertRowsBefore(next.row, k); sh.setRowHeights(next.row, k, TK_ROW_H);
+        const rg = sh.getRange(next.row, 1, k, 2); rg.setBackground(null); rg.clearContent();
+        T = tkTops_(sh, startRow);
+      }
+      const bottom = y + H;
+      let r = startRow; while (T.at(r + 1) <= y) r++;
+      let e = r; while (T.at(e + 1) < bottom + TK_ROW_H) e++;   // 그림이 끝나는 행까지 시트에 행이 있어야 함
+      if (e + 1 > sh.getMaxRows()) sh.insertRowsAfter(sh.getMaxRows(), e + 1 - sh.getMaxRows() + 10);
+      row = r;
+      const blob = Utilities.newBlob(Utilities.base64Decode(String(d.jpeg).split(',').pop()), 'image/jpeg', 'tactic.jpg');
+      const im = sh.insertImage(blob, TK_IMG_COL, row, TK_IMG_X, Math.round(y - T.at(row)));
+      im.setWidth(W).setHeight(H);
+      try { if (d.caption) im.setAltTextTitle(d.caption); } catch (e) {}
+    }
+    SpreadsheetApp.flush();
+    return { ok: true, file: ss.getName(), fileId: ss.getId(), tab: sh.getName(), band: band ? band.text : '', image: row != null, row: row, count: count, lines: lines.length, ms: Date.now() - t0, url: ss.getUrl() + '#gid=' + sh.getSheetId() };
+  } finally { lock.releaseLock(); }
+}
+
+/* ---- 텍틱 서식 (v13): 규칙 코드는 '텍틱 서식 라이브러리 (지우지 마세요)' 한 곳 — 왼쪽 라이브러리 TK(HEAD 개발 모드)
+   스크립트로 넣은 글은 시트 onEdit이 안 돌아서 여기서 라이브러리로 칠함. 규칙을 바꾸려면 라이브러리만 고치면 됨 ---- */
+function tkAgents_(sh) { return TK.agents(sh); }
+function tkFormatRow_(sh, row, agents, force) { TK.formatRow(sh, row, agents, force); }
+
+/* ---- 보내기 비밀번호 바꾸기 (v11) — 편집기에서 rotateToken 실행 ----
+   새 비밀번호를 만들어 코치만 여는 비공개 시트 '장면캡처 보내기 설정 (비공개)'의 _설정 탭에만 적고,
+   링크 공유 중인 원본 시트 _설정 탭에서는 비밀번호 줄을 지움(웹 앱 주소만 남김). 옛 비밀번호는 바로 못 씀 */
+function rotateToken() {
+  const props = PropertiesService.getScriptProperties();
+  const token = Utilities.getUuid().replace(/-/g, '') + Utilities.getUuid().replace(/-/g, '').slice(0, 8);
+  let pid = props.getProperty('CFG_PRIVATE_ID'), pss = null;
+  if (pid) { try { pss = SpreadsheetApp.openById(pid); } catch (e) { pss = null; } }
+  if (!pss) { pss = SpreadsheetApp.create('장면캡처 보내기 설정 (비공개)'); pid = pss.getId(); props.setProperty('CFG_PRIVATE_ID', pid); }
+  let cfg = pss.getSheetByName(BOARD_CFG_TAB);
+  if (!cfg) { cfg = pss.getSheets()[0]; cfg.setName(BOARD_CFG_TAB); }
+  cfg.clear();
+  cfg.getRange(1, 1, 3, 2).setValues([['key', 'value'], ['boardToken', token], ['boardUrl', execUrl_()]]);
+  props.setProperty('BOARD_TOKEN', token);
+  const pub = ss_().getSheetByName(BOARD_CFG_TAB);   // 다른 설정 줄은 그대로 두고 boardToken 줄만 뺌
+  if (pub) {
+    const v = pub.getDataRange().getValues().filter(function (r) { return String(r[0]) !== 'boardToken'; });
+    pub.clear(); if (v.length) pub.getRange(1, 1, v.length, v[0].length).setValues(v);
+  }
+  const msg = '비밀번호 바꿈 · 비공개 설정 시트 ' + pid + ' · 원본 _설정 탭은 주소만';
+  Logger.log(msg); return msg;
+}

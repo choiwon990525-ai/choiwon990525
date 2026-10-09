@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8"><title>분석 — 장면 캡처 도구</title>
+<link rel="icon" href="icons/icon32.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+/* 디자인 가이드(PPT와 같음): 남색·파랑·흰 바탕, 직각, 사선 컷 · 그림 칸만 어둡게 */
+:root{--navy:#132D65;--navy2:#1C3B7A;--blue:#4A88C7;--sky:#BDD9F2;--ice:#EAF2FA;--bg:#F5F7FA;--white:#fff;--body:#3C4A63;--mute:#7A879C;--def:#3FB8B0;--atk:#D0504A;
+  --stage:#0D1526;--stage2:#141F36;--stage3:#1E2C4A;--kr:'Noto Sans KR','Malgun Gothic',system-ui,sans-serif;--en:'Poppins','Noto Sans KR','Malgun Gothic',sans-serif}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{font:13px/1.5 var(--kr);color:var(--body);background:var(--bg);display:flex;flex-direction:column;overflow:hidden}
+button,select,input,textarea{font-family:var(--kr)}
+/* 상단 바 */
+header{height:54px;flex:none;background:var(--navy);color:#fff;display:flex;align-items:center;gap:12px;padding:0 14px 0 0}
+.brand{height:100%;display:flex;align-items:center;gap:8px;padding:0 30px 0 16px;background:var(--navy2);clip-path:polygon(0 0,100% 0,calc(100% - 18px) 100%,0 100%);font-weight:700;font-size:15px;flex:none}
+.brand small{font:600 10px var(--en);color:var(--sky);letter-spacing:.08em}
+.match{min-width:0;flex:0 1 auto}
+.match .t{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:38vw}
+.match .s{color:var(--sky);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:38vw}
+header select{background:var(--navy2);color:#fff;border:1px solid var(--blue);border-radius:2px;padding:6px 8px;font-size:12px;outline:none}
+.grow{flex:1}
+.hbtn{background:transparent;border:1px solid var(--blue);color:#fff;border-radius:2px;padding:7px 12px;font:500 12px var(--kr);cursor:pointer;text-decoration:none;white-space:nowrap}
+.hbtn:hover{background:var(--navy2)}
+.hbtn.pri{background:#fff;color:var(--navy);border-color:#fff;font-weight:700}
+.hbtn.pri:hover{background:var(--ice)}
+.hbtn:disabled{opacity:.5;cursor:default}
+main{flex:1;display:grid;grid-template-columns:212px minmax(0,1fr) 330px;min-height:0}
+/* 왼쪽: 라운드 목록 */
+#rounds{background:var(--white);border-right:1px solid var(--ice);overflow:auto;min-height:0}
+.hd{font:700 11px var(--kr);color:var(--mute);padding:12px 14px 6px;letter-spacing:.04em;display:flex;align-items:center;gap:6px}
+.hd span{margin-left:auto;font:600 11px var(--en)}
+.rrow{display:grid;grid-template-columns:40px 1fr auto;align-items:center;column-gap:6px;padding:7px 12px 7px 10px;border-left:4px solid transparent;cursor:pointer;border-bottom:1px solid var(--ice)}
+.rrow:hover{background:#F9FBFD}
+.rrow.on{border-left-color:var(--blue);background:var(--ice)}
+.rrow .rn{font:700 14px var(--en);color:var(--navy)}
+.rrow .who{font-size:11px;display:flex;align-items:center;gap:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.rrow .who i{width:8px;height:8px;flex:none;display:inline-block}
+.rrow .sc{font:600 11px var(--en);color:var(--mute)}
+.rrow .meta{grid-column:2/4;font-size:11px;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rrow .meta b{color:var(--blue);font-weight:500}
+.half{padding:5px 14px;font-size:11px;color:var(--mute);background:var(--bg);border-bottom:1px solid var(--ice)}
+/* 가운데: 그림 칸 (어둡게) */
+#stage{background:var(--stage);display:flex;flex-direction:column;min-width:0;min-height:0}
+#tools{display:flex;align-items:center;gap:4px;padding:7px 10px;background:var(--stage2);color:#c9d4e6;flex-wrap:wrap;flex:none}
+#tools button{background:transparent;border:1px solid var(--stage3);color:#dfe7f3;border-radius:2px;padding:5px 9px;font-size:12px;cursor:pointer;white-space:nowrap}
+#tools button:hover{border-color:var(--blue)}
+#tools button.on{background:var(--blue);border-color:var(--blue);color:#fff}
+#tools button:disabled{opacity:.35;cursor:default}
+#tools .sep{width:1px;height:20px;background:var(--stage3);margin:0 4px}
+.sw{width:18px;height:18px;border:2px solid var(--stage2);outline:1px solid var(--stage3);cursor:pointer;display:inline-block}
+.sw.on{outline:2px solid #fff}
+#tools .lab{margin-left:auto;font-size:12px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:40%}
+#tools .lab a{color:var(--sky);text-decoration:none;margin-left:8px}
+#views{flex:1;display:flex;gap:8px;padding:10px;min-height:0}
+.view{flex:1;position:relative;min-width:0;min-height:0;display:flex;border:2px solid transparent}
+.view svg{width:100%;height:100%;display:block;touch-action:none}
+.view.two.focus{border-color:var(--blue)}
+.view .vlab{position:absolute;left:0;top:0;font:500 11px var(--kr);color:#fff;background:rgba(13,21,38,.78);padding:2px 8px;pointer-events:none}
+.view .none{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#6f809f;font-size:13px;text-align:center;padding:20px;pointer-events:none}
+.view[data-tool=arrow] svg,.view[data-tool=circle] svg,.view[data-tool=pen] svg{cursor:crosshair}
+.view[data-tool=text] svg{cursor:text}
+.view[data-tool=erase] svg{cursor:not-allowed}
+g.ann.sel{outline:none}
+g.ann.sel *{stroke-dasharray:none}
+#strip{flex:none;height:124px;display:flex;gap:8px;padding:8px 10px 10px;overflow-x:auto;overflow-y:hidden;background:var(--stage2);border-top:1px solid var(--stage3)}
+.tile{flex:none;width:136px;cursor:pointer;position:relative;color:#c9d4e6;font-size:11px}
+.tile .th{width:136px;height:80px;background:#000;display:flex;align-items:center;justify-content:center;border:2px solid transparent;overflow:hidden;color:#7f93b5;text-align:center;font-size:11px}
+.tile .th img{max-width:100%;max-height:100%;object-fit:contain;display:block}
+.tile.on .th{border-color:var(--blue)}
+.tile.cmp .th{border-color:var(--sky)}
+.tile .cap{margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile .cap b{font:600 11px var(--en);color:#fff;margin-right:4px}
+.tile .kind{position:absolute;left:2px;top:2px;font:700 9px var(--kr);padding:1px 6px;background:var(--navy);color:#fff}
+.tile .kind.b{background:var(--blue)}
+.tile .flags{position:absolute;right:2px;top:2px;display:flex;gap:2px}
+.tile .flags span{font-size:9px;padding:1px 5px;background:rgba(13,21,38,.85);color:#fff}
+.tile.out .th img{opacity:.3}
+.tile.out .cap{text-decoration:line-through;color:#6f809f}
+.tile.add .th{border:1px dashed #3a4c70;flex-direction:column;gap:2px;background:transparent}
+.tile.add:hover .th{border-color:var(--sky);color:#fff}
+/* 오른쪽 */
+#side{background:var(--white);border-left:1px solid var(--ice);overflow:auto;min-height:0;display:flex;flex-direction:column}
+.rhead{padding:12px 16px 10px;border-bottom:1px solid var(--ice);position:relative}
+.rhead .big{display:flex;align-items:baseline;gap:10px}
+.rhead .big b{font:700 26px/1 var(--en);color:var(--navy)}
+.rhead .big span{font-size:12px;color:var(--mute)}
+.rhead .score{margin-top:6px;font-size:12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.rhead .score .n{font:700 14px var(--en);color:var(--navy)}
+.chip{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:1px 7px;border:1px solid var(--sky);background:var(--ice);color:var(--navy);white-space:nowrap}
+.chip i{width:7px;height:7px;display:inline-block}
+.comp{margin-top:6px;font-size:11px;color:var(--mute);line-height:1.6}
+.sect{padding:12px 16px 0}
+.sect .t{display:flex;align-items:center;gap:6px;font:700 11px var(--kr);color:var(--mute);margin-bottom:5px;letter-spacing:.03em}
+.sect .t em{font-style:normal;font-weight:400;margin-left:auto}
+textarea{width:100%;border:1px solid var(--sky);border-radius:2px;padding:8px 10px;font:13px/1.55 var(--kr);color:var(--body);resize:vertical;outline:none;background:#fff}
+textarea:focus{border-color:var(--blue)}
+#note{min-height:130px}
+#iMemo{min-height:84px}
+.ihead{font-weight:700;color:var(--navy);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.ihead a{font-weight:500;font-size:12px;color:var(--blue);text-decoration:none}
+.btn{background:var(--ice);border:1px solid var(--sky);color:var(--navy);border-radius:2px;padding:6px 10px;font:500 12px var(--kr);cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:var(--blue)}
+.btn.pri{background:var(--navy);color:#fff;border-color:var(--navy);font-weight:700}
+.btn:disabled{opacity:.5;cursor:default}
+.acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chk{display:flex;align-items:center;gap:7px;margin-top:9px;font-size:12px;cursor:pointer;user-select:none}
+.chk input{width:15px;height:15px;accent-color:var(--navy)}
+.info{font-size:11px;color:var(--mute);margin-top:6px}
+.sent{font-size:11px;color:var(--blue);margin-top:6px}
+#mmPick{display:none;gap:6px;margin-top:6px;flex-wrap:wrap}
+#msg{margin-top:auto;padding:12px 16px 0;color:var(--navy);font-size:12px;min-height:30px}
+#msg.err{color:var(--atk)}
+#msg a{color:var(--blue)}
+.keys{font-size:11px;color:var(--mute);padding:10px 16px 0;display:flex;flex-wrap:wrap;gap:4px 12px}
+.keys span{white-space:nowrap}
+.keys b{font:600 10px var(--en);background:var(--ice);border:1px solid var(--sky);padding:0 4px;color:var(--navy)}
+#txtIn{position:fixed;display:none;z-index:50;min-width:200px;border:2px solid var(--blue);padding:5px 8px;font:14px var(--kr);outline:none}
+#empty{grid-column:1/-1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:var(--mute)}
+#busyFrame{position:fixed;left:-4000px;top:0;width:1400px;height:900px;border:0;visibility:hidden}
+/* 스샷 칸 × (1.11.2) */
+.tile .x{position:absolute;right:3px;top:56px;width:20px;height:20px;border:1px solid #3a4c70;background:rgba(13,21,38,.88);color:#fff;font:700 13px/16px var(--en);text-align:center;cursor:pointer;display:none;padding:0}
+.tile:hover .x,.tile.on .x{display:block}
+.tile .x:hover{background:var(--atk);border-color:var(--atk)}
+/* 모아 보기 (1.11.2): 같은 팀·같은 편 라운드의 같은 순간 미니맵 */
+#grid{flex:1;display:none;flex-direction:column;min-height:0}
+#stage.gridmode #grid{display:flex}
+#stage.gridmode #views,#stage.gridmode #strip{display:none}
+#stage.gridmode #tools>*:not(#gridBtn){display:none!important}
+#gbar{flex:none;display:flex;flex-direction:column;gap:6px;padding:8px 12px 9px;background:var(--stage2);border-bottom:1px solid var(--stage3);color:#c9d4e6;font-size:12px}
+.grow1{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
+.glab{color:#7f93b5;font-size:11px;width:58px;flex:none}
+.gchip{background:transparent;border:1px solid var(--stage3);color:#dfe7f3;border-radius:2px;padding:3px 9px;font-size:12px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.gchip:hover{border-color:var(--blue)}
+.gchip.on{background:var(--blue);border-color:var(--blue);color:#fff}
+.gchip i{width:8px;height:8px;display:inline-block}
+#gsum{margin-left:auto;font:600 12px var(--en);color:#fff;white-space:nowrap}
+#gsize{width:90px;accent-color:var(--blue)}
+#gcells{flex:1;overflow:auto;padding:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--gw,240px),1fr));gap:12px;align-content:start}
+.gc{background:var(--stage2);border:2px solid transparent;display:flex;flex-direction:column;min-width:0}
+.gc.cur{border-color:var(--blue)}
+.gimg{aspect-ratio:26/25;background:#000;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#6f809f;font-size:12px;overflow:hidden}
+.gimg canvas{max-width:100%;max-height:100%;display:block}
+.gimg:hover{outline:1px solid var(--sky);outline-offset:-1px}
+.gcap{display:flex;align-items:center;gap:6px;padding:5px 7px 3px;font-size:12px;color:#c9d4e6;min-width:0}
+.gcap b{font:700 13px var(--en);color:#fff}
+.gcap .lb{color:#7f93b5;font-size:11px;white-space:nowrap}
+.gcap .res{font:700 10px var(--kr);padding:0 6px;flex:none}
+.gcap .res.w{background:var(--blue);color:#fff}
+.gcap .res.l{background:var(--stage3);color:#9fb0cc}
+.gtag{margin-left:auto;font-size:11px;padding:1px 7px;border:1px solid var(--blue);color:#fff;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:62%}
+.gtag.empty{border-style:dashed;border-color:#3a4c70;color:#7f93b5}
+.gtag:hover{border-color:var(--sky)}
+.gtagin{margin-left:auto;width:62%;min-width:0;font-size:12px;padding:2px 6px;border:1px solid var(--blue);outline:none}
+.gnote{padding:0 7px 6px;font-size:11px;color:#8ea0bf;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gnone{color:#6f809f;padding:30px;grid-column:1/-1;text-align:center}
+.rrow.ing{background:#F2F7FC}
+.rrow .meta .tg{color:var(--navy);background:var(--ice);border:1px solid var(--sky);padding:0 5px;margin-right:2px;font-size:10px}
+/* 텍틱 이름 칸 (오른쪽) */
+#tagIn{width:100%;border:1px solid var(--sky);border-radius:2px;padding:6px 10px;font:13px var(--kr);color:var(--body);outline:none;background:#fff}
+#tagIn:focus{border-color:var(--blue)}
+#tagQuick{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+#tagQuick .chip{cursor:pointer}
+#tagQuick .chip:hover{border-color:var(--blue)}
+</style></head><body>
+<header>
+  <div class="brand">분석 <small>ANALYSIS</small></div>
+  <div class="match"><div class="t" id="ttl">경기</div><div class="s" id="sub"></div></div>
+  <select id="mapSel" title="맵"></select>
+  <div class="grow"></div>
+  <a id="yt" class="hbtn" target="_blank" title="이 라운드 영상">▶ 영상</a>
+  <button id="boardBtn" class="hbtn" title="이 라운드 오프닝(투명벽)을 빈 맵 보드에서 요원·스킬로 그리기">빈 맵 보드</button>
+  <a id="deckLink" class="hbtn" target="_blank" style="display:none">정리 슬라이드 ↗</a>
+  <button id="pptBtn" class="hbtn pri" title="이 맵 라운드 전부를 정리 슬라이드(PPT)로 — 처음엔 새로 만들고, 다음부턴 바뀐 것만 고침">PPT로 보내기</button>
+</header>
+<main id="main">
+  <aside id="rounds"><div class="hd">라운드 <span id="rcount"></span></div><div id="rlist"></div></aside>
+  <section id="stage">
+    <div id="tools">
+      <button data-t="sel" class="on" title="선택·옮기기 (V) — 그린 것을 누르면 선택, 끌면 이동, Delete 지우기">선택</button>
+      <button data-t="arrow" title="화살표 (A)">화살표</button>
+      <button data-t="circle" title="원 (C) — 가운데에서 끌기">원</button>
+      <button data-t="pen" title="펜 (P)">펜</button>
+      <button data-t="text" title="글자 (T) — 누른 곳에 쓰기">글자</button>
+      <button data-t="erase" title="지우개 (E) — 누른 것 지우기 (오른쪽 클릭도 지우기)">지우개</button>
+      <span class="sep"></span><span id="swatches" style="display:flex;gap:4px"></span><span class="sep"></span>
+      <button id="undoBtn" title="되돌리기 (Ctrl+Z)">되돌리기</button>
+      <button id="clearBtn" title="이 그림에 그린 것 모두 지우기">모두 지우기</button>
+      <span class="sep"></span>
+      <button id="cmpBtn" title="두 장 나란히 (D) — 오른쪽 칸을 누른 뒤 아래 그림을 고르면 그 칸에 뜸">나란히 보기</button>
+      <button id="gridBtn" title="모아 보기 (G) — 한 팀의 공격(수비) 라운드들을 같은 순간 미니맵으로 한 화면에">모아 보기</button>
+      <span class="lab" id="curLab"></span>
+    </div>
+    <div id="views">
+      <div class="view" id="v0"><svg></svg><div class="vlab"></div><div class="none"></div></div>
+      <div class="view" id="v1" style="display:none"><svg></svg><div class="vlab"></div><div class="none"></div></div>
+    </div>
+    <div id="grid"><div id="gbar"></div><div id="gcells"></div></div>
+    <div id="strip"></div>
+  </section>
+  <aside id="side">
+    <div class="rhead" id="rhead"></div>
+    <div class="sect" id="tagSect"><div class="t">텍틱 이름 <em>모아 보기(G)에서 걸러 보기 · 같은 이름 탭으로 보냄</em></div><input id="tagIn" list="tagList" placeholder="예: A 스플릿 · B 러시 · 미드 컨트롤" autocomplete="off"><div id="tagQuick"></div>
+      <button class="btn pri" id="tacAll" style="margin-top:8px;width:100%" title="이 라운드의 장면·스크린샷을 한 번에 텍틱 시트로 — 그림마다 새 단계(N단계) + 그 그림 메모">📋 이 라운드 그림 한 번에 텍틱 시트로</button></div>
+    <div class="sect"><div class="t">라운드 메모 <em>자동 저장 · 보드와 같은 칸</em></div><textarea id="note" placeholder="이 라운드에서 본 것 — 셋업·유틸 순서·미드라운드 노림 (PPT 라운드 장 설명 칸으로 감)"></textarea></div>
+    <div class="sect" id="itemSect">
+      <div class="t">고른 그림</div>
+      <div class="ihead" id="iLab"></div>
+      <textarea id="iMemo" placeholder="이 그림 메모"></textarea>
+      <label class="chk" id="iPptRow"><input type="checkbox" id="iPpt"> PPT에 넣기</label>
+      <div class="info" id="iInfo"></div>
+      <div class="acts">
+        <button class="btn" id="iTac" title="고른 그림 한 장만 텍틱 시트의 고른 단계 옆에">📋 이 그림만 텍틱 시트로</button>
+        <button class="btn" id="iEdit">보드 편집</button>
+        <button class="btn" id="iMm">🗺 미니맵으로 쓰기</button>
+        <button class="btn" id="iPrev" title="이 장면을 앞 라운드로 옮기기">◀ 앞 라운드로</button>
+        <button class="btn" id="iNext" title="이 장면을 뒤 라운드로 옮기기">뒤 라운드로 ▶</button>
+        <button class="btn" id="iDel" title="이 스크린샷 지우기 (Delete) — 지운 뒤 '되돌리기'로 살릴 수 있어요">🗑 스크린샷 지우기</button>
+      </div>
+      <div id="mmPick"></div>
+      <div class="sent" id="iSent"></div>
+    </div>
+    <div class="keys"><span><b>↑↓</b> 라운드</span><span><b>←→</b> 그림</span><span><b>Ctrl+V</b> 스크린샷 붙이기</span><span><b>D</b> 두 장 나란히</span><span><b>G</b> 모아 보기</span><span><b>Ctrl+Z</b> 되돌리기</span><span><b>Delete</b> 고른 것 지우기</span></div>
+    <div id="msg"></div>
+  </aside>
+</main>
+<input type="text" id="txtIn" placeholder="글자 입력 후 Enter">
+<datalist id="tagList"></datalist>
+<input type="file" id="picFile" accept="image/*" multiple hidden>
+<script src="names.js"></script>
+<script src="net.js"></script>
+<script src="mapreg.js"></script>
+<script src="scenes-util.js"></script>
+<script src="ann.js"></script>
+<script src="tactic.js"></script>
+<script src="analyze.js"></script>
+</body></html>

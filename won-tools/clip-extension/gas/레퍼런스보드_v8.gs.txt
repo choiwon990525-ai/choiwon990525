@@ -1,0 +1,494 @@
+/* ===== 라운드 보드 → 조합 레퍼런스 (장면 캡처 도구 확장과 연결) =====
+   - 확장의 보드 화면에서 "시트로 보내기"를 누르면 doPost로 들어옴
+   - 보드 그림은 드라이브 "조합 레퍼런스 보드/<맵>/<팀 vs 팀>" 폴더에 저장
+   - '레퍼런스 보드' 탭에 경기×맵×팀 한 줄 (조합·상대·스코어·대회·날짜·정리 슬라이드·보드 링크) — 최신 경기 순, 조합·팀 필터
+   - 경기×맵마다 '정리 슬라이드'(구글 슬라이드 틀)를 한 번 만들어 둠: 표지 / 팀별 수비 셋업·공격 기본 틀·미드라운드 / 핵심 라운드 / 코치 해석
+     코치는 빈 칸만 채우면 됨. 다시 보내도 슬라이드는 덮어쓰지 않음(코치가 쓴 내용 보호)
+   - _data 탭은 읽기만 함(대회·날짜 찾기) — 다른 자동화가 다시 쓰는 탭
+   - v8: 코치 장면(영상 보며 S로 찍은 스샷+메모)을 라운드마다 받아 → 드라이브 R07_S009.jpg, 보기 페이지 라운드 아래, 정리 슬라이드 라운드 장 바로 뒤 '코치 장면' 장
+   처음 한 번: setupBoard() 실행 → 권한 허용 → 배포(웹 앱, 나로 실행, 모든 사용자) */
+
+const BOARD_SHEET_ID = '1qWUYBYoxLdzCXmmVG1rMeqKJ6y1gd0X9eUveR6ScBxU';   // VCT 2026 맵별 조합 (1티어)
+function ss_() { return SpreadsheetApp.openById(BOARD_SHEET_ID); }
+const BOARD_TAB = '레퍼런스 보드';
+const BOARD_CFG_TAB = '_설정';
+const BOARD_ROOT = '조합 레퍼런스 보드';
+// 배포(웹 앱) 주소 — 편집기에서 getUrl()은 /dev 주소를 돌려줘서 고정해 둠
+const BOARD_EXEC_URL = 'https://script.google.com/macros/s/AKfycbx-kzDyKWyLhBbQacq1KHkR8eDTduB90v3YZfrvANZ0eDY7-SZZJ0stCAZxPWZWCZQU/exec';
+function execUrl_() { return BOARD_EXEC_URL || ScriptApp.getService().getUrl(); }
+
+function setupBoard() {
+  const props = PropertiesService.getScriptProperties();
+  let token = props.getProperty('BOARD_TOKEN');
+  if (!token) { token = Utilities.getUuid().replace(/-/g, '').slice(0, 20); props.setProperty('BOARD_TOKEN', token); }
+  const ss = ss_();
+  let cfg = ss.getSheetByName(BOARD_CFG_TAB);
+  if (!cfg) { cfg = ss.insertSheet(BOARD_CFG_TAB); cfg.hideSheet(); }
+  cfg.getRange(1, 1, 3, 2).setValues([['key', 'value'], ['boardToken', token], ['boardUrl', execUrl_() || '(배포 후 다시 실행)']]);
+  boardSheet_();
+  DriveApp.getRootFolder();   // 드라이브 권한 요청용
+  if (false) SlidesApp.create('권한 요청용');   // 구글 슬라이드 권한 요청용 (정리 슬라이드 만들기)
+  return token;
+}
+
+const COLS = ['맵', '팀', '조합', '상대', '상대 조합', '스코어', '대회', '경기 날짜', '정리', '공격 보드', '수비 보드', '전체', '영상', '갱신', 'key'];
+const NC = COLS.length, KEYCOL = NC;
+function boardSheet_() {
+  const ss = ss_();
+  let sh = ss.getSheetByName(BOARD_TAB);
+  if (!sh) sh = ss.insertSheet(BOARD_TAB);
+  const head = sh.getLastRow() ? sh.getRange(1, 1, 1, Math.max(1, sh.getLastColumn())).getValues()[0] : [];
+  if (head.join('|') !== COLS.join('|')) {   // 옛 열 순서 → 새 열 순서로 옮기기 (링크 수식 유지)
+    const n = sh.getLastRow() - 1, w = Math.max(1, sh.getLastColumn());
+    const vals = n > 0 ? sh.getRange(2, 1, n, w).getValues() : [], fx = n > 0 ? sh.getRange(2, 1, n, w).getFormulas() : [];
+    const rows = vals.map((r, i) => COLS.map(c => { const j = head.indexOf(c); return j < 0 ? '' : (fx[i][j] || r[j]); }));
+    sh.clear(); const f = sh.getFilter(); if (f) f.remove();
+    sh.getRange(1, 1, 1, NC).setValues([COLS]);
+    if (rows.length) sh.getRange(2, 1, rows.length, NC).setValues(rows);
+    try { sh.showColumns(1, Math.max(NC, w)); } catch (x) {}
+    sh.setFrozenRows(1);
+    sh.getRange(1, 1, 1, NC).setFontWeight('bold').setBackground('#132D65').setFontColor('#FFFFFF');
+    sh.setColumnWidth(3, 250); sh.setColumnWidth(5, 250); sh.setColumnWidth(9, 110);
+    sh.hideColumns(KEYCOL);
+  }
+  return sh;
+}
+/* 최신 경기 순으로 정렬 + 조합·팀 등으로 거를 수 있게 필터 */
+function tidySheet_(sh) {
+  const n = sh.getLastRow() - 1; if (n < 1) return;
+  const f = sh.getFilter(); if (f) f.remove();
+  sh.getRange(2, 1, n, NC).sort([{ column: 8, ascending: false }, { column: KEYCOL, ascending: true }]);
+  sh.getRange(1, 1, n + 1, NC).createFilter();
+}
+const normComp_ = (agents) => (agents || []).filter(Boolean).slice().sort().join(' / ');   // 같은 조합이면 글자까지 같게(필터용)
+/* _data 탭(읽기만)에서 이 경기의 대회·날짜 찾기 */
+function matchInfo_(d) {
+  try {
+    const sh = ss_().getSheetByName('_data'); if (!sh) return {};
+    const v = sh.getDataRange().getValues(), H = v[0], ix = (k) => H.indexOf(k);
+    const A = d.teams.A.name, B = d.teams.B.name;
+    let best = null;
+    for (let i = 1; i < v.length; i++) {
+      const r = v[i];
+      if (r[ix('map')] !== d.mapName || r[ix('team')] !== A || r[ix('opp')] !== B) continue;
+      const hitVid = String(r[ix('yt')] || '').indexOf(d.vid) >= 0;
+      const raw = r[ix('date')], m = /(\d{4})-(\d{1,2})-(\d{1,2})/.exec(String(raw));
+      const dt = raw instanceof Date ? raw : m ? new Date(+m[1], +m[2] - 1, +m[3], 12) : new Date(NaN);
+      const cand = { stage: r[ix('stage')] || '', region: r[ix('eventRegion')] || '', date: isNaN(dt) ? null : dt, patch: r[ix('patch')] || '', hit: hitVid };
+      if (!best || (cand.hit && !best.hit) || (cand.hit === best.hit && cand.date && (!best.date || cand.date > best.date))) best = cand;
+    }
+    return best || {};
+  } catch (x) { return {}; }
+}
+
+function folderPath_(names) {
+  let f = DriveApp.getRootFolder();
+  for (const n of names) { const it = f.getFoldersByName(n); f = it.hasNext() ? it.next() : f.createFolder(n); }
+  return f;
+}
+
+function doPost(e) {
+  try {
+    const d = JSON.parse(e.postData.contents);
+    const token = PropertiesService.getScriptProperties().getProperty('BOARD_TOKEN');
+    if (!token || d.token !== token) return json_({ ok: false, err: '토큰이 맞지 않아요' });
+    if (d.kind === 'scan') return json_(writeScans_(d.scans || [], d.drop || []));
+    const A = d.teams.A, B = d.teams.B;
+    const folder = folderPath_([BOARD_ROOT, d.mapName || '맵', (A.name || 'A') + ' vs ' + (B.name || 'B') + ' [' + d.vid + ' 맵' + d.mapIdx + ']']);
+    // 이전 기록 (합치기 · 장면 그림 재사용) — data.json은 새로 쓰기 직전에 지움
+    const dataName = 'data.json'; let prev = { rounds: [] }, prevFile = null;
+    const df = folder.getFilesByName(dataName);
+    if (df.hasNext()) { prevFile = df.next(); try { prev = JSON.parse(prevFile.getBlob().getDataAsString()); } catch (x) {} }
+    const prevScn = {}; (prev.rounds || []).forEach(r => (r.scenes || []).forEach(sc => { if (sc.file && sc.md5) prevScn[sc.md5] = sc.file; }));
+    const keepScn = {};
+    // 그림 저장 (같은 이름이면 교체)
+    const rounds = [];
+    for (const r of d.rounds) {
+      const shots = {};
+      for (const k of Object.keys(r.images || {})) {
+        const lab = k === '140' ? '투명벽' : k === '130' ? String(r.lab130 || '1:30') : '1:00';
+        const name = 'R' + ('0' + r.n).slice(-2) + '_' + lab.replace(':', '-') + '.jpg';
+        const old = folder.getFilesByName(name); while (old.hasNext()) old.next().setTrashed(true);
+        const b64 = r.images[k].split(',')[1];
+        const f = folder.createFile(Utilities.newBlob(Utilities.base64Decode(b64), 'image/jpeg', name));
+        shots[k] = f.getId();
+      }
+      const row = { n: r.n, sL: r.sL, sR: r.sR, win: r.win || null, t: r.t, t0: r.t0 != null ? r.t0 : null, notes: r.notes || {}, shots, def: r.def || null, lab130: r.lab130 || '1:30', lab140: r.lab140 || '투명벽', lab100: r.lab100 || '1:00' };
+      // 🎬 코치 장면: 보낸 경우에만 바꿈 (같은 그림이면 드라이브 파일 그대로)
+      if (Array.isArray(r.scenes)) {
+        row.scenes = r.scenes.map(sc => {
+          const o = { seq: String(sc.seq), sec: Math.floor(sc.sec || 0), memo: String(sc.memo || ''), raw: String(sc.raw || ''), file: null, md5: null };
+          if (sc.img) {
+            const bytes = Utilities.base64Decode(String(sc.img).split(',')[1]);
+            o.md5 = Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, bytes).map(b => ((b + 256) % 256).toString(16).padStart(2, '0')).join('');
+            let fid = prevScn[o.md5] || null;
+            if (fid) { try { if (DriveApp.getFileById(fid).isTrashed()) fid = null; } catch (x) { fid = null; } }
+            if (!fid) fid = folder.createFile(Utilities.newBlob(bytes, 'image/jpeg', 'R' + ('0' + r.n).slice(-2) + '_S' + o.seq.replace(/[^\w-]/g, '_') + '.jpg')).getId();
+            o.file = fid; keepScn[fid] = true;
+          }
+          return o;
+        });
+      }
+      rounds.push(row);
+    }
+    // 이전 기록과 합치기 (보낸 라운드만 바뀜)
+    if (prevFile) prevFile.setTrashed(true);
+    const byN = {}; (prev.rounds || []).forEach(r => byN[r.n] = r);
+    const meta = matchInfo_(d);
+    rounds.forEach(r => { byN[r.n] = Object.assign({}, byN[r.n] || {}, r, { shots: Object.assign({}, (byN[r.n] || {}).shots || {}, r.shots) }); });
+    const all = Object.values(byN).sort((a, b) => a.n - b.n);
+    // 안 쓰게 된 장면 그림(다른 라운드로 옮겨 새로 만든 것·지운 장면)은 휴지통
+    const usedScn = {}; all.forEach(r => (r.scenes || []).forEach(sc => { if (sc.file) usedScn[sc.file] = true; }));
+    Object.values(prevScn).forEach(fid => { if (!usedScn[fid]) { try { DriveApp.getFileById(fid).setTrashed(true); } catch (x) {} } });
+    const data = { vid: d.vid, title: d.title, mapIdx: d.mapIdx, mapName: d.mapName, mapLabel: d.mapLabel || '', teams: d.teams, firstDef: d.firstDef, left: d.left || prev.left || null, final: d.final || '', rounds: all,
+      stage: meta.stage || '', date: meta.date ? Utilities.formatDate(meta.date, 'Asia/Seoul', 'yyyy-MM-dd') : '', deck: prev.deck || null, updated: new Date().toISOString() };
+    // 정리 슬라이드: 라운드마다 한 장. 처음엔 새로 만들고, 다음부터는 빠진 라운드만 끼워 넣고 바뀐 그림만 갈아 끼움 (코치가 쓴 설명은 그대로)
+    let deckOk = false;
+    if (data.deck && data.deck.id && data.deck.v === 2) { try { deckOk = !DriveApp.getFileById(data.deck.id).isTrashed(); } catch (x) {} }
+    try { data.deck = deckOk ? syncDeck_(data, folder) : makeDeck_(data, d.icons || {}, folder); } catch (x) { data.deckErr = String(x && x.message || x); }
+    try { if (data.deck && data.deck.id) syncMemos_(data); } catch (x) { data.deckErr = (data.deckErr ? data.deckErr + ' / ' : '') + '메모: ' + String(x && x.message || x); }
+    folder.createFile(Utilities.newBlob(JSON.stringify(data), 'application/json', dataName));
+    // 시트 줄: 팀마다 한 줄 (공격 보드 / 수비 보드 링크)
+    const base = execUrl_() + '?id=' + folder.getId();
+    const sh = boardSheet_();
+    const yt = 'https://www.youtube.com/watch?v=' + d.vid + (d.mapStart ? '&t=' + d.mapStart + 's' : '');
+    const last = sh.getLastRow();
+    const keys = last > 1 ? sh.getRange(2, KEYCOL, last - 1, 1).getValues().map(x => x[0]) : [];
+    const cnt = (t, side) => all.filter(r => r.def && ((side === 'def') === (r.def === t))).length;
+    for (const t of ['A', 'B']) {
+      const me = d.teams[t], op = d.teams[t === 'A' ? 'B' : 'A'];
+      const key = d.vid + ':' + d.mapIdx + ':' + t;
+      let row = keys.indexOf(key) + 2; if (row < 2) { row = sh.getLastRow() + 1; keys.push(key); }
+      const score = t === 'A' ? (d.final || '') : String(d.final || '').split(' : ').reverse().join(' : ');
+      const deckLink = data.deck ? '=HYPERLINK("' + data.deck.url + '","정리 슬라이드")' : '';
+      sh.getRange(row, 1, 1, NC).setValues([[d.mapName || '', me.name || '', normComp_(me.agents), op.name || '', normComp_(op.agents), score,
+        [meta.stage, meta.region].filter(Boolean).join(' · '), meta.date || '', deckLink,
+        '=HYPERLINK("' + base + '&team=' + t + '&side=atk","공격 ' + cnt(t, 'atk') + '라운드")', '=HYPERLINK("' + base + '&team=' + t + '&side=def","수비 ' + cnt(t, 'def') + '라운드")',
+        '=HYPERLINK("' + base + '","전체")', '=HYPERLINK("' + yt + '","영상")', new Date(), key]]);
+    }
+    if (meta.date) sh.getRange(2, 8, sh.getLastRow() - 1, 1).setNumberFormat('yyyy-mm-dd');
+    tidySheet_(sh);
+    const url = base;
+    // _data 탭은 다른 자동화(VLR 수집)가 다시 쓰므로 건드리지 않음 — 링크는 '레퍼런스 보드' 탭에만
+    return json_({ ok: true, url, folder: folder.getUrl(), rounds: all.length, scenes: all.reduce((a, r) => a + (r.scenes || []).length, 0), deck: data.deck ? data.deck.url : null, deckErr: data.deckErr || null });
+  } catch (err) {
+    return json_({ ok: false, err: String(err && err.message || err) });
+  }
+}
+
+/* 스캔 기록: 확장이 '라운드 자동 찾기'를 마치면(또는 켜질 때 한꺼번에) 보냄 → 숨김 '_스캔' 탭에 영상×맵 한 줄
+   🏆 챔피언스 탭 '미니맵' 칸이 이 탭을 찾아 '🗂 23R' 링크를 만듦 */
+const SCAN_TAB = '_스캔', SCAN_COLS = ['key', 'vid', 'map', 'rounds', 'gone', 'no125', 'mapName', 'title', 'updated'];
+function writeScans_(scans, drop) {
+  const ss = ss_();
+  let sh = ss.getSheetByName(SCAN_TAB);
+  if (!sh) { sh = ss.insertSheet(SCAN_TAB); sh.hideSheet(); }
+  if (sh.getLastRow() === 0) sh.getRange(1, 1, 1, SCAN_COLS.length).setValues([SCAN_COLS]);
+  // drop: 지울 영상 ID들 (시험 기록·지운 영상)
+  if (drop && drop.length && sh.getLastRow() > 1) {
+    const vids = sh.getRange(2, 2, sh.getLastRow() - 1, 1).getValues();
+    for (let i = vids.length - 1; i >= 0; i--) if (drop.indexOf(String(vids[i][0])) >= 0) sh.deleteRow(i + 2);
+  }
+  const last = sh.getLastRow();
+  const keys = last > 1 ? sh.getRange(2, 1, last - 1, 1).getValues().map(x => String(x[0])) : [];
+  let n = 0;
+  for (const sc of scans) for (const mp of (sc.maps || [])) {
+    const key = sc.vid + ':' + mp.m;
+    let row = keys.indexOf(key) + 2; if (row < 2) { row = sh.getLastRow() + 1; keys.push(key); }
+    sh.getRange(row, 1, 1, SCAN_COLS.length).setValues([[key, sc.vid, mp.m, mp.rounds, (mp.gone || []).map(x => 'R' + x).join(', '), mp.no125 || 0, mp.name || '', sc.title || '', new Date(sc.updated || Date.now())]]);
+    n++;
+  }
+  return { ok: true, maps: n };
+}
+
+/* _data 탭: 같은 영상(yt에 영상 ID)이고 팀 이름이 같은 줄에 board 링크 */
+function linkData_(d, url) {
+  const sh = ss_().getSheetByName('_data'); if (!sh) return;
+  const v = sh.getDataRange().getValues(); const H = v[0];
+  const iy = H.indexOf('yt'), it = H.indexOf('team'), im = H.indexOf('map');
+  let ib = H.indexOf('board'); if (ib < 0) { ib = H.length; sh.getRange(1, ib + 1).setValue('board'); }
+  const names = [d.teams.A.name, d.teams.B.name];
+  for (let i = 1; i < v.length; i++) {
+    if (String(v[i][iy]).indexOf(d.vid) < 0) continue;
+    if (d.mapName && v[i][im] !== d.mapName) continue;
+    const ti = names.indexOf(v[i][it]); if (ti < 0) continue;
+    sh.getRange(i + 1, ib + 1).setValue(url + '&team=' + (ti === 0 ? 'A' : 'B'));
+  }
+}
+
+function json_(o) { return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); }
+
+/* 보기 페이지 */
+function doGet(e) {
+  const id = e && e.parameter && e.parameter.id;
+  const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const css = '<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet"><style>' +
+    ':root{--navy:#132D65;--navy2:#1C3B7A;--blue:#4A88C7;--sky:#BDD9F2;--ice:#EAF2FA;--bg:#F5F7FA;--body:#3C4A63;--mute:#7A879C;--def:#3FB8B0;--atk:#D0504A}' +
+    'body{font-family:"Noto Sans KR",sans-serif;background:var(--bg);color:var(--body);margin:0}a{color:var(--blue);text-decoration:none;font-weight:700}' +
+    '.top{background:var(--navy);color:#fff;padding:18px 22px 16px;clip-path:polygon(0 0,100% 0,100% 72%,96% 100%,0 100%)}.top h1{font-size:22px;margin:0 0 6px}.top .sub{color:var(--sky)}.top a{color:var(--sky)}' +
+    '.w{padding:6px 22px 30px}.sub{color:var(--mute);font-size:13px;line-height:1.6}.en{font-family:Poppins,"Noto Sans KR",sans-serif}' +
+    '.r{display:grid;grid-template-columns:96px repeat(3,1fr) 1.1fr;gap:12px;background:#fff;border-left:5px solid var(--navy);padding:12px;margin:12px 0}.r.def{border-left-color:var(--def)}.r.atk{border-left-color:var(--atk)}' +
+    '.r img{width:100%;display:block}.cap{font-size:11px;color:var(--mute);text-align:center;margin-top:3px}.n{font-size:22px;font-weight:700;color:var(--navy)}.lab{font-size:11px;color:var(--blue);font-weight:700;margin-top:8px}.nt{white-space:pre-wrap;line-height:1.5;font-size:13px}' +
+    '.half{color:#fff;background:var(--navy2);display:inline-block;margin:20px 0 0;padding:4px 18px 4px 10px;font-size:12px;clip-path:polygon(0 0,100% 0,92% 100%,0 100%)}' +
+    '.sc{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;background:#fff;border-left:5px solid var(--sky);padding:12px;margin:-8px 0 12px}.sc img{width:100%;display:block}.sc .nt{margin-top:6px}' +
+    'table{border-collapse:collapse;width:100%;background:#fff}td,th{border-bottom:1px solid var(--ice);padding:9px;text-align:left;font-size:13px}th{background:var(--ice);color:var(--navy)}@media(max-width:900px){.r{grid-template-columns:1fr 1fr}}</style>';
+  if (!id) {
+    const sh = ss_().getSheetByName(BOARD_TAB);
+    const v = sh ? sh.getDataRange().getValues().slice(1) : [];
+    const link = (f) => { const m = /HYPERLINK\("([^"]+)","([^"]+)"\)/.exec(String(f)); return m ? '<a href="' + esc(m[1]) + '" target="_top">' + esc(m[2]) + '</a>' : ''; };
+    const fx = sh ? sh.getRange(2, 1, Math.max(1, v.length), NC).getFormulas() : [];
+    let h = '<div class="top"><h1>조합 레퍼런스 보드</h1><div class="sub">최신 경기 순</div></div><div class="w"><table><tr><th>맵</th><th>팀 · 조합</th><th>상대</th><th>스코어</th><th>대회 · 날짜</th><th>정리 · 보드</th></tr>';
+    v.forEach((r, i) => { const f = fx[i] || []; const dt = r[7] instanceof Date ? Utilities.formatDate(r[7], 'Asia/Seoul', 'yyyy-MM-dd') : esc(r[7]);
+      h += '<tr><td>' + esc(r[0]) + '</td><td class="en">' + esc(r[1]) + '<br><span class="sub">' + esc(r[2]) + '</span></td><td class="en">' + esc(r[3]) + '</td><td class="en">' + esc(r[5]) + '</td><td>' + esc(r[6]) + '<br><span class="sub">' + dt + '</span></td><td>' + [link(f[8]), link(f[9]), link(f[10]), link(f[11])].filter(Boolean).join(' · ') + '</td></tr>'; });
+    return HtmlService.createHtmlOutput(css + h + '</table></div>').setTitle('조합 레퍼런스 보드');
+  }
+  const folder = DriveApp.getFolderById(id);
+  const df = folder.getFilesByName('data.json');
+  if (!df.hasNext()) return HtmlService.createHtmlOutput(css + '보드가 아직 없어요');
+  const d = JSON.parse(df.next().getBlob().getDataAsString());
+  const img = (fid) => { if (!fid) return ''; try { const b = DriveApp.getFileById(fid).getBlob(); return 'data:' + b.getContentType() + ';base64,' + Utilities.base64Encode(b.getBytes()); } catch (x) { return ''; } };
+  const yt = (t) => 'https://www.youtube.com/watch?v=' + d.vid + '&t=' + Math.max(0, Math.floor(t || 0)) + 's';
+  const A = d.teams.A, B = d.teams.B;
+  const fteam = e.parameter.team, fside = e.parameter.side;   // 예: team=A&side=atk → A팀이 공격한 라운드만
+  const sideName = (r, t) => !r.def ? '' : (r.def === t ? '수비' : '공격');
+  const ml = esc(d.mapLabel || d.mapName);
+  const title = fteam ? esc(d.teams[fteam].name) + (fside ? (fside === 'atk' ? ' 공격' : ' 수비') : '') + ' · ' + ml + ' (상대 ' + esc(d.teams[fteam === 'A' ? 'B' : 'A'].name) + ')' : ml + ' · ' + esc(A.name) + ' vs ' + esc(B.name);
+  const base = execUrl_() + '?id=' + id;
+  let h = '<div class="top"><h1>' + title + '</h1><div class="sub"><span class="en">' + esc(A.name) + '</span> ' + esc((A.agents || []).join(' / ')) + '<br><span class="en">' + esc(B.name) + '</span> ' + esc((B.agents || []).join(' / ')) +
+    '<br>' + [esc(d.stage), esc(d.date), d.final ? esc(A.name + ' ' + d.final + ' ' + B.name) : ''].filter(Boolean).join(' · ') + '<br><a href="' + yt(0) + '" target="_blank">유튜브 영상</a>' + (d.deck ? ' · <a href="' + d.deck.url + '" target="_blank">정리 슬라이드</a>' : '') +
+    (fteam ? ' · <a href="' + base + '&team=' + fteam + '&side=atk">공격</a> · <a href="' + base + '&team=' + fteam + '&side=def">수비</a> · <a href="' + base + '">전체</a>' : '') + '</div></div><div class="w">';
+  const list = d.rounds.filter(r => !fteam || !fside || !r.def || ((fside === 'def') === (r.def === fteam)));
+  let prevHalf = null;
+  for (const r of list) {
+    const half = r.n <= 12 ? '전반' : r.n <= 24 ? '후반' : '연장';
+    if (half !== prevHalf) { h += '<br><div class="half">' + half + (r.def ? ' — ' + esc(d.teams[r.def].name) + ' 수비 · ' + esc(d.teams[r.def === 'A' ? 'B' : 'A'].name) + ' 공격' : '') + '</div>'; prevHalf = half; }
+    const n = r.notes || {};
+    const pic = (k, lab) => r.shots && r.shots[k] ? '<div><img src="' + img(r.shots[k]) + '"><div class="cap">' + esc(lab) + '</div></div>' : '<div class="cap">' + esc(lab) + ' 보드 없음</div>';
+    const cls = fteam && r.def ? (r.def === fteam ? ' def' : ' atk') : '';
+    h += '<div class="r' + cls + '"><div><div class="n en">R' + r.n + '</div>' + (fteam ? '<div class="lab">' + sideName(r, fteam) + '</div>' : '') + '<div class="sub">' + esc(r.sL) + ' : ' + esc(r.sR) + '</div><a href="' + yt(r.t) + '" target="_blank">▶ 영상</a></div>' + pic('140', r.lab140 || '투명벽') + pic('130', r.lab130 || '1:30') + pic('100', r.lab100 || '1:00') +
+      (n.memo != null ? '<div><div class="lab">메모</div><div class="nt" style="white-space:pre-wrap">' + esc(n.memo) + '</div></div></div>'
+        : '<div><div class="lab">스타팅 포인트</div><div class="nt">' + esc(n.start) + '</div><div class="lab">스킬</div><div class="nt">' + esc(n.skill) + '</div><div class="lab">미드라운드 노림</div><div class="nt">' + esc(n.mid) + '</div></div></div>');
+    if (r.scenes && r.scenes.length) {
+      h += '<div class="sc">' + r.scenes.map(sc => '<div>' + (sc.file ? '<a href="' + yt(sc.sec - 2) + '" target="_blank"><img src="' + img(sc.file) + '"></a>' : '') +
+        '<div class="lab">🎬 코치 장면 ' + esc(sc.seq) + ' · <a href="' + yt(sc.sec - 2) + '" target="_blank">' + fmtT_(sc.sec) + '</a></div><div class="nt">' + esc(sc.memo) + '</div></div>').join('') + '</div>';
+    }
+  }
+  return HtmlService.createHtmlOutput(css + h + '</div>').setTitle((d.mapLabel || d.mapName) + ' ' + A.name + ' vs ' + B.name).addMetaTag('viewport', 'width=device-width, initial-scale=1');
+}
+
+/* ---------- 정리 슬라이드 (프로젝트 디자인 가이드: 남색·파랑, 사선 컷, Noto Sans KR + Poppins) ---------- */
+const C_ = { NAVY: '#132D65', NAVY2: '#1C3B7A', BLUE: '#4A88C7', SKY: '#BDD9F2', ICE: '#EAF2FA', WHITE: '#FFFFFF', BG: '#F5F7FA', BODY: '#3C4A63', MUTE: '#7A879C', DEF: '#3FB8B0', ATK: '#D0504A' };
+function shape_(sl, type, x, y, w, h, color) { const s = sl.insertShape(type, x, y, w, h); s.getFill().setSolidFill(color); s.getBorder().setTransparent(); return s; }
+function rect_(sl, x, y, w, h, color) { return shape_(sl, SlidesApp.ShapeType.RECTANGLE, x, y, w, h, color); }
+function txt_(sl, str, x, y, w, h, o) {
+  o = o || {};
+  const t = sl.insertTextBox(str || ' ', x, y, w, h);
+  const r = t.getText(), st = r.getTextStyle();
+  st.setFontFamily(o.font || 'Noto Sans KR').setFontSize(o.size || 11).setForegroundColor(o.color || C_.BODY).setBold(!!o.bold);
+  if (o.align) r.getParagraphStyle().setParagraphAlignment(o.align);
+  if (o.link) st.setLinkUrl(o.link);
+  return t;
+}
+function dots_(sl, x, y, cols, rows, color) { for (let i = 0; i < cols; i++) for (let j = 0; j < rows; j++) shape_(sl, SlidesApp.ShapeType.ELLIPSE, x + i * 9, y + j * 9, 3, 3, color); }
+function band_(sl, W, H) { rect_(sl, 0, H - 8, W * 0.66, 8, C_.NAVY); shape_(sl, SlidesApp.ShapeType.PARALLELOGRAM, W * 0.64, H - 8, W * 0.36 + 4, 8, C_.BLUE); }
+function fileBlob_(fid) { try { return DriveApp.getFileById(fid).getBlob(); } catch (x) { return null; } }
+
+const clockSec_ = (lab) => { const m = /(\d):(\d\d)/.exec(String(lab || '')); return m ? +m[1] * 60 + +m[2] : null; };
+const SHOTS_ = [['140', '투명벽'], ['130', '1:25'], ['100', '1:00']];
+function makeDeck_(data, icons, folder) {
+  const A = data.teams.A, B = data.teams.B;
+  const label = data.mapLabel || data.mapName || '맵';
+  const pres = SlidesApp.create('[정리] ' + label + ' ' + A.name + ' vs ' + B.name + (data.date ? ' · ' + data.date : ''));
+  DriveApp.getFileById(pres.getId()).moveTo(folder);
+  const W = pres.getPageWidth(), H = pres.getPageHeight();
+  const first = pres.getSlides()[0];
+  const CENTER = SlidesApp.ParagraphAlignment.CENTER;
+  const viewer = execUrl_() + '?id=' + folder.getId();
+  const iconBlob = (a) => { const u = icons[a]; if (!u) return null; try { return Utilities.newBlob(Utilities.base64Decode(u.split(',')[1]), 'image/png', a + '.png'); } catch (x) { return null; } };
+
+  /* 표지 (남색) */
+  const cv = pres.appendSlide(SlidesApp.PredefinedLayout.BLANK); cv.getBackground().setSolidFill(C_.NAVY);
+  rect_(cv, 40, 44, 150, 22, C_.BLUE); txt_(cv, label, 40, 44, 150, 22, { size: 11, bold: true, color: C_.WHITE, align: CENTER });
+  txt_(cv, A.name, 36, 78, 360, 40, { font: 'Poppins', size: 28, bold: true, color: C_.WHITE });
+  txt_(cv, 'vs  ' + B.name, 36, 116, 360, 40, { font: 'Poppins', size: 28, bold: true, color: C_.SKY });
+  txt_(cv, [data.stage, data.date, data.final ? A.name + ' ' + data.final + ' ' + B.name : ''].filter(Boolean).join('  ·  '), 38, 162, 360, 20, { size: 11, color: C_.SKY });
+  [['A', 206], ['B', 262]].forEach(([t, y]) => {
+    const T = data.teams[t];
+    txt_(cv, T.name, 38, y, 200, 18, { font: 'Poppins', size: 10, bold: true, color: C_.SKY });
+    (T.agents || []).forEach((a, i) => { const b = iconBlob(a); if (b) cv.insertImage(b, 40 + i * 36, y + 20, 30, 30); else txt_(cv, a, 40 + i * 60, y + 22, 58, 20, { size: 9, color: C_.WHITE }); });
+  });
+  txt_(cv, '영상 보기 →', 38, 336, 110, 20, { size: 11, bold: true, color: C_.SKY, link: ytAt_(data, 0) });
+  txt_(cv, '라운드 보드 전체 →', 150, 336, 150, 20, { size: 11, bold: true, color: C_.SKY, link: viewer });
+  txt_(cv, '라운드마다 한 장 · 미니맵을 누르면 그 시점 영상', 400, 336, 290, 20, { size: 9, color: C_.SKY });
+  const cs = data.rounds.map(r => r.shots && (r.shots['140'] || r.shots['130'])).find(Boolean);
+  if (cs) { const b = fileBlob_(cs); if (b) { cv.insertImage(b, 420, 40, 270, 270); shape_(cv, SlidesApp.ShapeType.RIGHT_TRIANGLE, 420, 256, 54, 54, C_.NAVY); } }
+  shape_(cv, SlidesApp.ShapeType.RIGHT_TRIANGLE, W - 90, 0, 90, 90, C_.NAVY2).setRotation(180);
+  dots_(cv, 40, H - 40, 6, 3, C_.NAVY2);
+  first.remove();
+
+  const deck = { v: 2, id: pres.getId(), url: 'https://docs.google.com/presentation/d/' + pres.getId() + '/edit', slides: {}, imgs: {} };
+  data.rounds.forEach(r => roundSlide_(pres, pres.getSlides().length, data, r, deck));
+  syncScenes_(pres, data, deck);
+  pres.saveAndClose();
+  return deck;
+}
+const fmtT_ = (s) => { s = Math.max(0, Math.floor(s || 0)); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60; return (h ? h + ':' + ('0' + m).slice(-2) : m) + ':' + ('0' + x).slice(-2); };
+const ytAt_ = (data, sec) => 'https://www.youtube.com/watch?v=' + data.vid + '&t=' + Math.max(0, Math.floor(sec || 0)) + 's';
+/* 라운드 한 장: 제목 줄 + 미니맵 3장(누르면 그 시점 영상) + 설명 칸 */
+function roundSlide_(pres, index, data, r, deck) {
+  const W = pres.getPageWidth(), H = pres.getPageHeight(), CENTER = SlidesApp.ParagraphAlignment.CENTER;
+  const sl = pres.insertSlide(index, SlidesApp.PredefinedLayout.BLANK); sl.getBackground().setSolidFill(C_.WHITE);
+  const A = data.teams.A, B = data.teams.B, other = (t) => t === 'A' ? 'B' : 'A';
+  const t0 = r.t0 != null ? r.t0 : (r.t || 0) + 5;
+  const half = r.n <= 12 ? '전반' : r.n <= 24 ? '후반' : '연장';
+  const sc = data.left === 'B' ? [r.sR, r.sL] : [r.sL, r.sR];
+  shape_(sl, SlidesApp.ShapeType.PARALLELOGRAM, -12, 14, 104, 34, C_.NAVY);
+  txt_(sl, 'R' + r.n, 4, 16, 80, 30, { font: 'Poppins', size: 18, bold: true, color: C_.WHITE, align: CENTER });
+  txt_(sl, half + '  ·  ' + A.name + ' ' + sc[0] + ' : ' + sc[1] + ' ' + B.name, 100, 12, 420, 20, { size: 11, bold: true, color: C_.NAVY });
+  if (r.def) {
+    const d = data.teams[r.def].name, a = data.teams[other(r.def)].name;
+    const tb = txt_(sl, d + ' 수비  ·  ' + a + ' 공격', 100, 30, 420, 18, { size: 10, color: C_.BODY });
+    const rg = tb.getText(); rg.getRange(0, d.length + 3).getTextStyle().setForegroundColor(C_.DEF).setBold(true);
+    const k = rg.asString().indexOf(a + ' 공격'); if (k >= 0) rg.getRange(k, k + a.length + 3).getTextStyle().setForegroundColor(C_.ATK).setBold(true);
+  }
+  txt_(sl, '라운드 영상 →', W - 130, 18, 110, 20, { size: 10, bold: true, color: C_.BLUE, link: ytAt_(data, t0 - 5) });
+  deck.slides[r.n] = sl.getObjectId(); deck.imgs[r.n] = {}; deck.files = deck.files || {}; deck.files[r.n] = {};
+  SHOTS_.forEach(([k, def], i) => {
+    const x = 24 + i * 232, y = 58, S = 208;
+    const lab = k === '140' ? (r.lab140 || def) : k === '130' ? (r.lab130 || def) : (r.lab100 || def);
+    const cs = clockSec_(lab), sec = t0 + (k === '140' ? (cs != null && cs <= 100 ? 100 - cs : 1) : k === '130' ? (cs != null ? 100 - cs : 15) : (cs != null && !/설치/.test(lab) ? 100 - cs : 40));
+    const fid = r.shots && r.shots[k], b = fid ? fileBlob_(fid) : null;
+    if (b) { const im = sl.insertImage(b, x, y, S, S); im.setLinkUrl(ytAt_(data, sec)); deck.imgs[r.n][k] = im.getObjectId(); deck.files[r.n][k] = fid; }
+    else { rect_(sl, x, y, S, S, C_.ICE); txt_(sl, '미니맵 없음', x, y + S / 2 - 10, S, 20, { size: 9, color: C_.MUTE, align: CENTER }); }
+    txt_(sl, (k === '140' ? '오프닝' + (cs != null ? ' ' + lab : '') : lab) + '  →', x, y + S + 2, S, 16, { font: 'Poppins', size: 9, bold: true, color: C_.NAVY, align: CENTER, link: ytAt_(data, sec) });
+  });
+  rect_(sl, 24, 290, 672, 104, C_.ICE); rect_(sl, 24, 290, 5, 104, C_.NAVY);
+  txt_(sl, DESC_HINT_, 38, 296, 650, 92, { size: 10, color: C_.MUTE });
+  return sl;
+}
+const DESC_HINT_ = '설명 — 여기에 적기';
+/* 이미 있는 정리 슬라이드: 빠진 라운드는 끼워 넣고, 그림이 바뀐 칸만 새 그림으로 (설명 칸은 손대지 않음) */
+function syncDeck_(data, folder) {
+  const deck = data.deck, pres = SlidesApp.openById(deck.id);
+  deck.files = deck.files || {};
+  const byId = {}; pres.getSlides().forEach((s, i) => byId[s.getObjectId()] = i);
+  const lastOf = (n) => Math.max.apply(null, [byId[deck.slides[n]]].concat(((deck.scn || {})[n] || { ids: [] }).ids.map(id => byId[id])).filter(x => x != null));   // 라운드 장 + 그 뒤 코치 장면 장 중 마지막
+  for (const r of data.rounds) {
+    if (!deck.slides[r.n] || byId[deck.slides[r.n]] == null) {
+      const before = Object.keys(deck.slides).map(Number).filter(n => n < r.n && byId[deck.slides[n]] != null).sort((a, b) => b - a)[0];
+      const idx = before != null ? lastOf(before) + 1 : 1;
+      roundSlide_(pres, idx, data, r, deck);
+      pres.getSlides().forEach((s, i) => byId[s.getObjectId()] = i);
+      continue;
+    }
+    const sl = pres.getSlideById(deck.slides[r.n]);
+    for (const [k] of SHOTS_) {
+      const fid = r.shots && r.shots[k]; if (!fid || (deck.files[r.n] || {})[k] === fid) continue;
+      const oldId = (deck.imgs[r.n] || {})[k]; let x = 24 + SHOTS_.findIndex(s => s[0] === k) * 232, y = 58, S = 208, link = null;
+      const old = oldId ? sl.getPageElements().find(e => e.getObjectId() === oldId) : null;
+      if (old) { x = old.getLeft(); y = old.getTop(); S = old.getWidth(); try { link = old.asImage().getLink() && old.asImage().getLink().getUrl(); } catch (e) {} old.remove(); }
+      const b = fileBlob_(fid); if (!b) continue;
+      const im = sl.insertImage(b, x, y, S, S); if (link) im.setLinkUrl(link);
+      deck.imgs[r.n] = deck.imgs[r.n] || {}; deck.imgs[r.n][k] = im.getObjectId(); deck.files[r.n] = deck.files[r.n] || {}; deck.files[r.n][k] = fid;
+    }
+  }
+  syncScenes_(pres, data, deck);
+  pres.saveAndClose();
+  return deck;
+}
+
+/* 🎬 코치 장면 장: 라운드 장 바로 뒤, 한 장에 장면 2개(1개면 크게). 그림·메모가 바뀐 라운드만 다시 그림.
+   슬라이드에서 코치가 직접 고친 장면 메모는 다시 그려도 그 글을 씀 (deck.scn[n].memo = 지난번 넣은 글) */
+const SCN_PER_ = 2;
+function syncScenes_(pres, data, deck) {
+  deck.scn = deck.scn || {};
+  const byId = {}; const reidx = () => pres.getSlides().forEach((s, i) => byId[s.getObjectId()] = i); reidx();
+  const allSeq = {}; data.rounds.forEach(r => (r.scenes || []).forEach(sc => allSeq[sc.seq] = true));
+  for (const r of data.rounds) {
+    if (!r.scenes) continue;
+    if (!deck.slides[r.n]) continue;
+    const rs = pres.getSlideById(deck.slides[r.n]); if (!rs) continue;
+    dedupDesc_(rs, allSeq);
+    const old = deck.scn[r.n] || { ids: [], sig: '', memo: {}, boxes: {} };
+    // 슬라이드에서 고친 메모 읽어 두기
+    const edited = Object.assign({}, old.edit || {});   // 예전에 슬라이드에서 고친 것도 계속 지킴
+    old.ids.forEach(id => { const sl = pres.getSlideById(id); if (!sl) return; sl.getPageElements().forEach(e => {
+      const seq = Object.keys(old.boxes || {}).find(q => old.boxes[q] === e.getObjectId()); if (!seq) return;
+      const cur = e.asShape().getText().asString().replace(/\n$/, '').trim(); if (cur !== String((old.memo || {})[seq] || '').trim()) edited[seq] = cur;
+    }); });
+    const scs = r.scenes.map(sc => Object.assign({}, sc, { memo: edited[sc.seq] != null ? edited[sc.seq] : sc.memo }));
+    const sig = JSON.stringify(scs.map(sc => [sc.seq, sc.file, sc.memo]));
+    const alive = old.ids.filter(id => byId[id] != null);
+    if (sig === old.sig && alive.length === old.ids.length) continue;
+    old.ids.forEach(id => { const sl = pres.getSlideById(id); if (sl) sl.remove(); });
+    reidx();
+    const ent = { ids: [], sig, memo: {}, boxes: {}, edit: edited };
+    let at = byId[rs.getObjectId()] + 1;
+    for (let i = 0; i < scs.length; i += SCN_PER_) {
+      const sl = sceneSlide_(pres, at++, data, r, scs.slice(i, i + SCN_PER_), ent, Math.floor(i / SCN_PER_) + 1, Math.ceil(scs.length / SCN_PER_));
+      ent.ids.push(sl.getObjectId());
+    }
+    deck.scn[r.n] = ent;
+    reidx();
+  }
+}
+function sceneSlide_(pres, index, data, r, scs, ent, page, pages) {
+  const W = pres.getPageWidth(), CENTER = SlidesApp.ParagraphAlignment.CENTER;
+  const sl = pres.insertSlide(index, SlidesApp.PredefinedLayout.BLANK); sl.getBackground().setSolidFill(C_.WHITE);
+  shape_(sl, SlidesApp.ShapeType.PARALLELOGRAM, -12, 14, 104, 34, C_.BLUE);
+  txt_(sl, 'R' + r.n, 4, 16, 80, 30, { font: 'Poppins', size: 18, bold: true, color: C_.WHITE, align: CENTER });
+  txt_(sl, '🎬 코치 장면' + (pages > 1 ? '  ' + page + '/' + pages : ''), 100, 12, 420, 20, { size: 11, bold: true, color: C_.NAVY });
+  txt_(sl, '그림이나 시각을 누르면 그 장면 영상', 100, 30, 420, 18, { size: 9, color: C_.MUTE });
+  const one = scs.length === 1;
+  scs.forEach((sc, i) => {
+    const x = one ? 24 : 24 + i * 348, y = 58, w = one ? 440 : 324, h = Math.round(w * 9 / 16);
+    const link = ytAt_(data, sc.sec - 2), b = sc.file ? fileBlob_(sc.file) : null;
+    if (b) { const im = sl.insertImage(b, x, y, w, h); im.setLinkUrl(link); }
+    else { rect_(sl, x, y, w, h, C_.ICE); txt_(sl, '그림 없음', x, y + h / 2 - 10, w, 20, { size: 9, color: C_.MUTE, align: CENTER }); }
+    const mx = one ? 480 : x, my = one ? 58 : y + h + 26, mw = one ? 216 : w, mh = one ? 336 : 394 - my;
+    txt_(sl, '🎬 ' + sc.seq + '  ·  ' + fmtT_(sc.sec) + '  →', one ? x : x, y + h + 4, w, 16, { font: 'Poppins', size: 9, bold: true, color: C_.NAVY, link });
+    rect_(sl, mx, my, mw, mh, C_.ICE); rect_(sl, mx, my, 4, mh, C_.BLUE);
+    const box = txt_(sl, sc.memo || '(메모 없음)', mx + 10, my + 6, mw - 16, mh - 12, { size: 10, color: sc.memo ? C_.BODY : C_.MUTE });
+    ent.boxes[sc.seq] = box.getObjectId(); ent.memo[sc.seq] = sc.memo || '(메모 없음)';
+  });
+  return sl;
+}
+/* 예전에 설명 칸에 붙여 넣은 장면 메모(「…」(001 · 40:02) 꼴)는 이제 코치 장면 장에 있으니 설명 칸을 비움 — 그 꼴로만 채워진 칸만 */
+function dedupDesc_(sl, allSeq) {
+  sl.getPageElements().filter(e => e.getPageElementType() === SlidesApp.PageElementType.SHAPE).map(e => e.asShape()).forEach(x => {
+    const t = x.getText().asString().trim();
+    if (!/^(\s*「[^」]*」\([^)]*\)\s*)+$/.test(t)) return;
+    const seqs = []; t.replace(/」\(([^\s·)]+)\s*·/g, (m, q) => seqs.push(q));
+    if (!seqs.length || !seqs.every(q => allSeq[q])) return;
+    const g = x.getText(); g.setText(DESC_HINT_); g.getTextStyle().setFontFamily('Noto Sans KR').setFontSize(10).setForegroundColor(C_.MUTE).setBold(false);
+  });
+}
+/* 설명 칸 채우기 (Claude가 관전 메모로 초안을 넣을 때) — notes: {라운드 번호: 글} · 설명 칸이 아직 비어 있을 때만 */
+function fillRounds_(presId, deck, notes) {
+  const pres = SlidesApp.openById(presId);
+  for (const n of Object.keys(notes)) {
+    const sid = deck.slides[n]; if (!sid) continue;
+    const sl = pres.getSlideById(sid); if (!sl) continue;
+    const box = sl.getPageElements().filter(e => e.getPageElementType() === SlidesApp.PageElementType.SHAPE).map(e => e.asShape()).find(x => x.getText().asString().trim() === DESC_HINT_);
+    if (!box) continue;
+    const r = box.getText(); r.setText(notes[n]); r.getTextStyle().setFontFamily('Noto Sans KR').setFontSize(10).setForegroundColor(C_.BODY).setBold(false);
+    r.find('「[^」]*」(\\([^)]*\\))?').forEach(x => x.getTextStyle().setForegroundColor(C_.BLUE));
+  }
+}
+
+/* 보드의 라운드 메모 → 정리 슬라이드 설명 칸. 비어 있거나(힌트 그대로) 지난번에 넣은 메모 그대로일 때만 바꿈 → 슬라이드에서 직접 고친 설명은 안 건드림 */
+function syncMemos_(data) {
+  const deck = data.deck; deck.memo = deck.memo || {};
+  const pres = SlidesApp.openById(deck.id);
+  for (const r of data.rounds) {
+    const memo = String((r.notes && r.notes.memo) || '').trim(); if (!memo || deck.memo[r.n] === memo) continue;
+    const sid = deck.slides[r.n]; const sl = sid && pres.getSlideById(sid); if (!sl) continue;
+    const boxes = sl.getPageElements().filter(e => e.getPageElementType() === SlidesApp.PageElementType.SHAPE).map(e => e.asShape());
+    const cur = (x) => x.getText().asString().replace(/\n$/, '').trim();
+    const box = boxes.find(x => cur(x) === DESC_HINT_) || (deck.memo[r.n] ? boxes.find(x => cur(x) === deck.memo[r.n]) : null);
+    if (!box) continue;
+    const t = box.getText(); t.setText(memo); t.getTextStyle().setFontFamily('Noto Sans KR').setFontSize(10).setForegroundColor(C_.BODY).setBold(false);
+    deck.memo[r.n] = memo;
+  }
+  pres.saveAndClose();
+}

@@ -1,0 +1,233 @@
+
+
+/* ======================= v11: 📋 텍틱 시트로 (2026-09-30) =======================
+   확장 보드·장면·스크린샷 → 맵별 텍틱 시트("텍틱 - 어비스" 등)의 탭 · 단계(## 띠) 옆에 그림, 그 단계 아래 B열에 메모 줄
+   doPost {kind:'tacticTabs', mapKo} → 탭·단계 목록 / {kind:'tactic', mapKo, tab, band:{row,text}|null, newBand, memo, caption, jpeg, imgW, imgH, width}
+   서식 코드는 텍틱 시트 스크립트(claude/텍틱-자동서식-스크립트.md, 09-30판)를 TK_ 이름으로 옮겨 온 것 —
+   스크립트로 넣은 글은 시트의 onEdit이 안 돌아서 여기서 같은 규칙으로 칠함. 텍틱 규칙을 바꾸면 여기도 같이 */
+const TK_FOLDER = '1K5wBBVApIlPF0a4eTzgosRwnW0UcXW9A';
+const TK_FILES = {
+  '어비스': '12HkN4wJLg9AMBJL4HG83qLDxSttDR8FBZGwBLTYW5Lk', '어센트': '124PjyrTITLgWpvz1EjZ9Cjvp0fkR9WxZpmEvtONQapE', '바인드': '1Ms74DAxcnQh5SBbxyGiCdXigpxvXEaKbEf7nREQBjI4',
+  '브리즈': '1buahWzPsolfHTvO28sl7itYE8ED2oAjDIBhq8bGUhBY', '코로드': '1tRggUC7bC8N3gu3szMNZhZTPKUuGdkrDrTMCLi12_qQ', '프랙처': '18Kt2BnrwQvHssMRe_e1Sr927LNeuPbOFm0WUixsCsBw',
+  '헤이븐': '1Q0cJlbNDDbCoiFtaSBSVp87tzlybYSodiNEDy6LJs-U', '로터스': '1l2QUM6vwDSG7enwNPtEgneTxRTz3bp1UijhvXCDUdHo', '펄': '1Foj8A4xHJtlefz8x4FxYIB_P1E_SrZ52t-6M1ZTSS1o',
+  '스플릿': '1x2enD8nygZvMi43Hd5Us8Pp0-BkUKzfrCB7yiDGdltU', '서밋': '1WFIsw95RwKmivzomqxN6R0t4n1Twp_K2_mzatwZFORk', '선셋': '1yG7VVE_-nqchM-3mYyoVBPfJ4sHmrogrzgYXpMrMh-0'
+};
+const TK_PALETTE = ['#178A32', '#1F4FD8', '#A67C00', '#C03A7A', '#1582B0', '#D2691E', '#6A3FB5'];
+const TK_TEXT = '#2B3445', TK_MUTE = '#7A879C', TK_BAND = '#EAF2FA', TK_RED = '#D0504A', TK_TIP = '#FFF7E0';
+const TK_FONT = 'Noto Sans KR', TK_FIRST = 6, TK_CODES = { '##': 'S', '?': 'C', '!': 'T' };
+const TK_IMG_COL = 3, TK_IMG_X = 12, TK_GAP = 14, TK_ROW_H = 21;
+
+function tkFile_(mapKo) {
+  const id = TK_FILES[mapKo];
+  if (id) { try { return SpreadsheetApp.openById(id); } catch (e) {} }
+  const it = DriveApp.getFolderById(TK_FOLDER).getFilesByName('텍틱 - ' + mapKo);
+  return it.hasNext() ? SpreadsheetApp.open(it.next()) : null;
+}
+function tkNorm_(t) { return String(t || '').replace(/[\u00a0\u3000]/g, ' ').replace(/\s+/g, ' ').trim(); }
+function tkIsTactic_(sh) { return String(sh.getRange('B4').getValue()).indexOf('텍틱') >= 0; }
+function tkLastRow_(sh) {   // B열 글이 있는 마지막 행 (없으면 TK_FIRST-1)
+  const n = sh.getMaxRows() - TK_FIRST + 1; if (n < 1) return TK_FIRST - 1;
+  const v = sh.getRange(TK_FIRST, 2, n, 1).getValues();
+  for (let i = v.length - 1; i >= 0; i--) if (String(v[i][0]).trim()) return TK_FIRST + i;
+  return TK_FIRST - 1;
+}
+function tkBands_(sh) {   // ## 띠 줄: A열 코드 S 또는 B열 띠 배경
+  const last = tkLastRow_(sh); if (last < TK_FIRST) return [];
+  const rng = sh.getRange(TK_FIRST, 1, last - TK_FIRST + 1, 2), v = rng.getDisplayValues(), bg = rng.getBackgrounds(), out = [];
+  for (let i = 0; i < v.length; i++) {
+    const t = tkNorm_(v[i][1]);
+    if (t && (v[i][0] === 'S' || String(bg[i][1]).toLowerCase() === TK_BAND.toLowerCase())) out.push({ row: TK_FIRST + i, text: t });
+  }
+  return out;
+}
+function tacticTabs_(d) {
+  const ss = tkFile_(d.mapKo);
+  if (!ss) return { ok: false, err: '"텍틱 - ' + d.mapKo + '" 파일이 없어요' };
+  return { ok: true, file: ss.getName(), url: ss.getUrl(), tabs: ss.getSheets().map(function (sh) { const t = tkIsTactic_(sh); return { name: sh.getName(), tactic: t, bands: t ? tkBands_(sh) : [] }; }) };
+}
+function tkTops_(sh, base) {   // base행 위쪽을 0으로 한 y(px) — 필요한 만큼만 행 높이를 읽음 (행 높이 읽기가 느려서 base 앞은 안 읽음)
+  const max = sh.getMaxRows(), tops = [0]; base = base || 1;
+  return { at: function (r) { const i = r - base; while (tops.length <= i) { const k = base + tops.length - 1; tops.push(tops[tops.length - 1] + (k <= max ? sh.getRowHeight(k) : TK_ROW_H)); } return tops[i]; } };
+}
+function tkImgEndRow_(sh, im) {   // 그림 아래 끝이 걸치는 행
+  const r0 = im.getAnchorCell().getRow(), T = tkTops_(sh, r0), bottom = im.getAnchorCellYOffset() + im.getHeight();
+  let r = r0; while (T.at(r + 1) < bottom) r++;
+  return r;
+}
+function putTactic_(d) {
+  const ss = tkFile_(d.mapKo);
+  if (!ss) return { ok: false, err: '"텍틱 - ' + d.mapKo + '" 파일이 없어요' };
+  const sh = ss.getSheetByName(d.tab);
+  if (!sh) return { ok: false, err: '탭 "' + d.tab + '"이 없어요 — 창의 ↻로 목록을 다시 읽어 주세요' };
+  const t0 = Date.now(), lock = LockService.getScriptLock(); lock.waitLock(30000);
+  try {
+    const agents = tkAgents_(sh);
+    let band = null;
+    if (d.newBand) {   // 탭 맨 아래에 ## 띠 새로
+      const last = tkLastRow_(sh);
+      let imgEnd = 0;   // 떠 있는 그림이 글보다 아래까지 내려오면 그 아래에 새 띠
+      sh.getImages().forEach(function (im) { const a = im.getAnchorCell(); if (a.getColumn() >= TK_IMG_COL) imgEnd = Math.max(imgEnd, tkImgEndRow_(sh, im)); });
+      const row = last < TK_FIRST && !imgEnd ? TK_FIRST : Math.max(last + 2, imgEnd + 2);
+      if (row > sh.getMaxRows()) sh.insertRowsAfter(sh.getMaxRows(), row - sh.getMaxRows() + 5);
+      sh.getRange(row, 1, 1, 2).setBackground(null);
+      sh.getRange(row, 2).setValue('## ' + d.newBand);
+      tkFormatRow_(sh, row, agents, true);
+      band = { row: row, text: tkNorm_(sh.getRange(row, 2).getDisplayValue()) };
+    } else if (d.band) {
+      const bs = tkBands_(sh);
+      const want = tkNorm_(d.band.text); band = bs.filter(function (b) { return b.row === d.band.row && b.text === want; })[0] || bs.filter(function (b) { return b.text === want; })[0] || null;
+      if (!band) return { ok: false, err: '단계 "' + d.band.text + '"를 못 찾았어요 — 창의 ↻로 다시 읽어 주세요' };
+    }
+    // 1) 메모 글: 그 단계 맨 아래(다음 띠 바로 위의 마지막 글 줄 다음)에 줄을 끼워 넣음
+    const lines = String(d.memo || '').split(/\r?\n/).map(function (s) { return s.replace(/\s+$/, ''); }).filter(function (s) { return s.trim(); });
+    let textRow = null;
+    if (lines.length) {
+      let after;
+      if (band) {
+        const next = tkBands_(sh).filter(function (b) { return b.row > band.row; })[0];
+        const end = next ? next.row - 1 : Math.max(tkLastRow_(sh), band.row);
+        after = band.row;
+        if (end > band.row) { const v = sh.getRange(band.row + 1, 2, end - band.row, 1).getValues(); v.forEach(function (x, i) { if (String(x[0]).trim()) after = band.row + 1 + i; }); }
+      } else after = Math.max(tkLastRow_(sh), TK_FIRST - 1);
+      sh.insertRowsAfter(after, lines.length);
+      textRow = after + 1;
+      sh.setRowHeights(textRow, lines.length, TK_ROW_H);
+      const rg = sh.getRange(textRow, 1, lines.length, 2); rg.setBackground(null); rg.clearContent();
+      sh.getRange(textRow, 2, lines.length, 1).setValues(lines.map(function (s) { s = s.replace(/^\s+/, function (m) { return m.replace(/\t/g, '  '); }); return [/^\s*[=+]/.test(s) ? "'" + s : s]; }));   // = + 로 시작하면 수식이 되지 않게
+      for (let i = 0; i < lines.length; i++) tkFormatRow_(sh, textRow + i, agents, true);
+      if (band) band.text = tkNorm_(sh.getRange(band.row, 2).getDisplayValue());
+    }
+    // 2) 그림: 그 단계 띠 줄 높이에서 시작, 이미 있는 그림(C열 이후)과 안 겹치게 아래로 — 다음 단계 그림을 침범하면 다음 띠 앞에 빈 줄을 넣어 밀어냄
+    let row = null, count = 0;
+    if (d.jpeg && d.width) {
+      const W = Math.max(200, Math.min(1000, +d.width || 640)), H = Math.round(W * (+d.imgH || 1) / (+d.imgW || 1));
+      const startRow = band ? band.row : (textRow || Math.max(TK_FIRST, tkLastRow_(sh) + 1));
+      const next = band ? tkBands_(sh).filter(function (b) { return b.row > band.row; })[0] : null;
+      const raw = sh.getImages().filter(function (im) { const a = im.getAnchorCell(); return a.getColumn() >= TK_IMG_COL && a.getRow() >= startRow && (!next || a.getRow() < next.row); });   // 이 단계 칸에 기준을 둔 그림만
+      let T = tkTops_(sh, startRow);
+      const imgs = raw.map(function (im) { const top = T.at(im.getAnchorCell().getRow()) + im.getAnchorCellYOffset(); return { top: top, bottom: top + im.getHeight() }; });
+      const secEndY = next ? T.at(next.row) : Infinity;
+      let y = 0;
+      imgs.forEach(function (im) { y = Math.max(y, im.bottom + TK_GAP); });
+      sh.getImages().forEach(function (im) {   // 앞쪽에 기준을 두고 이 단계까지 내려온 그림(코치가 직접 넣은 큰 맵 그림 등)도 피함
+        const a = im.getAnchorCell(); if (a.getColumn() < TK_IMG_COL || a.getRow() >= startRow) return;
+        const end = tkImgEndRow_(sh, im); if (end >= startRow) y = Math.max(y, T.at(end + 1) + TK_GAP);
+      });
+      count = imgs.length + 1;
+      if (next && y + H + TK_GAP > secEndY) {   // 다음 단계 띠보다 길어지면 다음 띠 앞에 빈 줄을 넣어 다음 단계(글·그림)를 통째로 밀어냄
+        const k = Math.ceil((y + H + TK_GAP - secEndY) / TK_ROW_H);
+        sh.insertRowsBefore(next.row, k); sh.setRowHeights(next.row, k, TK_ROW_H);
+        const rg = sh.getRange(next.row, 1, k, 2); rg.setBackground(null); rg.clearContent();
+        T = tkTops_(sh, startRow);
+      }
+      const bottom = y + H;
+      let r = startRow; while (T.at(r + 1) <= y) r++;
+      let e = r; while (T.at(e + 1) < bottom + TK_ROW_H) e++;   // 그림이 끝나는 행까지 시트에 행이 있어야 함
+      if (e + 1 > sh.getMaxRows()) sh.insertRowsAfter(sh.getMaxRows(), e + 1 - sh.getMaxRows() + 10);
+      row = r;
+      const blob = Utilities.newBlob(Utilities.base64Decode(String(d.jpeg).split(',').pop()), 'image/jpeg', 'tactic.jpg');
+      const im = sh.insertImage(blob, TK_IMG_COL, row, TK_IMG_X, Math.round(y - T.at(row)));
+      im.setWidth(W).setHeight(H);
+      try { if (d.caption) im.setAltTextTitle(d.caption); } catch (e) {}
+    }
+    SpreadsheetApp.flush();
+    return { ok: true, tab: sh.getName(), band: band ? band.text : '', image: row != null, row: row, count: count, lines: lines.length, ms: Date.now() - t0, url: ss.getUrl() + '#gid=' + sh.getSheetId() };
+  } finally { lock.releaseLock(); }
+}
+
+/* ---- 텍틱 서식 (텍틱 시트 스크립트 09-30판을 옮김: ## 띠 · ? 조건 · ! 팁 · 공백 2칸 들여쓰기 · B3 범례 색) ---- */
+function tkAgentNames_(sh) {
+  const t = String(sh.getRange('B3').getDisplayValue()).replace(/\(.*?\)/g, '').replace(/^\s*요원\s*색/, '');
+  let parts = t.split(/[·,\/]/).map(function (s) { return s.trim(); }).filter(function (s) { return s; });
+  if (parts.length === 1) parts = parts[0].split(/\s+/);
+  return parts;
+}
+function tkAgents_(sh) {
+  const names = tkAgentNames_(sh), rt = sh.getRange('B3').getRichTextValue(), text = rt ? rt.getText() : '';
+  const plain = ['#000000', TK_TEXT.toLowerCase(), TK_MUTE.toLowerCase()], used = [];
+  return names.map(function (n, i) {
+    let color = null;
+    const k = text.indexOf(n);
+    if (rt && k >= 0) {
+      const c = String(rt.getTextStyle(k, k + 1).getForegroundColor() || '').toLowerCase();
+      if (c && plain.indexOf(c) < 0 && used.indexOf(c) < 0) color = c;
+    }
+    if (!color) color = TK_PALETTE.map(function (p) { return p.toLowerCase(); }).filter(function (p) { return used.indexOf(p) < 0; })[0] || TK_PALETTE[i % TK_PALETTE.length].toLowerCase();
+    used.push(color);
+    return { name: n, color: color };
+  });
+}
+function tkSt_(color, opt) {
+  opt = opt || {};
+  return SpreadsheetApp.newTextStyle().setBold(true).setFontFamily(TK_FONT).setFontSize(opt.size || 10).setForegroundColor(color).setUnderline(!!opt.u).build();
+}
+function tkPaint_(text, agents, opt) {
+  text = text.replace(/ /g, '\u00a0');
+  const b = SpreadsheetApp.newRichTextValue().setText(text).setTextStyle(tkSt_(TK_TEXT, opt));
+  const hits = [];
+  agents.forEach(function (a) {
+    if (!a.name) return;
+    let k = text.indexOf(a.name);
+    while (k >= 0) {
+      const end = k + a.name.length, p = text.substring(end).match(/^[\s\u00a0]*\([^)]*\)/);
+      hits.push({ s: k, e: end, pe: p ? end + p[0].length : end, c: a.color });
+      k = text.indexOf(a.name, end);
+    }
+  });
+  hits.forEach(function (h) { if (h.pe > h.e) b.setTextStyle(h.s, h.pe, tkSt_(h.c, opt)); });
+  hits.forEach(function (h) { b.setTextStyle(h.s, h.e, tkSt_(h.c, opt)); });
+  return b.build();
+}
+function tkFormatRow_(sh, row, agents, force) {
+  const cellA = sh.getRange(row, 1), cellB = sh.getRange(row, 2);
+  const raw = String(cellB.getValue());
+  let prev = String(cellA.getValue()); if (prev === 'H') prev = 'C';
+  const hadBg = prev === 'S' || prev === 'T';
+  if (!raw.trim()) { if (prev) { cellA.clearContent(); if (hadBg) cellB.setBackground(null); } return; }
+  let code = '', indent = raw.match(/^\s*/)[0], body = raw.replace(/^\s+/, '');
+  const m = raw.match(/^(\s*)(##|\?|!)\s?(.*)$/);
+  if (m) { indent = m[1]; code = TK_CODES[m[2]]; body = m[3]; if (code === 'S' && !body.trim()) body = tkStepNo_(sh, row) + '단계'; }
+  else if (['S', 'C'].indexOf(prev) >= 0 && force) code = prev;
+  const lv = (indent.match(/\u3000/g) || []).length + Math.floor(indent.replace(/\u3000/g, '').length / 2);
+  const pad = code === 'S' ? '' : '\u3000'.repeat(lv);
+  const text = pad + (code === 'T' ? '! ' : '') + body;
+  const opt = { size: code === 'S' ? 13 : code === 'C' ? 12 : 10, u: code === 'C' };
+  cellB.setFontFamily(TK_FONT).setFontWeight('bold').setFontSize(opt.size).setFontColor(TK_TEXT);
+  let rt = tkPaint_(text, agents, opt);
+  if (code === 'T') rt = rt.copy().setTextStyle(pad.length, pad.length + 1, tkSt_(TK_RED, opt)).build();
+  cellB.setRichTextValue(rt);
+  if (code) cellA.setValue(code).setFontColor('#FFFFFF').setFontSize(6); else if (prev) cellA.clearContent();
+  if (code === 'S') { cellB.setBackground(TK_BAND); sh.setRowHeight(row, 30); }
+  else if (code === 'T') cellB.setBackground(TK_TIP);
+  else if (hadBg) cellB.setBackground(null);
+}
+function tkStepNo_(sh, row) {
+  if (row <= TK_FIRST) return 1;
+  const rng = sh.getRange(TK_FIRST, 1, row - TK_FIRST, 2), vals = rng.getValues(), bgs = rng.getBackgrounds();
+  let n = 0;
+  for (let i = 0; i < vals.length; i++) if (String(vals[i][0]) === 'S' || String(bgs[i][1]).toLowerCase() === TK_BAND.toLowerCase()) n++;
+  return n + 1;
+}
+
+/* ---- 보내기 비밀번호 바꾸기 (v11) — 편집기에서 rotateToken 실행 ----
+   새 비밀번호를 만들어 코치만 여는 비공개 시트 '장면캡처 보내기 설정 (비공개)'의 _설정 탭에만 적고,
+   링크 공유 중인 원본 시트 _설정 탭에서는 비밀번호 줄을 지움(웹 앱 주소만 남김). 옛 비밀번호는 바로 못 씀 */
+function rotateToken() {
+  const props = PropertiesService.getScriptProperties();
+  const token = Utilities.getUuid().replace(/-/g, '') + Utilities.getUuid().replace(/-/g, '').slice(0, 8);
+  let pid = props.getProperty('CFG_PRIVATE_ID'), pss = null;
+  if (pid) { try { pss = SpreadsheetApp.openById(pid); } catch (e) { pss = null; } }
+  if (!pss) { pss = SpreadsheetApp.create('장면캡처 보내기 설정 (비공개)'); pid = pss.getId(); props.setProperty('CFG_PRIVATE_ID', pid); }
+  let cfg = pss.getSheetByName(BOARD_CFG_TAB);
+  if (!cfg) { cfg = pss.getSheets()[0]; cfg.setName(BOARD_CFG_TAB); }
+  cfg.clear();
+  cfg.getRange(1, 1, 3, 2).setValues([['key', 'value'], ['boardToken', token], ['boardUrl', execUrl_()]]);
+  props.setProperty('BOARD_TOKEN', token);
+  const pub = ss_().getSheetByName(BOARD_CFG_TAB);   // 다른 설정 줄은 그대로 두고 boardToken 줄만 뺌
+  if (pub) {
+    const v = pub.getDataRange().getValues().filter(function (r) { return String(r[0]) !== 'boardToken'; });
+    pub.clear(); if (v.length) pub.getRange(1, 1, v.length, v[0].length).setValues(v);
+  }
+  const msg = '비밀번호 바꿈 · 비공개 설정 시트 ' + pid + ' · 원본 _설정 탭은 주소만';
+  Logger.log(msg); return msg;
+}

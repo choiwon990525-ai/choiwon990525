@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8"><title>라운드 미니맵 — 장면 캡처 도구</title>
+<link rel="icon" href="icons/icon32.png">
+<style>
+:root{--bg:#151a24;--card:#1f2634;--card2:#29334a;--line:#3a4763;--tx:#eef1f6;--mut:#9aa6b8;--amber:#e8b84b;--teal:#3fb8b0;--red:#d0504a;--link:#7cc4ff}
+*{box-sizing:border-box}
+body{font-family:system-ui,"Malgun Gothic",sans-serif;background:var(--bg);color:var(--tx);margin:0;padding:24px 16px;line-height:1.5}
+.w{max-width:1400px;margin:0 auto}
+h1{font-size:22px;margin:0 0 4px}
+.sub{color:var(--mut);font-size:13px}
+a{color:var(--link);text-decoration:none}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:12px 0 18px}
+button{cursor:pointer;background:var(--card2);border:1px solid var(--line);color:var(--tx);border-radius:8px;padding:7px 12px;font-size:13px}
+button:hover{background:#34405c}
+.seg button.on{background:var(--amber);color:#151a24;border-color:var(--amber)}
+h2{font-size:17px;margin:22px 0 10px;color:var(--amber)}
+.half{grid-column:1/-1;color:var(--mut);font-size:12px;border-top:1px dashed var(--line);padding-top:6px;margin-top:4px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--cw,480px),1fr));gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px}
+.card.L{border-top:3px solid var(--teal)} .card.R{border-top:3px solid var(--red)}
+.head{display:flex;align-items:baseline;gap:8px;margin-bottom:8px}
+.rn{font-size:18px;font-weight:800}
+.sc{color:var(--mut);font-size:12px}
+.head a{margin-left:auto;font-weight:700}
+.pics{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+figure{margin:0}
+figure img{width:100%;aspect-ratio:37/40;object-fit:contain;border-radius:6px;display:block;cursor:zoom-in;background:#000}
+figure .none{width:100%;aspect-ratio:37/40;border:1px dashed var(--line);border-radius:6px;display:flex;align-items:center;justify-content:center;color:#667;font-size:12px;text-align:center;padding:6px}
+figcaption{color:var(--mut);font-size:11px;text-align:center;margin-top:3px}
+.one .pics{grid-template-columns:1fr}
+.lb{position:fixed;inset:0;background:rgba(0,0,0,.9);display:none;align-items:center;justify-content:center;z-index:9;cursor:zoom-out;flex-direction:column;gap:10px}
+.lb.on{display:flex}
+.lb img{max-height:86vh;max-width:94vw;border-radius:8px}
+.lb div{color:#ddd;font-size:14px}
+.legend{font-size:12px;color:var(--mut)}
+.legend b.t{color:var(--teal)} .legend b.r{color:var(--red)}
+.scenes{margin-top:8px;border-top:1px solid var(--line);padding-top:6px;display:flex;flex-direction:column;gap:3px}
+.scene{font-size:12px;color:var(--tx)} .scene b{color:#ff8d8d} .scene .sm{color:var(--mut)}
+.note{width:100%;margin-top:8px;min-height:54px;background:#151a24;border:1px solid var(--line);border-radius:8px;color:var(--tx);font:13px/1.5 system-ui,"Malgun Gothic",sans-serif;padding:7px 9px;resize:vertical;outline:none}
+.note:focus{border-color:var(--amber)}
+#exp{background:#e02b3c;border-color:#ff8d8d;color:#fff}
+.bd{display:block;text-align:center;font-size:12px;margin-top:3px;color:var(--amber)}
+</style></head><body><div class="w">
+<h1 id="ttl">라운드 미니맵</h1>
+<div class="sub" id="meta"></div>
+<div class="bar">
+  <span class="seg" id="seg"><button data-k="all" class="on">세 장 모두</button><button data-k="140">투명벽만</button><button data-k="130">오프닝만</button><button data-k="100">1:00만</button></span>
+  <span class="seg" id="size"><button data-s="360">작게</button><button data-s="480" class="on">보통</button><button data-s="660">크게</button></span>
+  <button id="exp">📄 자료로 내보내기</button>
+  <button id="saveAll">그림 파일로 모두 저장</button>
+  <button id="del">이 경기 라운드 지우기</button>
+  <span class="legend">카드 위 색 = 그 라운드를 이긴 쪽 · <b class="t">청록</b> 점수판 왼쪽 팀 · <b class="r">빨강</b> 오른쪽 팀 · 미니맵 색은 팀이 아니라 공수(청록 수비 / 빨강 공격)</span>
+  <span class="sub" id="msg"></span>
+</div>
+<div id="body"></div>
+</div>
+<div class="lb" id="lb"><img id="lbImg" alt=""><div id="lbCap"></div></div>
+<script src="scenes-util.js"></script>
+<script src="rounds-page.js"></script>
+</body></html>

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8"><title>장면 캡처 도구 — 관리</title>
+<link rel="icon" href="icons/icon32.png">
+<style>
+:root{--navy:#132D65;--navy2:#1C3B7A;--blue:#4A88C7;--sky:#BDD9F2;--ice:#EAF2FA;--bg:#F5F7FA;--card:#fff;--line:#EAF2FA;--tx:#3C4A63;--mut:#7A879C;--red:#D0504A;--ok:#2E9E6B;--warn:#B7791F;--link:#4A88C7}
+*{box-sizing:border-box}
+body{font-family:"Noto Sans KR","Malgun Gothic",system-ui,sans-serif;background:var(--bg);color:var(--tx);margin:0;padding:0 0 40px;line-height:1.6}
+.top{background:var(--navy);color:#fff;padding:18px 16px 16px;margin-bottom:8px}
+.top .w{display:block}
+.w{max-width:900px;margin:0 auto;padding:0 16px}
+h1{font-size:22px;margin:0 0 4px;display:flex;align-items:center;gap:10px}
+h1 img{width:30px;height:30px}
+.top .sub{color:var(--sky)}
+h2{font-size:15px;margin:26px 0 10px;color:var(--navy);display:flex;align-items:center;gap:8px}
+h2::before{content:"";width:4px;height:16px;background:var(--blue);display:inline-block}
+.sub{color:var(--mut);font-size:13px}
+.card{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--navy);border-radius:0;padding:16px 20px;margin:12px 0}
+label{display:block;margin:12px 0 4px;font-size:13px;color:var(--navy);font-weight:500}
+select,input[type=text],textarea.in{background:#fff;border:1px solid var(--sky);color:var(--tx);border-radius:2px;padding:8px 10px;font-size:14px;width:100%;max-width:520px;font-family:inherit}
+textarea.in{max-width:none;resize:vertical;line-height:1.5}
+select:focus,input[type=text]:focus,textarea.in:focus{outline:none;border-color:var(--blue)}
+.chk{display:flex;align-items:center;gap:8px;margin:10px 0;font-size:14px}
+.hint{color:var(--mut);font-size:12px;margin-top:3px}
+button{cursor:pointer;background:var(--ice);border:1px solid var(--sky);color:var(--navy);border-radius:2px;padding:8px 14px;font-size:13px;font-family:inherit}
+button:hover{border-color:var(--blue)}
+button.pri{background:var(--navy);border-color:var(--navy);color:#fff;font-weight:700}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.stat{display:flex;gap:22px;flex-wrap:wrap;font-size:14px}
+.stat b{font-size:20px;display:block;color:var(--navy);font-family:Poppins,"Noto Sans KR",sans-serif}
+.ok{color:var(--ok)} .bad{color:var(--red)} .warn{color:var(--warn)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+td,th{border-bottom:1px solid var(--line);padding:8px 6px;text-align:left;vertical-align:middle}
+th{color:var(--mut);font-weight:500}
+td a{color:var(--link);text-decoration:none}
+.del{color:var(--red);background:none;border:none;padding:2px 6px}
+.saved{color:var(--ok);font-size:12px;margin-left:8px;opacity:0;transition:opacity .2s}
+.saved.on{opacity:1}
+kbd{background:var(--ice);border:1px solid var(--sky);border-radius:2px;padding:1px 6px;font-size:12px;color:var(--navy)}
+@media (max-width:600px){ td:nth-child(3),th:nth-child(3){display:none} }
+</style></head><body><div class="top"><div class="w">
+<h1><img src="icons/icon128.png" alt="">장면 캡처 도구</h1>
+<div class="sub">유튜브 경기 영상을 열면 오른쪽 아래에 도구가 자동으로 뜹니다 · <kbd>S</kbd> 새 장면 · <kbd>Shift</kbd>+<kbd>S</kbd> 부연 · 영상 아래 라운드 막대의 <b>분석 열기</b>로 분석 화면</div>
+</div></div><div class="w">
+
+<h2>상태</h2>
+<div class="card">
+  <div class="stat">
+    <div><b id="stVids">-</b>영상</div>
+    <div><b id="stScenes">-</b>장면</div>
+    <div><b id="stImgs">-</b>그림</div>
+    <div><b id="stBytes">-</b>저장 용량</div>
+  </div>
+  <p id="stAsr" class="sub" style="margin:12px 0 0">받아쓰기 서버 확인 중…</p>
+  <p id="stBackup" class="sub" style="margin:4px 0 0"></p>
+</div>
+
+<h2>설정 <span id="savedMark" class="saved">저장됨</span></h2>
+<div class="card">
+  <label for="asr">받아쓰기 방식</label>
+  <select id="asr">
+    <option value="auto">자동 — 받아쓰기 서버가 켜져 있으면 서버, 아니면 브라우저</option>
+    <option value="local">내 PC 받아쓰기 서버만 (whisper · 게임 용어 정확)</option>
+    <option value="browser">브라우저 음성인식만 (설치 불필요 · 구글 서버로 전송)</option>
+  </select>
+  <div class="hint">브라우저 음성인식은 따로 설치할 게 없지만, 요원·맵 이름 같은 게임 용어는 서버 방식보다 덜 정확합니다.</div>
+
+  <label for="asrUrl">받아쓰기 서버 주소</label>
+  <input type="text" id="asrUrl" placeholder="http://127.0.0.1:5005">
+
+  <label for="asrWords">받아쓰기가 잘 알아듣게 알려 줄 말 (쉼표로)</label>
+  <input type="text" id="asrWords" placeholder="예) 라우드, 농심, 원웨이, 가라지, 방탄">
+  <div class="hint">경기마다 두 팀 이름·그 경기 요원·맵 이름은 자동으로 알려 줘요. 여기엔 코치님이 자주 쓰는 말만 적으면 됩니다.</div>
+
+  <label for="asrFix">자주 틀리는 말 고치기 — 한 줄에 하나: <b>틀린 말 = 바른 말</b></label>
+  <textarea id="asrFix" class="in" rows="4" placeholder="동심 = 농심&#10;마딕, 매딕 = 메딕"></textarea>
+  <div class="hint">받아쓰기 바로 뒤에 자동으로 바뀌어요 (받아쓴 원문은 장면에 따로 남음). 하버공→하버 궁, 삐팝→B팝, 알람보→알람봇 같은 건 이미 들어 있어요.</div>
+
+  <label for="folder">저장 폴더 이름 (다운로드 폴더 안)</label>
+  <input type="text" id="folder" placeholder="관전캡처">
+  <div class="hint">캡처는 <b>다운로드/<span id="fPrev">관전캡처</span>/경기 제목 [영상ID]/</b> 에 바로 저장됩니다.</div>
+
+  <div class="chk"><input type="checkbox" id="saveFiles"><label for="saveFiles" style="margin:0">캡처할 때 그림 파일도 폴더에 저장</label></div>
+  <div class="chk"><input type="checkbox" id="autoBackup"><label for="autoBackup" style="margin:0">메모·라운드 목록·보드 자동 백업 (바뀌었을 때만, 30분마다 <b>_백업</b> 폴더에 — 그림은 빼고 가볍게)</label></div>
+  <div class="hint">크롬 설정에서 "다운로드 전 저장 위치 확인"이 켜져 있으면 저장할 때마다 창이 뜹니다. 꺼두는 걸 권장합니다.</div>
+</div>
+
+<h2>🎯 스크랩한 경기 <span id="rndCount" class="sub"></span></h2>
+<div class="card">
+  <div class="row" style="margin-bottom:8px"><input type="text" id="rndQ" placeholder="팀·대회·맵으로 찾기 (예: LOUD, Champions, 어비스)" style="max-width:360px"><button id="rndSync" title="스캔한 경기 목록을 구글 시트(🏆 챔피언스 탭 '미니맵' 칸)에 올림 — 스캔이 끝날 때 자동으로도 올라감">📤 시트에 스캔 목록 올리기</button><span id="rndSyncMsg" class="sub"></span></div>
+  <div id="rndList" class="sub">불러오는 중…</div>
+  <div class="hint">유튜브 경기 영상 아래 막대에서 "라운드 자동 찾기"를 누르면 여기 쌓입니다. <span class="bad">빠진 라운드</span> = 방송이 그 라운드 내내 점수판을 가려 못 찾은 번호 · <span class="warn">1:25 없음</span> = 그 순간 리플레이·그래픽이 미니맵을 가림 · 보드 = 만든 보드 수 / 찍은 미니맵 수. 미니맵 그림 파일은 경기 폴더 안 <b>라운드</b> 폴더에도 있어요.</div>
+</div>
+
+<details style="margin-top:22px"><summary style="cursor:pointer;color:var(--mut);font-size:13px">📱 태블릿 북마크 가져오기 (지금은 안 쓰는 기능 — 필요할 때 펼치기)</summary>
+<div class="card">
+  <p class="sub" style="margin:0 0 8px">디스코드 메시지를 그대로 붙여넣으세요 — 태블릿 ★ 북마크, 시점(?t=) 붙은 유튜브 링크, 또는 <b>영상 링크 한 줄 + 그 아래 "12:34 메모" 줄들</b> 모두 됩니다. 유튜브 영상 화면에서 <kbd>Ctrl</kbd>+<kbd>V</kbd> 해도 됩니다.</p>
+  <textarea id="tabText" class="in" rows="4" style="font-size:13px;font-family:ui-monospace,Consolas,monospace" placeholder="▶ PRX vs LEV&#10;1:23  &lt;https://youtu.be/영상ID?t=83&gt;"></textarea>
+  <div class="row" style="margin-top:8px"><button id="tabGo" class="pri">가져오기</button><span id="tabMsg" class="sub"></span></div>
+  <div id="tabList" style="margin-top:8px;font-size:13px"></div>
+  <div class="hint">가져온 북마크는 "화면 대기" 상태예요. 목록의 경기를 열면 그 시점 화면이 원본 화질로 자동 캡처됩니다.</div>
+</div>
+</details>
+
+<h2>백업</h2>
+<div class="card">
+  <div class="row">
+    <button id="bkMemo" class="pri">지금 백업 (메모·라운드·보드)</button>
+    <button id="bkFull">전체 백업 (그림 포함)</button>
+    <button id="bkLoad">백업 불러오기</button>
+    <input type="file" id="bkFile" accept=".json,application/json" style="display:none">
+  </div>
+  <p id="bkMsg" class="sub" style="margin:10px 0 0"></p>
+  <div class="hint">확장 프로그램을 지우면 저장된 메모도 같이 지워집니다. 지우기 전에 전체 백업을 받아두세요.</div>
+</div>
+
+<h2>저장된 영상</h2>
+<div class="card">
+  <table><thead><tr><th>경기</th><th>장면</th><th>마지막 수정</th><th></th></tr></thead><tbody id="vids"><tr><td colspan="4" class="sub">불러오는 중…</td></tr></tbody></table>
+</div>
+</div>
+<script src="manage.js"></script>
+</body></html>

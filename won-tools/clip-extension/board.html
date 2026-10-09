@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8"><title>라운드 보드 — 장면 캡처 도구</title>
+<link rel="icon" href="icons/icon32.png">
+<style>
+/* 1.11.0: 디자인 가이드 색(남색·파랑)으로 — 맵 편집 화면이라 어둡게 둠 */
+:root{--bg:#0D1526;--panel:#141F36;--card:#1C2B4A;--line:#27406b;--tx:#EAF2FA;--mut:#9fb1cf;--amber:#BDD9F2;--def:#3fb8b0;--atk:#d0504a;--link:#7cc4ff;--navy:#132D65;--navy2:#1C3B7A;--blue:#4A88C7}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--tx);font:13px/1.45 system-ui,"Malgun Gothic",sans-serif;display:flex;flex-direction:column;overflow:hidden}
+header{display:flex;gap:8px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--navy2);flex-wrap:wrap;background:var(--navy)}
+#moreBox{display:none;gap:8px;align-items:center;flex-wrap:wrap;width:100%;padding:6px 0 0;border-top:1px solid var(--navy2)}
+#moreBox.on{display:flex}
+header .ttl{font-weight:700;max-width:340px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+button,select,input[type=text]{background:var(--card);border:1px solid var(--line);color:var(--tx);border-radius:2px;padding:5px 9px;font:inherit}
+header button,header select{background:var(--navy2);border-color:var(--blue);color:#fff}
+button{cursor:pointer} button:hover{background:#244a95}
+button.on,header button.on{background:#fff;color:var(--navy);border-color:#fff;font-weight:700}
+button.pri,header button.pri{background:#fff;border-color:#fff;color:var(--navy);font-weight:700}
+.sep{width:1px;height:22px;background:var(--line)}
+.mut{color:var(--mut)}
+main{flex:1;display:flex;min-height:0}
+aside{width:250px;flex:none;background:var(--panel);border-right:1px solid var(--line);padding:10px;overflow:auto}
+aside.r{width:300px;border-right:none;border-left:1px solid var(--line)}
+h3{font-size:12px;color:var(--mut);margin:12px 0 6px;font-weight:600}
+.team{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px;margin-bottom:10px}
+.team .hd{display:flex;gap:6px;align-items:center;margin-bottom:6px}
+.team .hd input{flex:1;min-width:0}
+.side{font-size:11px;padding:1px 7px;border-radius:99px;border:1px solid}
+.side.def{color:var(--def);border-color:var(--def)} .side.atk{color:var(--atk);border-color:var(--atk)}
+.slot{display:flex;gap:6px;align-items:center;margin:4px 0;padding:2px;border-radius:7px;cursor:grab}
+.slot.sel{background:#2a3550}
+.slot img{width:28px;height:28px;border-radius:50%;background:#000;border:2px solid var(--line);flex:none}
+.slot select{flex:1;min-width:0;padding:3px 5px}
+.slot .st{font-size:11px;color:var(--mut);width:34px;text-align:right}
+#stage{flex:1;display:flex;align-items:center;justify-content:center;min-width:0;position:relative}
+#board{height:100%;max-height:100%;aspect-ratio:1/1;max-width:100%;background:#070b10;display:block;touch-action:none;user-select:none}
+.tools{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}
+.tools button{padding:6px 4px;font-size:12px}
+.abil{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+.abil button{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 2px;font-size:10px;line-height:1.2}
+.abil img{width:30px;height:30px}
+.abil button.on img{filter:invert(1)}
+textarea{width:100%;min-height:62px;background:var(--card);border:1px solid var(--line);border-radius:8px;color:var(--tx);font:13px/1.5 system-ui,"Malgun Gothic",sans-serif;padding:7px 8px;resize:vertical;outline:none}
+textarea:focus{border-color:var(--amber)}
+textarea.memo{min-height:190px}
+#tacBar{position:absolute;left:12px;top:12px;display:none;gap:4px;align-items:center;background:rgba(11,17,24,.88);border:1px solid var(--line);border-radius:10px;padding:5px 8px;z-index:4;font-size:12px}
+#tacBar span{color:var(--mut);margin-right:4px}
+#picDrop{border:1px dashed transparent;border-radius:8px;margin-top:6px;padding:0 2px 6px}
+#picDrop.over{border-color:var(--amber);background:rgba(232,184,75,.06)}
+#pics{display:flex;flex-direction:column;gap:8px}
+.pic{position:relative}
+.pic img{width:100%;border-radius:6px;display:block;cursor:zoom-in;border:1px solid var(--line)}
+.pic input{width:100%;margin-top:3px;background:var(--card);border:1px solid var(--line);border-radius:6px;color:var(--tx);font-size:12px;padding:4px 6px}
+.pic > button.del{position:absolute;right:4px;top:4px;width:22px;height:22px;padding:0;border-radius:50%;background:rgba(0,0,0,.7);color:#fff;font-size:14px;line-height:1}
+.pic .usemm,.pic.scene .smv button{position:static;width:auto;height:auto;border-radius:5px;background:var(--card);color:var(--tx);border:1px solid var(--line)}
+.pic .usemm{display:block;width:100%;margin-top:4px;padding:5px 6px;font-size:12px;font-weight:700;color:var(--amber,#e8b84b);border-color:var(--amber,#e8b84b)}
+.pic.scene .scap{font-size:12px;color:var(--tx);margin-top:3px;line-height:1.5;white-space:pre-wrap}
+.pic.scene .scap a{color:var(--link);text-decoration:none;font-weight:600}
+.pic.scene .sraw{font-size:11px;color:var(--mut,#8a93a3);margin-top:2px}
+.pic.scene .smv{font-size:11px;color:var(--mut,#8a93a3);margin-top:3px;display:flex;gap:6px;align-items:center}
+.pic.scene .smv button{font-size:11px;padding:2px 6px;cursor:pointer}
+#mmUp{font-size:12px;padding:3px 8px;cursor:pointer}
+#lb{position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:50;cursor:zoom-out}
+#lb img{max-width:94vw;max-height:88vh;border-radius:8px}
+#lbCap{color:#e9eef5;margin-top:8px;font-size:14px}
+.hint{font-size:11px;color:var(--mut);margin-top:10px;line-height:1.6}
+#msg{font-size:12px;color:var(--mut)}
+.colors{display:flex;gap:5px;margin-top:6px}
+.colors span{width:20px;height:20px;border-radius:50%;cursor:pointer;border:2px solid transparent}
+.colors span.on{border-color:#fff}
+#txtIn{position:absolute;display:none;z-index:5;min-width:160px}
+#abilBar{position:absolute;left:12px;bottom:12px;display:none;gap:4px;align-items:center;background:rgba(11,17,24,.88);border:1px solid var(--line);border-radius:10px;padding:5px 6px;z-index:4}
+#abilBar .face{width:34px;height:34px;border-radius:50%;border:2px solid;background:#000;margin-right:4px}
+#abilBar button{position:relative;width:42px;height:42px;padding:4px;display:flex;align-items:center;justify-content:center;background:#1d2533}
+#abilBar button img{width:30px;height:30px}
+#abilBar button span{position:absolute;right:2px;bottom:0;font-size:10px;color:var(--mut)}
+#selLab{position:absolute;right:12px;top:12px;display:none;gap:8px;align-items:center;background:rgba(11,17,24,.88);border:1px solid var(--line);border-radius:10px;padding:6px 11px;z-index:4;pointer-events:none}
+#selLab i{width:10px;height:10px;border-radius:50%;display:inline-block}
+#selLab span{color:var(--mut);font-size:12px}
+#swapBar{position:absolute;right:12px;top:52px;display:none;gap:4px;align-items:center;background:rgba(11,17,24,.88);border:1px solid var(--line);border-radius:10px;padding:5px 8px;z-index:4}
+#swapBar span{color:var(--mut);font-size:12px;margin-right:4px}
+#swapBar button{width:34px;height:34px;padding:2px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+#swapBar button img{width:28px;height:28px;border-radius:50%}
+#swapBar button.on{background:var(--amber)}
+#done.on{background:#1f7a4d;border-color:#2fa36b;color:#fff}
+/* 1.10.0 카드 아래 줄 · 텍틱 보내기 창 */
+.pic.hid img{opacity:.35}
+.pic.hid .scap,.pic.hid input{opacity:.55}
+.ctools{display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin-top:4px}
+.ctools button{font-size:11px;padding:2px 7px}
+.ctools .tacb{color:#9fd3ff;border-color:#3f6d99}
+.hidtag{font-size:11px;color:var(--amber);width:100%}
+.tsent{font-size:11px;color:#7fd1a6}
+#tkBoardRow{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:10px 0 0}
+#tkBoard{color:#9fd3ff;border-color:#3f6d99;font-weight:700}
+#tkBoardSent{font-size:11px;color:#7fd1a6}
+#swapBar button.txt{width:auto;height:30px;border-radius:8px;padding:0 10px;font-size:12px}
+</style></head><body>
+<header>
+  <span class="ttl" id="ttl">라운드 보드</span>
+  <select id="mapSel" title="맵"></select>
+  <button id="prev" title="이전 라운드 ( , )">◀</button><select id="rSel"></select><button id="next" title="다음 라운드 ( . )">▶</button>
+  <span id="keySeg"><button data-k="140">투명벽</button><button data-k="130" class="on">1:25</button><button data-k="100">1:00</button><button data-k="tac" title="전술 설명용 보드 — 1:25 보드를 복사해서 자유롭게 고침">✏️ 전술</button></span>
+  <button id="done" title="이 장면 보드를 방송 미니맵과 다 맞춰 봤으면 표시 (D 키)">☐ 대조 끝 표시</button><span id="doneProg" style="color:var(--mut);font-size:12px"></span>
+  <span class="sep"></span>
+  <label title="켜 두면 내보내기·시트로 보내기 그림에도 방송 미니맵이 깔려요"><input type="checkbox" id="under" checked> 방송 미니맵 겹쳐보기</label>
+  <input type="range" id="op" min="0" max="100" value="100" style="width:90px" title="방송 미니맵 진하기 — 내보내기·시트로 보내기 그림에도 이 진하기로 들어가요">
+  <button id="moreBtn" title="자동 배치·지우기·공수·PNG·자료 내보내기">더보기 ▾</button>
+  <button id="send" class="pri" title="이 맵 라운드 전부를 정리 슬라이드(PPT)로 — 분석 화면의 'PPT로 보내기'와 같음">PPT로 보내기</button>
+  <a id="yt" target="_blank" style="color:var(--link);text-decoration:none">▶ 영상</a>
+  <a id="toAna" style="color:var(--link);text-decoration:none" title="보드·미니맵·장면·스크린샷을 한 화면에서 보는 분석 화면">분석 화면 ↗</a>
+  <span id="msg"></span>
+  <span id="moreBox">
+  <button id="auto" title="방송 미니맵에서 요원 위치만 다시 읽어 놓기 (스킬은 그대로)">요원 자동 배치</button>
+  <button id="autoAb" title="방송 미니맵에서 연막·벽·아스트라 별을 읽어 놓기 (손으로 놓은 스킬은 그대로, 자동으로 놓았던 스킬만 새로)">스킬 자동 배치</button>
+  <select id="clr" title="지우기 — Ctrl+Z로 되돌리기"><option value="">🧹 지우기…</option><option value="abil">스킬만</option><option value="draw">그림만 (화살표·펜·글자)</option><option value="agent">요원만</option><option value="all">전부</option></select>
+  <button id="autoAll" title="이 맵의 모든 라운드·장면을 자동 배치해서 저장 (손으로 고친 보드는 그대로 두고, 손 안 댄 자동 보드는 새로 읽음)">🤖 이 맵 전부 자동 배치</button>
+  <button id="bak" style="display:none">↩ 되돌리기</button>
+  <button id="flip" title="이 라운드 공수 바꾸기">공수 바꾸기</button>
+  <span class="sep"></span>
+  <button id="png">PNG 저장</button>
+  <select id="outK" title="시트로 보내기·자료 내보내기에 넣을 보드"><option value="mm">📤 투명벽 보드 + 미니맵 사진</option><option value="all">📤 세 장면 모두 보드</option></select>
+  <button id="exp" title="이 맵의 모든 라운드 보드(스킬 포함 그림 3장) + 라운드 메모를 한 파일로 정리해 다운로드">📄 자료 내보내기</button>
+  </span>
+</header>
+<main>
+  <aside>
+    <div id="teams"></div>
+    <button id="sheet" style="width:100%">📊 시트에서 조합 불러오기</button>
+    <div class="hint">요원 칸을 누르면 맵 가운데 놓이고(이미 있으면 선택), 끌어다 놓아도 됩니다. 맵의 요원을 누르면 맵 왼쪽 아래에 스킬 바가 나와요.</div>
+  </aside>
+  <div id="stage"><svg id="board" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <defs>
+      <marker id="ah" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="context-stroke"/></marker>
+      <clipPath id="cp"><circle r="23" cx="0" cy="0"/></clipPath>
+    </defs>
+    <g id="gMap"></g><g id="gUnder"></g><g id="gItems"></g><g id="gTemp"></g>
+  </svg><input type="text" id="txtIn" placeholder="글자 입력 후 Enter"><div id="abilBar"></div><div id="tacBar"><span>✏️ 전술 보드 · 복사해 오기</span><button data-from="140">투명벽</button><button data-from="130">1:25</button><button data-from="100">1:00</button><button data-from="empty">비우기</button></div><div id="selLab"></div><div id="swapBar"></div></div>
+  <aside class="r">
+    <h3>도구</h3>
+    <div class="tools" id="tools">
+      <button data-t="sel" class="on">선택·이동 (V)</button><button data-t="arrow">화살표 (A)</button><button data-t="pen">펜 (P)</button>
+      <button data-t="text">글자 (T)</button><button data-t="erase">지우개 (E)</button><button id="undo">되돌리기</button>
+    </div>
+    <div class="colors" id="colors"></div>
+    <h3 id="abilHd">스킬 — 요원을 누르세요</h3>
+    <div class="abil" id="abil"></div>
+    <div id="tkBoardRow"><button id="tkBoard" title="지금 보이는 보드 그림을 맵별 텍틱 시트의 고른 단계 옆에 넣기">📋 이 보드를 텍틱 시트로</button><span id="tkBoardSent"></span></div>
+    <h3 id="memoHd">라운드 메모</h3><textarea id="nMemo" class="memo" placeholder="이 라운드에서 본 것 — 스타팅·스킬·미드라운드 노림 등 자유롭게 (자동 저장)"></textarea>
+    <div class="hint" style="margin-top:4px">투명벽·1:25·1:00·전술 네 보드가 같은 메모를 씁니다. 미니맵 모아보기의 해석 메모와도 같은 칸이에요.</div>
+    <div id="mmBox" class="hint" style="margin:6px 0 4px"><span id="mmState"></span> <button id="mmUp" title="유튜브 전체 화면(16:9) 스크린샷 파일을 골라 이 장면의 방송 미니맵으로 씀">🗺 미니맵 사진 넣기…</button><input type="file" id="mmFile" accept="image/*" hidden></div>
+    <div id="picDrop"><h3 id="picsHd">📎 장면·스크린샷</h3><div id="pics"></div>
+      <div class="hint" style="margin-top:4px">🎬 = 영상 보며 장면 캡처(S)로 찍은 것 — 그 라운드 시간에 찍은 건 자동으로 여기 모임 · 📎 = Win+Shift+S로 찍고 <b>Ctrl+V</b> · 그림 파일을 여기로 끌어다 놓기 · <a href="#" id="picAdd">파일에서 고르기</a></div><input type="file" id="picFile" accept="image/*" multiple hidden></div>
+    <details class="hint" style="margin-top:10px"><summary style="cursor:pointer">보드 사용법 (자동 배치·스킬 놓기)</summary>자동 배치: 요원은 모든 장면, 연막·벽은 <b>투명벽(오프닝) 장면만</b> — 1:25·1:00은 필요하면 <b>스킬 자동 배치</b><br>아스트라: ⭐ 별(설치만) ≠ 연막 — 투명벽 장면은 별로 놓임, 별·연막을 누르면 오른쪽 위에서 바꾸기 · 단축키 5 = 별<br>스킬(발로플랜트 방식): 누르면 요원 앞에 <b>실제 크기</b>로 바로 놓임 · 맵 왼쪽 아래 스킬 바에서 끌어다 놓아도 됨 · 요원 선택 후 1~4 키<br>놓은 뒤: 몸통·흰 점 끌기 = 옮기기 · <b>끝 마름모</b> 끌기 = 방향(균열·바이퍼 벽처럼 길이가 바뀌는 스킬은 길이도) · Shift = 15° 단위 · 휠 = 돌리기(원은 크기)<br>연막 = 어두운 원 · 점선 = 감지·정보 범위 · Delete/오른쪽 클릭 = 지우기 · Ctrl+Z = 되돌리기</details>
+  </aside>
+</main>
+<div id="lb"><img id="lbImg"><div id="lbCap"></div></div>
+<script src="assets-data.js"></script>
+<script src="mapreg.js"></script>
+<script src="scenes-util.js"></script>
+<script src="names.js"></script>
+<script src="net.js"></script>
+<script src="ann.js"></script>
+<script src="tactic.js"></script>
+<script src="board.js"></script>
+</body></html>

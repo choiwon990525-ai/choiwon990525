@@ -1,0 +1,862 @@
+/**
+ * VCT 2026 맵별 조합 시트 — VLR.gg 자동 수집 + 맵 탭 생성
+ * run()          : 새 경기 수집 → 새 데이터 있으면 탭 다시 그림 (매시간 트리거)
+ * setupTrigger() : 매시간 자동 실행 등록 (한 번만)
+ * verify()       : 시트의 1~3위 수식 결과를 스크립트 계산과 대조
+ */
+const SHEET_ID = '1qWUYBYoxLdzCXmmVG1rMeqKJ6y1gd0X9eUveR6ScBxU';
+const EVENTS = [
+  [2682, '킥오프', '아메리카스'], [2684, '킥오프', 'EMEA'], [2683, '킥오프', '퍼시픽'], [2685, '킥오프', '중국'],
+  [2760, '마스터즈 산티아고', ''],
+  [2860, '스테이지1', '아메리카스'], [2863, '스테이지1', 'EMEA'], [2775, '스테이지1', '퍼시픽'], [2864, '스테이지1', '중국'],
+  [2765, '마스터즈 런던', ''],
+  [2977, '스테이지2', '아메리카스'], [2976, '스테이지2', 'EMEA'], [2776, '스테이지2', '퍼시픽'], [2978, '스테이지2', '중국'],
+  [2766, '챔피언스', '']
+];
+const STAGES = ['킥오프', '마스터즈 산티아고', '스테이지1', '마스터즈 런던', '스테이지2', '챔피언스'];
+const REGIONS = ['아메리카스', 'EMEA', '퍼시픽', '중국'];
+const BASE_MAPS = ['Abyss', 'Ascent', 'Bind', 'Breeze', 'Corrode', 'Fracture', 'Haven', 'Lotus', 'Pearl', 'Split', 'Summit', 'Sunset'];
+const DATA_HEAD = ['matchId', 'gameId', 'stage', 'eventRegion', 'map', 'team', 'opp', 'ts', 'os', 'comp', 'players', 'yt', 'vlr', 'patch', 'date', 'defW', 'atkW', 'oppDefW', 'oppAtkW'];
+const UA = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36' };
+const DATA_ROW = 18; // 맵 탭 경기 기록 시작 행 (위: 1~3위 조합 + 상위 팀 조합)
+
+/* 연도별 설정 — 2026만 매시간 자동(run), 나머지는 buildYYYY()로 한 번만 만듦 */
+const CONFIGS = {
+  2026: { year: 2026, id: SHEET_ID, label: '2026 VCT 1티어', events: EVENTS, stages: STAGES, regions: REGIONS, baseMaps: BASE_MAPS },
+  2025: { year: 2025, id: '1dgDHGh2lvkb9x05Uq6xIXs9GO7mgvGQV51YPO9HBJRE', label: '2025 VCT 1티어', regions: REGIONS, baseMaps: [],
+    stages: ['킥오프', '마스터즈 방콕', '스테이지1', '마스터즈 토론토', '스테이지2', '챔피언스'],
+    events: [[2274, '킥오프', '아메리카스'], [2276, '킥오프', 'EMEA'], [2277, '킥오프', '퍼시픽'], [2275, '킥오프', '중국'], [2281, '마스터즈 방콕', ''],
+      [2347, '스테이지1', '아메리카스'], [2380, '스테이지1', 'EMEA'], [2379, '스테이지1', '퍼시픽'], [2359, '스테이지1', '중국'], [2282, '마스터즈 토론토', ''],
+      [2501, '스테이지2', '아메리카스'], [2498, '스테이지2', 'EMEA'], [2500, '스테이지2', '퍼시픽'], [2499, '스테이지2', '중국'], [2283, '챔피언스', '']] },
+  2024: { year: 2024, id: '1ppPim5rCyWLVEC9cmnRMGK6PK9-atIhzLmGFLv_AxOk', label: '2024 VCT 1티어', regions: REGIONS, baseMaps: [],
+    stages: ['킥오프', '마스터즈 마드리드', '스테이지1', '마스터즈 상하이', '스테이지2', '챔피언스'],
+    events: [[1923, '킥오프', '아메리카스'], [1925, '킥오프', 'EMEA'], [1924, '킥오프', '퍼시픽'], [1926, '킥오프', '중국'], [1921, '마스터즈 마드리드', ''],
+      [2004, '스테이지1', '아메리카스'], [1998, '스테이지1', 'EMEA'], [2002, '스테이지1', '퍼시픽'], [2006, '스테이지1', '중국'], [1999, '마스터즈 상하이', ''],
+      [2095, '스테이지2', '아메리카스'], [2094, '스테이지2', 'EMEA'], [2005, '스테이지2', '퍼시픽'], [2096, '스테이지2', '중국'], [2097, '챔피언스', '']] },
+  2023: { year: 2023, id: '1mjjLAajUse9xqX7irV8YUDRohOoEbei7LBB1DxN_Baw', label: '2023 VCT 1티어', regions: REGIONS, baseMaps: [],
+    stages: ['락인', '리그', '마스터즈 도쿄', '챔피언스'],
+    events: [[1188, '락인', ''], [1189, '리그', '아메리카스'], [1190, '리그', 'EMEA'], [1191, '리그', '퍼시픽'], [1494, '마스터즈 도쿄', ''], [1657, '챔피언스', '']],
+    teamRegion: { 'EDward Gaming': '중국', 'FunPlus Phoenix': '중국', 'Bilibili Gaming': '중국', 'Attacking Soul Esports': '중국', 'Trace Esports': '중국', 'TYLOO': '중국', 'Dragon Ranger Gaming': '중국', 'JD Gaming': '중국', 'Nova Esports': '중국', 'Titan Esports Club': '중국', 'Wolves Esports': '중국', 'All Gamers': '중국' } }
+};
+const RANKS = {
+  2026: { champ: '2766/valorant-champions-2026',
+    world: { label: '마스터즈 런던 순위 (챔피언스 끝나면 자동으로 챔피언스 순위)', teams: ['LEVIATÁN', 'Paper Rex', 'EDward Gaming'] },
+    region: { label: '스테이지2 플레이오프', teams: { '아메리카스': ['100 Thieves', 'LOUD', 'NRG'], 'EMEA': ['Karmine Corp', 'Team Liquid', 'FUT Esports'],
+      '퍼시픽': ['Global Esports', 'Nongshim RedForce', 'T1'], '중국': ['TYLOO', 'JD Gaming', 'Bilibili Gaming'] } } },
+  2025: { world: { label: '챔피언스 최종 순위', teams: ['NRG', 'FNATIC', 'KIWOOM DRX'] },
+    region: { label: '스테이지2 플레이오프', teams: { '아메리카스': ['G2 Esports', 'NRG', 'Sentinels'], 'EMEA': ['Team Liquid', 'GIANTX', 'BBL Esports'],
+      '퍼시픽': ['Paper Rex', 'Rex Regum Qeon', 'TALON'], '중국': ['Bilibili Gaming', 'Dragon Ranger Gaming', 'EDward Gaming'] } } },
+  2024: { world: { label: '챔피언스 최종 순위', teams: ['EDward Gaming', 'Team Heretics', 'LEVIATÁN'] },
+    region: { label: '스테이지2 플레이오프', teams: { '아메리카스': ['LEVIATÁN', 'G2 Esports', 'KRÜ Esports'], 'EMEA': ['FNATIC', 'Team Vitality', 'Team Heretics'],
+      '퍼시픽': ['Gen.G', 'KIWOOM DRX', 'Paper Rex'], '중국': ['EDward Gaming', 'FunPlus Phoenix', 'Trace Esports'] } } },
+  2023: { world: { label: '챔피언스 최종 순위', teams: ['Evil Geniuses', 'Paper Rex', 'LOUD'] },
+    region: { label: '리그 플레이오프', teams: { '아메리카스': ['LOUD', 'NRG', 'Evil Geniuses'], 'EMEA': ['Team Liquid', 'FNATIC', 'FUT Esports'],
+      '퍼시픽': ['Paper Rex', 'KIWOOM DRX', 'T1'] } } }
+};
+let CFG = CONFIGS[2026];
+function useYear_(y) { CFG = CONFIGS[y]; }
+function buildYear_(y) {
+  useYear_(y);
+  const r = updateData();
+  if (r.more) { Logger.log(y + ' 수집이 시간 안에 안 끝남 — 같은 함수를 한 번 더 실행하세요'); return; }
+  render();
+  Logger.log(y + ' 완료');
+}
+// 편집기에서 [실행]을 누르면 기본으로 이 함수가 돌아감 (남은 연도 작업 이어서 처리)
+function continuePending() { buildPending(); }
+function build2025() { buildYear_(2025); }
+function build2024() { buildYear_(2024); }
+function build2023() { buildYear_(2023); }
+
+function ss_() { return SpreadsheetApp.openById(CFG.id); }
+function sheet_(name, hidden) {
+  const s = ss_();
+  let sh = s.getSheetByName(name);
+  if (!sh) { sh = s.insertSheet(name, s.getSheets().length); if (hidden) sh.hideSheet(); }
+  return sh;
+}
+function dec_(s) {
+  return String(s).replace(/<[^>]*>/g, '').replace(/&amp;/g, '&').replace(/&#0?39;/g, "'").replace(/&quot;/g, '"')
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&ndash;/g, '-').replace(/\s+/g, ' ').trim();
+}
+function agentName_(a) { return a === 'Kayo' ? 'KAY/O' : a; }
+function cmp_(a, b) { return a < b ? -1 : a > b ? 1 : 0; }
+function fetchAll_(urls) { return UrlFetchApp.fetchAll(urls.map(u => ({ url: u, muteHttpExceptions: true, headers: UA }))); }
+function nowKst_() { return Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd HH:mm'); }
+
+/* ───────────── 파싱 ───────────── */
+function parseMatch_(html, matchId) {
+  const rows = [];
+  const patch = (html.match(/Patch ([\d.]+)/) || [])[1] || '';
+  const date = (html.match(/data-utc-ts="([^"]+)"/) || [])[1] || '';
+  let m;
+  const nav = {};
+  const reNav = /vm-stats-gamesnav-item[^"]*"\s+data-game-id="(\d+)"[\s\S]*?font-weight: 400;">\s*(\d+)\s*<\/span>/g;
+  while ((m = reNav.exec(html))) nav[m[1]] = +m[2];
+  const vods = {};
+  const reV = /<a href="(https?:\/\/[^"]+)"[^>]*>\s*Map (\d+)\s*<\/a>/g;
+  while ((m = reV.exec(html))) vods[+m[2]] = m[1];
+  const reG = /<div class="vm-stats-game[^"]*" data-game-id="(\d+|all)"/g;
+  const pos = [];
+  while ((m = reG.exec(html))) pos.push([m.index, m[1]]);
+  let idx = 0;
+  for (let i = 0; i < pos.length; i++) {
+    if (pos[i][1] === 'all') continue;
+    idx++;
+    const gid = pos[i][1];
+    const chunk = html.slice(pos[i][0], i + 1 < pos.length ? pos[i + 1][0] : html.length);
+    const teams = [], scores = [];
+    const reT = /<div class="team-name">([\s\S]*?)<\/div>/g;
+    while ((m = reT.exec(chunk)) && teams.length < 2) teams.push(dec_(m[1]));
+    const reS = /<div class="score[^"]*"[^>]*>\s*(\d+)/g;
+    while ((m = reS.exec(chunk)) && scores.length < 2) scores.push(+m[1]);
+    const mm = chunk.match(/<div class="map">[\s\S]*?display: inline-block;">\s*([^<]+?)\s*</);
+    const map = mm ? dec_(mm[1]).split(' ')[0] : '';
+    const tabs = chunk.split('<div class="ovw-table">').slice(1, 3);
+    if (teams.length < 2 || scores.length < 2 || tabs.length < 2 || !map) continue;
+    const lineups = tabs.map(t => t.split('class="ovw-row"').slice(1).map(r => {
+      const n = r.match(/ovw-player-name[^>]*>([^<]*)</);
+      const a = r.match(/agents\/[^"]+" alt="[^"]*" title="([^"]+)"/);
+      return [n ? dec_(n[1]) : '', a ? agentName_(dec_(a[1])) : ''];
+    }).filter(x => x[1]));
+    if (lineups[0].length !== 5 || lineups[1].length !== 5) continue;
+    const hdr = chunk.slice(0, chunk.indexOf('ovw-table'));
+    const mi = hdr.indexOf('<div class="map">');
+    const side = seg => ['ct', 't'].map(c => +((seg.match(new RegExp('class="mod-' + c + '">\\s*(\\d+)')) || [])[1] || 0));
+    const sd = [side(mi > 0 ? hdr.slice(0, mi) : ''), side(mi > 0 ? hdr.slice(mi) : '')];
+    const yt = vods[nav[gid] || idx] || '';
+    const vlr = 'https://www.vlr.gg/' + matchId + '/?game=' + gid + '&tab=overview';
+    for (const k of [0, 1]) {
+      const lu = lineups[k].slice().sort((x, y) => cmp_(x[1], y[1]));
+      rows.push([matchId, gid, '', '', map, teams[k], teams[1 - k], scores[k], scores[1 - k],
+        lu.map(x => x[1]).join(' / '), lu.map(x => x[0]).join(' / '), yt, vlr, patch, date,
+        sd[k][0], sd[k][1], sd[1 - k][0], sd[1 - k][1]]);
+    }
+  }
+  return rows;
+}
+
+/* ───────────── 수집 ───────────── */
+function updateData() {
+  const START = Date.now();
+  const dsh = sheet_('_data', true), done = sheet_('_done', true);
+  if (dsh.getLastRow() === 0) dsh.appendRow(DATA_HEAD);
+  if (done.getLastRow() === 0) done.appendRow(['matchId', 'status', 'checked']);
+  const doneMap = {};
+  if (done.getLastRow() > 1) done.getRange(2, 1, done.getLastRow() - 1, 3).getValues()
+    .forEach((r, i) => doneMap[String(r[0])] = { status: String(r[1]), row: i + 2 });
+  const props = PropertiesService.getScriptProperties();
+  const evs = CFG.events.filter(e => props.getProperty('ev_' + e[0]) !== 'done');
+  const pending = [];
+  const evDone = {};
+  if (evs.length) {
+    const pages = fetchAll_(evs.map(e => 'https://www.vlr.gg/event/matches/' + e[0] + '/?series_id=all'));
+    evs.forEach((e, i) => {
+      const r = pages[i];
+      if (r.getResponseCode() !== 200) { Logger.log('event ' + e[0] + ' HTTP ' + r.getResponseCode()); return; }
+      const h = r.getContentText();
+      const re = /<a href="\/(\d+)\/[^"]*" class="wf-module-item match-item[\s\S]*?class="ml-status">\s*([^<]*)</g;
+      let m, cnt = 0, all = true;
+      while ((m = re.exec(h))) {
+        cnt++;
+        if (m[2].trim() !== 'Completed') { all = false; continue; }
+        const d = doneMap[m[1]];
+        if (!d) pending.push([m[1], e[1], e[2], false]);
+        else if (d.status === 'novod') { all = false; pending.push([m[1], e[1], e[2], true]); }
+      }
+      evDone[e[0]] = all && cnt > 0;
+    });
+  }
+  let added = 0, ytFixed = 0, more = false;
+  const iso = new Date().toISOString();
+  for (let i = 0; i < pending.length; i += 15) {
+    if (Date.now() - START > 270000) { more = true; break; }
+    const batch = pending.slice(i, i + 15);
+    const res = fetchAll_(batch.map(p => 'https://www.vlr.gg/' + p[0] + '/'));
+    const newRows = [], newDone = [];
+    batch.forEach((p, j) => {
+      const r = res[j];
+      if (r.getResponseCode() !== 200) { more = true; Logger.log('match ' + p[0] + ' HTTP ' + r.getResponseCode()); return; }
+      const rows = parseMatch_(r.getContentText(), p[0]);
+      rows.forEach(x => { x[2] = p[1]; x[3] = p[2]; });
+      const hasVod = rows.every(x => x[11]);
+      const old = rows.length && (Date.now() - new Date(String(rows[0][14]).replace(' ', 'T') + 'Z').getTime()) > 3 * 864e5;
+      const st = (hasVod || old) ? 'ok' : 'novod';
+      if (p[3]) { if (hasVod && rows.length) ytFixed += updateYt_(dsh, rows); }
+      else newRows.push(...rows);
+      const d = doneMap[p[0]];
+      if (d) done.getRange(d.row, 2, 1, 2).setValues([[st, iso]]);
+      else newDone.push([p[0], st, iso]);
+    });
+    if (newDone.length) {
+      const start = done.getLastRow() + 1;
+      done.getRange(start, 1, newDone.length, 3).setValues(newDone);
+      newDone.forEach((d, k) => doneMap[d[0]] = { status: d[1], row: start + k });
+    }
+    if (newRows.length) {
+      dsh.getRange(dsh.getLastRow() + 1, 1, newRows.length, DATA_HEAD.length).setValues(newRows);
+      added += newRows.length;
+    }
+    Utilities.sleep(300);
+  }
+  if (!more) Object.keys(evDone).forEach(id => { if (evDone[id]) props.setProperty('ev_' + id, 'done'); });
+  const out = { added: added, ytFixed: ytFixed, more: more, pending: pending.length, sec: Math.round((Date.now() - START) / 1000) };
+  Logger.log(JSON.stringify(out));
+  return out;
+}
+
+function updateYt_(dsh, rows) {
+  const vals = dsh.getRange(2, 1, dsh.getLastRow() - 1, 2).getValues();
+  const byGame = {};
+  rows.forEach(r => byGame[String(r[1])] = r[11]);
+  let n = 0;
+  vals.forEach((v, i) => {
+    const yt = byGame[String(v[1])];
+    if (yt && String(v[0]) === String(rows[0][0])) { dsh.getRange(i + 2, 12).setValue(yt); n++; }
+  });
+  return n;
+}
+
+/* ───────────── 시트 그리기 ───────────── */
+function resetSheet_(sh) {
+  const f = sh.getFilter(); if (f) f.remove();
+  sh.setFrozenRows(0); sh.setFrozenColumns(0);
+  const r = sh.getRange(1, 1, sh.getMaxRows(), sh.getMaxColumns());
+  r.breakApart(); r.clearDataValidations(); r.clear();
+  sh.clearConditionalFormatRules();
+  sh.showColumns(1, sh.getMaxColumns());
+  sh.setRowHeights(1, sh.getMaxRows(), 21);
+}
+function dropdown_(range, list) {
+  range.setDataValidation(SpreadsheetApp.newDataValidation().requireValueInList(list, true).setAllowInvalid(false).build());
+}
+function rng_(p, col) { return p + '$' + col + '$' + DATA_ROW + ':$' + col; }
+function topFormula_(p, st, rg) {
+  return '=IFERROR(ARRAYFORMULA(LET(c,' + rng_(p, 'A') + ',t,' + rng_(p, 'B') + ',r,' + rng_(p, 'D') + ',e,' + rng_(p, 'E') + ',g,' + rng_(p, 'F') + ',' +
+    'm,(c<>"")*IF(' + st + '="전체",1,e=' + st + ')*IF(' + rg + '="전체",1,g=' + rg + '),' +
+    'fc,FILTER(c,m),ft,FILTER(t,m),fr,FILTER(r,m),u,UNIQUE(fc),' +
+    'n,MAP(u,LAMBDA(x,SUMPRODUCT(--(fc=x)))),' +
+    'tm,MAP(u,LAMBDA(x,COUNTUNIQUE(FILTER(ft,fc=x)))),' +
+    'w,MAP(u,LAMBDA(x,SUMPRODUCT((fc=x)*(LEFT(fr,1)="승")))),' +
+    'ARRAY_CONSTRAIN(SORT(HSTACK(u,n,tm,w),2,FALSE,3,FALSE,1,TRUE),3,4))),"")';
+}
+// 맵 탭 오른쪽 '이 맵 조합별 승률' — [조합, 횟수, 팀 수, 종합, 공격, 수비, 주로 쓴 팀]
+// 팀 전체일 땐 3번 미만 쓴 조합을 맨 아래로 (팀을 고르면 전부)
+function compFormula_(st, rg, tm, so) {
+  const C = c => rng_('', c);
+  return '=IFERROR(ARRAYFORMULA(LET(c,' + C('A') + ',t,' + C('B') + ',r,' + C('D') + ',e,' + C('E') + ',g,' + C('F') + ',dw,' + C('K') + ',aw,' + C('L') + ',odw,' + C('M') + ',oaw,' + C('N') + ',' +
+    'm,(c<>"")*IF(' + st + '="전체",1,e=' + st + ')*IF(' + rg + '="전체",1,g=' + rg + ')*IF(' + tm + '="전체",1,t=' + tm + '),' +
+    'u,UNIQUE(FILTER(c,m)),' +
+    'n,MAP(u,LAMBDA(x,SUMPRODUCT((c=x)*m))),' +
+    'tn,MAP(u,LAMBDA(x,COUNTUNIQUE(FILTER(t,(c=x)*m)))),' +
+    'w,MAP(u,LAMBDA(x,SUMPRODUCT((c=x)*m*(LEFT(r,1)="승")))),' +
+    'atw,MAP(u,LAMBDA(x,SUMPRODUCT((c=x)*m*aw))),' +
+    'atp,MAP(u,LAMBDA(x,SUMPRODUCT((c=x)*m*(aw+odw)))),' +
+    'dfw,MAP(u,LAMBDA(x,SUMPRODUCT((c=x)*m*dw))),' +
+    'dfp,MAP(u,LAMBDA(x,SUMPRODUCT((c=x)*m*(dw+oaw)))),' +
+    'tp,MAP(u,LAMBDA(x,LET(ft,FILTER(t,(c=x)*m),ut,UNIQUE(ft),ct,MAP(ut,LAMBDA(y,SUMPRODUCT(--(ft=y)))),' +
+      'q,SORT(HSTACK(ut,ct),2,FALSE,1,TRUE),TEXTJOIN(", ",TRUE,ARRAY_CONSTRAIN(INDEX(q,0,1)&" "&INDEX(q,0,2),3,1))))),' +
+    'th,IF(' + tm + '="전체",3,1),wr,w/n,ar,IF(atp=0,-1,atw/atp),dr,IF(dfp=0,-1,dfw/dfp),' +
+    'k,IF(' + so + '="횟수",n,IF(' + so + '="공격",ar,IF(' + so + '="수비",dr,wr))),' +
+    's,SORT(HSTACK(u,n,tn,wr,IF(ar<0,"",ar),IF(dr<0,"",dr),tp,--(n>=th),k,n),8,FALSE,9,FALSE,10,FALSE,4,FALSE,1,TRUE),' +
+    'CHOOSECOLS(s,1,2,3,4,5,6,7))),"")';
+}
+// 이 맵 자체의 진영 밸런스 (필터 대상 전체의 공격 라운드 승률)
+function sideBiasFormula_(st, rg) {
+  const C = c => rng_('', c);
+  return '=IFERROR(ARRAYFORMULA(LET(t,' + C('B') + ',e,' + C('E') + ',g,' + C('F') + ',aw,' + C('L') + ',odw,' + C('M') + ',' +
+    'm,(t<>"")*IF(' + st + '="전체",1,e=' + st + ')*IF(' + rg + '="전체",1,g=' + rg + '),' +
+    'v,SUMPRODUCT(m*aw)/SUMPRODUCT(m*(aw+odw)),' +
+    '"⚖️ 이 맵 공격 라운드 승률 (필터 대상 전체 평균) "&TEXT(v,"0.0%")&IF(v<0.5,"  → 수비 쪽 유리","  → 공격 쪽 유리"))),"")';
+}
+function totalFormula_(p, st, rg) {
+  return '=ARRAYFORMULA(SUMPRODUCT((' + rng_(p, 'A') + '<>"")*IF(' + st + '="전체",1,' + rng_(p, 'E') + '=' + st + ')*IF(' + rg + '="전체",1,' + rng_(p, 'F') + '=' + rg + ')))';
+}
+// 한 팀이 이 맵에서 가장 많이 쓴 조합 → [조합, 횟수, 승수, 그 팀 이 맵 전체 경기 수]
+function teamFormula_(p, teamCell, st) {
+  return '=IF(' + teamCell + '="","",IFERROR(ARRAYFORMULA(LET(c,' + rng_(p, 'A') + ',t,' + rng_(p, 'B') + ',r,' + rng_(p, 'D') + ',e,' + rng_(p, 'E') + ',' +
+    'm,(t=' + teamCell + ')*(c<>"")*IF(' + st + '="전체",1,e=' + st + '),' +
+    'fc,FILTER(c,m),fr,FILTER(r,m),u,UNIQUE(fc),' +
+    'n,MAP(u,LAMBDA(x,SUMPRODUCT(--(fc=x)))),' +
+    'w,MAP(u,LAMBDA(x,SUMPRODUCT((fc=x)*(LEFT(fr,1)="승")))),' +
+    'HSTACK(ARRAY_CONSTRAIN(SORT(HSTACK(u,n,w),2,FALSE,1,TRUE),1,3),ROWS(fc)))),""))';
+}
+function rankTeamFormula_(key, k) {
+  return '=IFERROR(INDEX(FILTER(\'_순위\'!$B:$D,\'_순위\'!$A:$A=' + key + '),1,' + k + '),"")';
+}
+function rankLabelFormula_(key) {
+  return 'IFERROR(INDEX(FILTER(\'_순위\'!$E:$E,\'_순위\'!$A:$A=' + key + '),1),"")';
+}
+
+/* 순위표(_순위 숨김 탭): 세계 1~3위 + 지역별 1~3위. 2026은 챔피언스가 끝나면 챔피언스 최종 순위로 자동 교체 */
+function parsePlacements_(h) {
+  const i = h.indexOf('Prize Distribution'); if (i < 0) return [];
+  const rowsH = h.slice(i).split('<div class="row').slice(2);
+  const out = [];
+  for (const rh of rowsH) {
+    const pl = rh.match(/nowrap;">\s*(\d+)<sup>[a-z]+<\/sup>\s*(–|&ndash;)?/);
+    const tm = rh.match(/class="text-of">\s*([^<]+?)\s*</);
+    if (!pl || pl[2] || !tm || +pl[1] !== out.length + 1) break;
+    out.push(dec_(tm[1]));
+    if (out.length === 3) break;
+  }
+  return out;
+}
+function ensureRanks_() {
+  const R = RANKS[CFG.year]; if (!R) return false;
+  let world = R.world.teams, wlabel = R.world.label;
+  if (R.champ) {
+    try {
+      const h = UrlFetchApp.fetch('https://www.vlr.gg/event/' + R.champ + '/playoffs', { muteHttpExceptions: true, headers: UA }).getContentText();
+      const got = parsePlacements_(h);
+      if (got.length === 3) { world = got; wlabel = '챔피언스 최종 순위'; }
+    } catch (e) { Logger.log('챔피언스 순위 확인 실패: ' + e); }
+  }
+  const rows = [['구분', '1위', '2위', '3위', '기준'], ['세계', world[0] || '', world[1] || '', world[2] || '', wlabel]];
+  CFG.regions.forEach(g => { const t = R.region.teams[g] || []; rows.push([g, t[0] || '', t[1] || '', t[2] || '', t.length ? R.region.label : '이 해엔 순위 대회 없음']); });
+  const sh = sheet_('_순위', true);
+  const old = sh.getLastRow() ? sh.getRange(1, 1, sh.getLastRow(), 5).getDisplayValues() : [];
+  const changed = JSON.stringify(old) !== JSON.stringify(rows);
+  if (changed) { sh.clear(); sh.getRange(1, 1, rows.length, 5).setValues(rows); }
+  return changed;
+}
+
+function iconFormula_(cell, k) {
+  const a = 'INDEX(SPLIT(' + cell + '," / ",FALSE),1,' + k + ')';
+  return '=IF(' + cell + '="","",IFERROR(IMAGE(VLOOKUP(' + a + ',\'_아이콘\'!$A:$B,2,FALSE)),' + a + '))';
+}
+
+function ensureIcons_(agents) {
+  const sh = sheet_('_아이콘', true);
+  const have = {};
+  if (sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, 2).getValues().forEach(r => have[r[0]] = r[1]);
+  if (!Object.keys(have).length) {
+    try {
+      const j = JSON.parse(UrlFetchApp.fetch('https://valorant-api.com/v1/agents?isPlayableCharacter=true', { muteHttpExceptions: true }).getContentText());
+      j.data.forEach(a => have[a.displayName] = a.displayIcon);
+    } catch (e) { Logger.log('valorant-api 실패: ' + e); }
+  }
+  agents.forEach(a => { if (!have[a]) have[a] = 'https://www.vlr.gg/img/vlr/game/agents/' + a.toLowerCase().replace(/[^a-z]/g, '') + '.png'; });
+  const rows = Object.keys(have).sort().map(k => [k, have[k]]);
+  sh.clear();
+  sh.getRange(1, 1, 1, 2).setValues([['agent', 'icon']]);
+  sh.getRange(2, 1, rows.length, 2).setValues(rows);
+}
+
+function render() {
+  const s = ss_();
+  const dsh = s.getSheetByName('_data');
+  const all = dsh.getRange(2, 1, dsh.getLastRow() - 1, DATA_HEAD.length).getValues();
+  const teamRegion = {};
+  all.forEach(r => { if (r[3]) teamRegion[r[5]] = r[3]; });
+  Object.keys(CFG.teamRegion || {}).forEach(t => { if (!teamRegion[t]) teamRegion[t] = CFG.teamRegion[t]; });
+  // 쇼매치처럼 양쪽 팀 모두 리그 소속이 아닌 경기는 제외
+  const vals = all.filter(r => r[3] || teamRegion[r[5]] || teamRegion[r[6]]);
+  const agents = {};
+  vals.forEach(r => String(r[9]).split(' / ').forEach(a => agents[a] = 1));
+  ensureIcons_(Object.keys(agents));
+  ensureRanks_();
+  const maps = CFG.baseMaps.slice();
+  vals.forEach(r => { if (maps.indexOf(r[4]) < 0) maps.push(r[4]); });
+  maps.sort();
+  const stamp = nowKst_();
+  maps.forEach(mp => renderMap_(s, mp, vals.filter(r => r[4] === mp), teamRegion, stamp));
+  renderSummary_(s, maps, stamp);
+  renderTeamStats_(s, vals, teamRegion, stamp);
+  const champ = renderChampions_(s, vals, stamp);
+  // 탭 순서: 요약 → (챔피언스) → 팀 승률 → 맵 알파벳
+  ['요약'].concat(champ ? [CHAMP_TAB] : [], ['팀 승률'], maps).forEach((n, i) => { s.setActiveSheet(s.getSheetByName(n)); s.moveActiveSheet(i + 1); });
+  if (CFG.year !== 2026) {
+    const keep = ['요약', '팀 승률', CHAMP_TAB, '_data', '_done', '_아이콘', '_순위', '레퍼런스 보드', '_설정'].concat(maps);
+    s.getSheets().forEach(x => { if (keep.indexOf(x.getName()) < 0) s.deleteSheet(x); });
+  }
+  s.setActiveSheet(s.getSheetByName('요약'));
+  PropertiesService.getScriptProperties().setProperty(CFG.year === 2026 ? 'rendered' : 'rendered_' + CFG.year, stamp);
+}
+
+function renderMap_(s, mp, rows, teamRegion, stamp) {
+  let sh = s.getSheetByName(mp);
+  if (!sh) sh = s.insertSheet(mp);
+  const pS = String(sh.getRange('C1').getValue() || ''), pR = String(sh.getRange('E1').getValue() || '');
+  const prevSt = (['전체'].concat(CFG.stages).indexOf(pS) >= 0) ? pS : '전체';
+  const prevRg = (['전체'].concat(CFG.regions).indexOf(pR) >= 0) ? pR : '전체';
+  const pO = String(sh.getRange('Z1').getValue() || '');
+  const prevSort = ['횟수', '종합', '공격', '수비'].indexOf(pO) >= 0 ? pO : '종합';
+  const prevTeam = String(sh.getRange('W1').getValue() || '');
+  resetSheet_(sh);
+  const recs = rows.map(r => ({
+    sides: [r[15], r[16], r[17], r[18]].map(v => v === '' ? '' : +v),
+    comp: String(r[9]), team: String(r[5]), opp: String(r[6]), win: +r[7] > +r[8],
+    res: (+r[7] > +r[8] ? '승 ' : '패 ') + r[7] + '-' + r[8], stage: String(r[2]),
+    region: String(r[3] || teamRegion[r[5]] || '국제'), players: String(r[10]), yt: String(r[11]), vlr: String(r[12]), date: String(r[14])
+  }));
+  const cnt = {}, tms = {};
+  recs.forEach(x => { cnt[x.comp] = (cnt[x.comp] || 0) + 1; (tms[x.comp] = tms[x.comp] || {})[x.team] = 1; });
+  const tc = c => Object.keys(tms[c]).length;
+  recs.sort((a, b) => cnt[b.comp] - cnt[a.comp] || tc(b.comp) - tc(a.comp) || cmp_(a.comp, b.comp) || cmp_(a.team, b.team) ||
+    CFG.stages.indexOf(a.stage) - CFG.stages.indexOf(b.stage) || cmp_(a.date, b.date));
+  const n = recs.length;
+  if (sh.getMaxRows() < DATA_ROW + n + 5) sh.insertRowsAfter(sh.getMaxRows(), DATA_ROW + n + 5 - sh.getMaxRows());
+  if (sh.getMaxColumns() < 31) sh.insertColumnsAfter(sh.getMaxColumns(), 31 - sh.getMaxColumns());
+  // 레퍼런스 보드 탭 (장면 캡처 도구 → '시트로 보내기'가 채움). 있으면 기록·조합표에서 바로 연결
+  const bsh = s.getSheetByName('레퍼런스 보드');
+  const BG = bsh ? bsh.getSheetId() : null;
+  const BR = c => "'레퍼런스 보드'!$" + c + '$2:$' + c + '$2000';
+  const RE = DATA_ROW + Math.max(n, 1) - 1;
+  const HEAD_BG = '#e5e7eb';
+
+  // ── 1행: 필터 ──
+  sh.getRange('A1:E1').setValues([['필터 ▸', '대회', prevSt, '지역', prevRg]]);
+  dropdown_(sh.getRange('C1'), ['전체'].concat(CFG.stages));
+  dropdown_(sh.getRange('E1'), ['전체'].concat(CFG.regions));
+  sh.getRange('A1:E1').setFontWeight('bold');
+  sh.getRange('C1').setBackground('#fff7d6'); sh.getRange('E1').setBackground('#fff7d6');
+  sh.getRange('C1:E1').setHorizontalAlignment('center');
+  sh.getRange('K2').setFormula(totalFormula_('', '$C$1', '$E$1'));
+  sh.getRange('A2').setFormula('="대상 "&$K$2&"건 (팀×맵) · 횟수 = 그 조합을 쓴 팀×맵 수 · 동점이면 사용 팀 수 많은 순 · 갱신 ' + stamp + '"');
+  sh.getRange('A2').setFontColor('#6b7280').setFontSize(9);
+
+  // ── 3~6행: 많이 쓴 조합 1~3위 ──
+  sh.getRange('A3:I3').setValues([['많이 쓴 조합', '요원', '', '', '', '', '횟수 (점유율)', '팀 수', '승률 (n)']]);
+  sh.getRange('B3:F3').merge();
+  sh.getRange('A3:I3').setFontWeight('bold').setBackground(HEAD_BG).setHorizontalAlignment('center');
+  sh.getRange('K4').setFormula(topFormula_('', '$C$1', '$E$1'));
+  for (let k = 0; k < 3; k++) {
+    const row = 4 + k, K = '$K' + row;
+    sh.getRange(row, 1).setFormula('=IF(' + K + '="","",' + (k + 1) + '&"위 · "&' + K + ')');
+    for (let c = 1; c <= 5; c++) sh.getRange(row, 1 + c).setFormula(iconFormula_(K, c));
+    sh.getRange(row, 7).setFormula('=IF(' + K + '="","",$L' + row + '&"회 ("&TEXT($L' + row + '/$K$2,"0%")&")")');
+    sh.getRange(row, 8).setFormula('=IF(' + K + '="","",$M' + row + '&"팀")');
+    sh.getRange(row, 9).setFormula('=IF(' + K + '="","",TEXT($N' + row + '/$L' + row + ',"0%")&" ("&$L' + row + '&")")');
+  }
+  sh.getRange('A4:I6').setBackground('#f8fafc').setVerticalAlignment('middle');
+  sh.getRange('A4:A6').setFontWeight('bold');
+  sh.getRange('B4:I6').setHorizontalAlignment('center');
+  sh.getRange('A4:I4').setBackground('#fef3c7');
+  sh.setRowHeights(4, 3, 46);
+  sh.setRowHeight(7, 10);
+
+  // ── 8~15행: 상위 팀이 쓴 조합 (세계 / 지역) ──
+  const teamBlock = (headRow, firstRow, teamFormulaOf, headFormula, emptyMsg) => {
+    sh.getRange(headRow, 1).setFormula(headFormula);
+    sh.getRange(headRow, 2, 1, 8).setValues([['그 팀이 이 맵에서 가장 많이 쓴 조합', '', '', '', '', '사용 / 이 맵 경기', '승률 (n)', '']]);
+    sh.getRange(headRow, 2, 1, 5).merge();
+    sh.getRange(headRow, 1, 1, 9).setFontWeight('bold').setBackground(HEAD_BG);
+    sh.getRange(headRow, 2, 1, 8).setHorizontalAlignment('center');
+    for (let k = 0; k < 3; k++) {
+      const row = firstRow + k, K = '$K' + row, L = '$L' + row;
+      sh.getRange(row, 11).setFormula(teamFormulaOf(k + 1));
+      sh.getRange(row, 12).setFormula(teamFormula_('', K, '$C$1'));
+      const empty = (k === 0 && emptyMsg) ? emptyMsg : '""';
+      sh.getRange(row, 1).setFormula('=IF(' + K + '="",' + empty + ',' + (k + 1) + '&"위 · "&' + K + '&CHAR(10)&IF(' + L + '="","이 맵 기록 없음",' + L + '))');
+      for (let c = 1; c <= 5; c++) sh.getRange(row, 1 + c).setFormula(iconFormula_(L, c));
+      sh.getRange(row, 7).setFormula('=IF(' + L + '="","",$M' + row + '&"회 / "&$O' + row + '&"맵")');
+      sh.getRange(row, 8).setFormula('=IF(' + L + '="","",TEXT($N' + row + '/$M' + row + ',"0%")&" ("&$M' + row + '&")")');
+    }
+    sh.getRange(firstRow, 1, 3, 9).setBackground('#f8fafc').setVerticalAlignment('middle');
+    sh.getRange(firstRow, 1, 3, 1).setFontWeight('bold').setWrap(true);
+    sh.getRange(firstRow, 2, 3, 7).setHorizontalAlignment('center');
+    sh.setRowHeights(firstRow, 3, 46);
+  };
+  teamBlock(8, 9, k => rankTeamFormula_('"세계"', k),
+    '="🌍 세계 순위 팀이 쓴 조합 · "&' + rankLabelFormula_('"세계"'), '');
+  teamBlock(12, 13, k => '=IF($E$1="전체","",' + rankTeamFormula_('$E$1', k).slice(1) + ')',
+    '=IF($E$1="전체","📍 지역 순위 팀이 쓴 조합 · 맨 위 [지역] 드롭다운에서 지역을 고르면 나와요","📍 "&$E$1&" 순위 팀이 쓴 조합 · "&' + rankLabelFormula_('$E$1') + ')',
+    'IF($E$1="전체","","이 지역은 이 해에 순위 대회가 없어요")');
+  sh.setRowHeight(16, 10);
+
+  // ── 17행~: 경기 기록 ──
+  const HR = DATA_ROW - 1;
+  const head = ['조합', '팀', '상대', '결과', '대회', '지역', '선수 (조합 순서대로)', '유튜브', 'VLR', '보드'];
+  sh.getRange(HR, 1, 1, 10).setValues([head]).setFontWeight('bold').setBackground('#1f2937').setFontColor('#ffffff');
+  if (n) {
+    sh.getRange(DATA_ROW, 1, n, 7).setValues(recs.map(x => [x.comp, x.team, x.opp, x.res, x.stage, x.region, x.players]));
+    const links = recs.map(x => {
+      const main = x.yt ? SpreadsheetApp.newRichTextValue().setText('▶ 유튜브').setLinkUrl(x.yt).build()
+        : SpreadsheetApp.newRichTextValue().setText('VLR에서 보기').setLinkUrl(x.vlr).build();
+      return [main, SpreadsheetApp.newRichTextValue().setText('VLR').setLinkUrl(x.vlr).build()];
+    });
+    sh.getRange(DATA_ROW, 8, n, 2).setRichTextValues(links);
+    let g = -1, prev = null;
+    const bg = recs.map(x => { if (x.comp !== prev) { g++; prev = x.comp; } return new Array(10).fill(g % 2 ? '#eef2f7' : '#ffffff'); });
+    sh.getRange(DATA_ROW, 1, n, 10).setBackgrounds(bg);
+    if (BG !== null) {
+      // 이 경기(맵·팀·상대·조합)에 보드가 있으면 그 줄로 이동
+      const jf = recs.map((x, i) => { const r = DATA_ROW + i;
+        return ['=IFERROR(HYPERLINK("#gid=' + BG + '&range=A"&(ARRAYFORMULA(MATCH(1,(' + BR('A') + '="' + mp + '")*(' + BR('B') + '=$B' + r + ')*(' + BR('D') + '=$C' + r + ')*(' + BR('C') + '=$A' + r + '),0))+1),"🗺 보드"),"")']; });
+      sh.getRange(DATA_ROW, 10, n, 1).setFormulas(jf).setFontSize(9).setHorizontalAlignment('center');
+    }
+    sh.getRange(DATA_ROW, 4, n, 1).setFontColors(recs.map(x => [x.win ? '#15803d' : '#b91c1c']));
+    sh.getRange(DATA_ROW, 9, n, 1).setFontSize(8);
+    sh.getRange(DATA_ROW, 11, n, 4).setValues(recs.map(x => x.sides));
+    sh.getRange(HR, 1, n + 1, 14).createFilter();
+  }
+
+  // ── 오른쪽 Q~AC: 이 맵 조합별 승률 (위 대회·지역 필터 + 팀 선택 + 정렬) ──
+  const teamsHere = [...new Set(recs.map(x => x.team))].sort(cmp_);
+  const UC = Math.max(1, new Set(recs.map(x => x.comp)).size); // 이 맵에서 나온 조합 수 = 표 최대 줄 수
+  const END = DATA_ROW + UC + 5;
+  sh.getRange('Q1:V1').merge().setValue('📊 이 맵 조합별 승률 · 팀 ▸').setFontWeight('bold').setFontSize(11).setHorizontalAlignment('right');
+  sh.getRange('W1').setValue(teamsHere.indexOf(prevTeam) >= 0 ? prevTeam : '전체');
+  dropdown_(sh.getRange('W1'), ['전체'].concat(teamsHere));
+  sh.getRange('X1:Y1').merge().setValue('정렬 ▸').setFontWeight('bold').setHorizontalAlignment('right');
+  sh.getRange('Z1').setValue(prevSort);
+  dropdown_(sh.getRange('Z1'), ['횟수', '종합', '공격', '수비']);
+  sh.getRange('W1').setBackground('#fff7d6').setFontWeight('bold').setHorizontalAlignment('center');
+  sh.getRange('Z1').setBackground('#fff7d6').setFontWeight('bold').setHorizontalAlignment('center');
+  sh.getRange('Q2').setValue('위 [대회]·[지역] 필터와 [팀] 선택을 따라감 · ▶ 기록 = 아래 경기 기록(유튜브)으로 이동 · 🗺 보드 = 레퍼런스 보드 · 공격/수비 = 그 조합으로 그 진영에서 딴 라운드 비율 (연장 제외) · 팀이 전체일 땐 3번 미만 쓴 조합은 회색으로 맨 아래 · ↓ 표는 ' + HR + '행부터')
+    .setFontColor('#6b7280').setFontSize(9);
+  sh.getRange('Q4:AE4').merge().setFormula(sideBiasFormula_('$C$1', '$E$1')).setFontWeight('bold').setBackground('#f8fafc').setVerticalAlignment('middle');
+  sh.getRange(HR, 17, 1, 15).setValues([['순위', '조합', '', '', '', '', '요원', '횟수', '팀 수', '종합', '공격', '수비', '주로 쓴 팀 (횟수)', '기록', '보드']])
+    .setFontWeight('bold').setBackground('#1f2937').setFontColor('#ffffff').setHorizontalAlignment('center');
+  sh.getRange(HR, 18, 1, 5).merge();
+  sh.getRange(DATA_ROW, 23).setFormula(compFormula_('$C$1', '$E$1', '$W$1', '$Z$1'));
+  const RW = '$W$' + DATA_ROW + ':$W$' + END, RX = '$X$' + DATA_ROW + ':$X$' + END;
+  sh.getRange(DATA_ROW, 17).setFormula('=ARRAYFORMULA(IF(' + RW + '="","",IF(' + RX + '>=IF($W$1="전체",3,1),ROW(' + RW + ')-' + (DATA_ROW - 1) + ',"–")))');
+  const icf = [];
+  for (let i = 0; i < UC; i++) icf.push([1, 2, 3, 4, 5].map(k => iconFormula_('$W' + (DATA_ROW + i), k)));
+  sh.getRange(DATA_ROW, 18, UC, 5).setFormulas(icf);
+  sh.setRowHeights(DATA_ROW, UC, 26);
+  // 기록 = 아래 경기 기록에서 이 조합(팀을 고르면 그 팀) 첫 줄로 이동 / 보드 = 레퍼런스 보드 탭의 이 조합 줄로 이동
+  const lf = [];
+  for (let i = 0; i < UC; i++) {
+    const r = DATA_ROW + i, W = '$W' + r;
+    const rec = 'IFERROR(HYPERLINK("#gid=' + sh.getSheetId() + '&range=A"&(ARRAYFORMULA(MATCH(1,($A$' + DATA_ROW + ':$A$' + RE + '=' + W + ')*IF($W$1="전체",1,$B$' + DATA_ROW + ':$B$' + RE + '=$W$1),0))+' + (DATA_ROW - 1) + '),"▶ 기록"),"")';
+    const brd = BG === null ? '""' : 'IFERROR(LET(k,ARRAYFORMULA((' + BR('A') + '="' + mp + '")*(' + BR('C') + '=' + W + ')*IF($W$1="전체",1,' + BR('B') + '=$W$1)),c,SUM(k),IF(c=0,"",HYPERLINK("#gid=' + BG + '&range=A"&(MATCH(1,k,0)+1),"🗺 보드 "&c))),"")';
+    lf.push(['=IF(' + W + '="","",' + rec + ')', '=IF(' + W + '="","",' + brd + ')']);
+  }
+  sh.getRange(DATA_ROW, 30, UC, 2).setFormulas(lf).setHorizontalAlignment('center').setFontSize(9);
+  sh.getRange(DATA_ROW, 17, UC, 15).setVerticalAlignment('middle');
+  sh.getRange(DATA_ROW, 26, UC, 3).setNumberFormat('0.0%').setFontWeight('bold');
+  sh.getRange(DATA_ROW, 17, UC, 1).setHorizontalAlignment('center');
+  sh.getRange(DATA_ROW, 23, UC, 1).setFontSize(8).setFontColor('#4b5563');
+  sh.getRange(DATA_ROW, 24, UC, 5).setHorizontalAlignment('center');
+  sh.getRange(DATA_ROW, 29, UC, 1).setFontSize(9);
+  const rules = [26, 27, 28].map(c => SpreadsheetApp.newConditionalFormatRule().setGradientMaxpoint('#86efac')
+    .setGradientMidpointWithValue('#ffffff', SpreadsheetApp.InterpolationType.PERCENT, '50').setGradientMinpoint('#fca5a5')
+    .setRanges([sh.getRange(DATA_ROW, c, UC, 1)]).build());
+  const all = sh.getRange(DATA_ROW, 17, UC, 15);
+  rules.unshift(SpreadsheetApp.newConditionalFormatRule().whenFormulaSatisfied('=$Q' + DATA_ROW + '="–"').setFontColor('#9ca3af').setRanges([all]).build());
+  rules.push(SpreadsheetApp.newConditionalFormatRule().whenFormulaSatisfied('=AND(ISNUMBER($Q' + DATA_ROW + '),$Q' + DATA_ROW + '<=3)').setBackground('#fef3c7').setRanges([all]).build());
+  sh.setConditionalFormatRules(rules);
+  sh.getRange('G1').setFormula('=HYPERLINK("#gid=' + sh.getSheetId() + '&range=Q' + HR + ':AE' + (HR + 20) + '","📊 이 맵 조합별 승률 보기 →")').setFontWeight('bold');
+  sh.setColumnWidth(16, 20); sh.setColumnWidth(17, 40); sh.setColumnWidths(18, 5, 34); sh.setColumnWidth(23, 210);
+  sh.setColumnWidths(24, 2, 48); sh.setColumnWidths(26, 3, 62); sh.setColumnWidth(29, 230); sh.setColumnWidths(30, 2, 72);
+  sh.setFrozenRows(1);
+  sh.setColumnWidth(1, 270);
+  sh.setColumnWidths(2, 5, 115);
+  sh.setColumnWidth(7, 330);
+  sh.setColumnWidth(8, 85);
+  sh.setColumnWidth(9, 45);
+  sh.setColumnWidth(10, 60);
+  sh.hideColumns(11, 5); // K~O 계산용
+  if (BG === null) sh.hideColumns(10); // 보드 탭이 없는 시트는 '보드' 칸 숨김
+}
+
+function renderSummary_(s, maps, stamp) {
+  let sh = s.getSheetByName('요약');
+  if (!sh) sh = s.insertSheet('요약', 0);
+  const prevSt = String(sh.getRange('C1').getValue() || ''), prevRg = String(sh.getRange('E1').getValue() || '');
+  const st0 = (['전체'].concat(CFG.stages).indexOf(prevSt) >= 0) ? prevSt : '전체';
+  const rg0 = (['전체'].concat(CFG.regions).indexOf(prevRg) >= 0) ? prevRg : '전체';
+  resetSheet_(sh);
+  const PER = 4; // 맵마다: 조합 1~3위 + 세계 1위 팀 조합
+  const need = 4 + maps.length * PER + 5;
+  if (sh.getMaxRows() < need) sh.insertRowsAfter(sh.getMaxRows(), need - sh.getMaxRows());
+  if (sh.getMaxColumns() < 22) sh.insertColumnsAfter(sh.getMaxColumns(), 22 - sh.getMaxColumns());
+  sh.getRange('A1:E1').setValues([['필터 ▸', '대회', st0, '지역', rg0]]).setFontWeight('bold');
+  dropdown_(sh.getRange('C1'), ['전체'].concat(CFG.stages));
+  dropdown_(sh.getRange('E1'), ['전체'].concat(CFG.regions));
+  sh.getRange('C1').setBackground('#fff7d6'); sh.getRange('E1').setBackground('#fff7d6');
+  sh.getRange('A2').setFormula('="맵별 많이 쓴 조합 1~3위 + 🏆 세계 1위 팀(' + '"&' + rankLabelFormula_('"세계"') + '&")이 쓴 조합 · ' + CFG.label +
+    ' (VLR.gg) · 이 탭의 필터는 요약에만 적용 (🏆 줄은 대회 필터만 적용) · 갱신 ' + stamp + '"')
+    .setFontColor('#6b7280').setFontSize(9);
+  sh.getRange('A3:K3').setValues([['맵', '순위', '요원', '', '', '', '', '조합', '횟수 (점유율)', '팀 수', '승률 (n)']])
+    .setFontWeight('bold').setBackground('#1f2937').setFontColor('#ffffff').setHorizontalAlignment('center');
+  sh.getRange('C3:G3').merge();
+  maps.forEach((mp, i) => {
+    const base = 4 + i * PER, p = "'" + mp + "'!";
+    sh.getRange(base, 1, PER, 1).merge().setValue(mp).setFontWeight('bold').setVerticalAlignment('middle').setHorizontalAlignment('center');
+    sh.getRange(base, 12).setFormula(totalFormula_(p, '$C$1', '$E$1'));
+    sh.getRange(base, 13).setFormula(topFormula_(p, '$C$1', '$E$1'));
+    for (let k = 0; k < 3; k++) {
+      const row = base + k, M = '$M' + row;
+      sh.getRange(row, 2).setValue((k + 1) + '위');
+      for (let c = 1; c <= 5; c++) sh.getRange(row, 2 + c).setFormula(iconFormula_(M, c));
+      sh.getRange(row, 8).setFormula('=' + M);
+      sh.getRange(row, 9).setFormula('=IF(' + M + '="","",$N' + row + '&"회 ("&TEXT($N' + row + '/$L$' + base + ',"0%")&")")');
+      sh.getRange(row, 10).setFormula('=IF(' + M + '="","",$O' + row + '&"팀")');
+      sh.getRange(row, 11).setFormula('=IF(' + M + '="","",TEXT($P' + row + '/$N' + row + ',"0%")&" ("&$N' + row + '&")")');
+    }
+    // 🏆 세계 1위 팀이 이 맵에서 가장 많이 쓴 조합
+    const tr = base + 3, Q = '$Q' + tr, R = '$R' + tr;
+    sh.getRange(tr, 17).setFormula(rankTeamFormula_('"세계"', 1));
+    sh.getRange(tr, 18).setFormula(teamFormula_(p, Q, '$C$1'));
+    sh.getRange(tr, 2).setValue('🏆 1위팀');
+    for (let c = 1; c <= 5; c++) sh.getRange(tr, 2 + c).setFormula(iconFormula_(R, c));
+    sh.getRange(tr, 8).setFormula('=IF(' + Q + '="","",' + Q + '&" · "&IF(' + R + '="","이 맵 기록 없음",' + R + '))');
+    sh.getRange(tr, 9).setFormula('=IF(' + R + '="","",$S' + tr + '&"회 / "&$U' + tr + '&"맵")');
+    sh.getRange(tr, 11).setFormula('=IF(' + R + '="","",TEXT($T' + tr + '/$S' + tr + ',"0%")&" ("&$S' + tr + '&")")');
+    sh.getRange(base, 1, PER, 11).setBackground(i % 2 ? '#f8fafc' : '#ffffff').setVerticalAlignment('middle');
+    sh.getRange(base, 2, 1, 10).setBackground('#fef3c7');
+    sh.getRange(tr, 2, 1, 10).setBackground('#e8f1ff');
+    sh.getRange(tr, 1, 1, 11).setBorder(null, null, true, null, null, null, '#d1d5db', SpreadsheetApp.BorderStyle.SOLID);
+  });
+  sh.getRange(4, 2, maps.length * PER, 10).setHorizontalAlignment('center');
+  sh.getRange(4, 8, maps.length * PER, 1).setHorizontalAlignment('left');
+  sh.setRowHeights(4, maps.length * PER, 40);
+  sh.setFrozenRows(3);
+  sh.setColumnWidth(1, 80); sh.setColumnWidth(2, 60);
+  sh.setColumnWidths(3, 5, 46);
+  sh.setColumnWidth(8, 300); sh.setColumnWidth(9, 95); sh.setColumnWidth(10, 55); sh.setColumnWidth(11, 80);
+  sh.hideColumns(12, 10);
+}
+
+/* 팀 승률 탭: 시즌 전체 종합(맵) · 공격 라운드 · 수비 라운드 승률을 각각 높은 순으로 */
+function renderTeamStats_(s, vals, teamRegion, stamp) {
+  let sh = s.getSheetByName('팀 승률');
+  if (!sh) sh = s.insertSheet('팀 승률');
+  resetSheet_(sh);
+  const T = {};
+  vals.forEach(r => {
+    const t = String(r[5]);
+    const x = T[t] = T[t] || { team: t, region: String(teamRegion[t] || r[3] || '국제'), mw: 0, mp: 0, aw: 0, ap: 0, dw: 0, dp: 0 };
+    x.mp++; if (+r[7] > +r[8]) x.mw++;
+    const dW = +r[15] || 0, aW = +r[16] || 0, odW = +r[17] || 0, oaW = +r[18] || 0;
+    if (dW + aW + odW + oaW > 0) { x.aw += aW; x.ap += aW + odW; x.dw += dW; x.dp += dW + oaW; }
+  });
+  const teams = Object.keys(T).map(k => T[k]);
+  // 표본 적은 팀(승강·게스트 팀 등)이 위로 튀지 않게: 맵 수가 중앙값의 40% (최소 10) 미만이면 회색 + 맨 아래
+  const mps = teams.map(x => x.mp).sort((a, c) => a - c);
+  const TH = Math.max(10, Math.round((mps[Math.floor(mps.length / 2)] || 0) * 0.4));
+  const blocks = [
+    { title: '🏆 종합 승률 (맵 기준)', rate: x => x.mp ? x.mw / x.mp : 0, n: x => x.mp, sample: x => x.mw + '승 ' + (x.mp - x.mw) + '패' },
+    { title: '⚔️ 공격 라운드 승률', rate: x => x.ap ? x.aw / x.ap : 0, n: x => x.ap, sample: x => x.aw + ' / ' + x.ap + ' 라운드' },
+    { title: '🛡️ 수비 라운드 승률', rate: x => x.dp ? x.dw / x.dp : 0, n: x => x.dp, sample: x => x.dw + ' / ' + x.dp + ' 라운드' }
+  ];
+  const W = 6; // 블록 폭 (5칸 + 여백 1칸)
+  const need = 4 + teams.length + 3;
+  if (sh.getMaxRows() < need) sh.insertRowsAfter(sh.getMaxRows(), need - sh.getMaxRows());
+  if (sh.getMaxColumns() < W * 3) sh.insertColumnsAfter(sh.getMaxColumns(), W * 3 - sh.getMaxColumns());
+  sh.getRange('A1').setValue('팀별 시즌 승률 · ' + CFG.label + ' (VLR.gg)').setFontWeight('bold').setFontSize(12);
+  sh.getRange('A2').setValue('종합 = 맵 승률 · 공격/수비 = 그 진영에서 딴 라운드 비율 (연장전 라운드 제외) · 시즌 맵 ' + TH + '개 미만 팀은 표본이 적어 회색으로 맨 아래 · 갱신 ' + stamp)
+    .setFontColor('#6b7280').setFontSize(9);
+  blocks.forEach((b, bi) => {
+    const c0 = 1 + bi * W;
+    const list = teams.slice().sort((a, c) => (a.mp < TH) - (c.mp < TH) || b.rate(c) - b.rate(a) || b.n(c) - b.n(a) || cmp_(a.team, c.team));
+    sh.getRange(3, c0, 1, 5).merge().setValue(b.title).setFontWeight('bold').setBackground('#1f2937').setFontColor('#ffffff').setHorizontalAlignment('center');
+    sh.getRange(4, c0, 1, 5).setValues([['순위', '팀', '지역', '승률', '표본']]).setFontWeight('bold').setBackground('#e5e7eb').setHorizontalAlignment('center');
+    if (!list.length) return;
+    sh.getRange(5, c0, list.length, 5).setValues(list.map((x, i) => [x.mp < TH ? '–' : i + 1, x.team, x.region, b.rate(x), b.sample(x)]));
+    sh.getRange(5, c0 + 3, list.length, 1).setNumberFormat('0.0%').setFontWeight('bold');
+    sh.getRange(5, c0, list.length, 1).setHorizontalAlignment('center');
+    sh.getRange(5, c0 + 2, list.length, 3).setHorizontalAlignment('center');
+    sh.getRange(5, c0, list.length, 5).setFontColors(list.map(x => new Array(5).fill(x.mp < TH ? '#9ca3af' : '#111827')));
+    sh.getRange(5, c0, Math.min(3, list.length), 5).setBackground('#fef3c7');
+    const rule = SpreadsheetApp.newConditionalFormatRule().setGradientMaxpoint('#86efac').setGradientMidpointWithValue('#ffffff', SpreadsheetApp.InterpolationType.PERCENT, '50')
+      .setGradientMinpoint('#fca5a5').setRanges([sh.getRange(5, c0 + 3, list.length, 1)]).build();
+    sh.setConditionalFormatRules(sh.getConditionalFormatRules().concat([rule]));
+    sh.setColumnWidth(c0, 40); sh.setColumnWidth(c0 + 1, 150); sh.setColumnWidth(c0 + 2, 80);
+    sh.setColumnWidth(c0 + 3, 70); sh.setColumnWidth(c0 + 4, 110);
+    if (bi < 2) sh.setColumnWidth(c0 + 5, 18);
+  });
+  sh.setFrozenRows(4);
+}
+
+/* 이미 모아둔 경기의 진영별 라운드(공/수)를 VLR에서 다시 읽어 채움. 다 채우면 true */
+function backfillSides_() {
+  const START = Date.now();
+  const dsh = ss_().getSheetByName('_data');
+  dsh.getRange(1, 1, 1, DATA_HEAD.length).setValues([DATA_HEAD]);
+  const n = dsh.getLastRow() - 1;
+  const vals = dsh.getRange(2, 1, n, DATA_HEAD.length).getValues();
+  const need = [...new Set(vals.filter(r => r[15] === '').map(r => String(r[0])))];
+  let more = false;
+  for (let i = 0; i < need.length; i += 20) {
+    if (Date.now() - START > 200000) { more = true; break; }
+    const batch = need.slice(i, i + 20);
+    const res = fetchAll_(batch.map(id => 'https://www.vlr.gg/' + id + '/'));
+    batch.forEach((id, j) => {
+      if (res[j].getResponseCode() !== 200) { more = true; return; }
+      const by = {};
+      parseMatch_(res[j].getContentText(), id).forEach(r => by[String(r[1]) + '|' + r[5]] = r.slice(15, 19));
+      vals.forEach(r => {
+        if (String(r[0]) === id && r[15] === '') { const v = by[String(r[1]) + '|' + r[5]] || [0, 0, 0, 0]; for (let q = 0; q < 4; q++) r[15 + q] = v[q]; }
+      });
+    });
+    Utilities.sleep(200);
+  }
+  dsh.getRange(2, 16, n, 4).setValues(vals.map(r => r.slice(15, 19)));
+  Logger.log(CFG.year + ' 진영 라운드 채움: 남은 경기 ' + (more ? '있음' : '없음'));
+  return !more;
+}
+
+/* ───────────── 🏆 챔피언스 탭: 경기×맵 한 줄씩 (최신 경기 위) ───────────── */
+const CHAMP_TAB = '🏆 챔피언스';
+function renderChampions_(s, vals, stamp) {
+  const rows = vals.filter(r => String(r[2]) === '챔피언스');
+  let sh = s.getSheetByName(CHAMP_TAB);
+  if (!rows.length) { if (sh) s.deleteSheet(sh); return false; }
+  if (!sh) sh = s.insertSheet(CHAMP_TAB);
+  resetSheet_(sh);
+  // 게임(맵)마다 한 줄: 첫 줄 팀 = A
+  const games = {}, order = [];
+  rows.forEach(r => { const g = String(r[1]); if (!games[g]) { games[g] = { A: r, B: null }; order.push(g); } else if (!games[g].B) games[g].B = r; });
+  // VLR 시각은 미국 동부 시간 → 한국 날짜로
+  const when = v => { try { return Utilities.parseDate(String(v).trim(), 'America/New_York', 'yyyy-MM-dd H:mm:ss'); } catch (e) { return null; } };
+  const kst = v => { const t = when(v); return t ? Utilities.formatDate(t, 'Asia/Seoul', 'M/d (E)') : String(v).slice(0, 10); };
+  const byMatch = {};
+  order.forEach(g => { const m = String(games[g].A[0]); (byMatch[m] = byMatch[m] || []).push(g); });
+  Object.keys(byMatch).forEach(m => byMatch[m].sort((a, b) => +a - +b));
+  const recs = order.map(g => {
+    const a = games[g].A, b = games[g].B || [];
+    const m = String(a[0]), idx = byMatch[m].indexOf(g) + 1;
+    const w = when(a[14]);
+    return { m, g, date: kst(a[14]), t: w ? w.getTime() : 0, idx, map: String(a[4]),
+      A: String(a[5]), B: String(a[6]), sa: +a[7], sb: +a[8], ca: String(a[9]), cb: String(b[9] || ''), yt: String(a[11] || ''), vlr: String(a[12] || '') };
+  });
+  recs.sort((x, y) => (y.t - x.t) || (+x.m - +y.m) || (x.idx - y.idx));
+  const n = recs.length, R0 = 4;
+  if (sh.getMaxRows() < R0 + n + 5) sh.insertRowsAfter(sh.getMaxRows(), R0 + n + 5 - sh.getMaxRows());
+  if (sh.getMaxColumns() < 24) sh.insertColumnsAfter(sh.getMaxColumns(), 24 - sh.getMaxColumns());
+  const bsh = s.getSheetByName('레퍼런스 보드'), BG = bsh ? bsh.getSheetId() : null;
+  const BR = c => "'레퍼런스 보드'!$" + c + '$2:$' + c + '$2000';
+  const nm = new Set(recs.map(x => x.m)).size;
+  sh.getRange('A1').setValue('🏆 VALORANT Champions ' + CFG.year + ' · 경기 ' + nm + '개 · 맵 ' + n + '개 · 최신 경기가 위 · 갱신 ' + stamp).setFontWeight('bold').setFontSize(12);
+  sh.getRange('A2').setValue('▶ 유튜브 = 그 맵 시작 시점 · 🗺 보드 = 장면 캡처 도구로 보낸 보드가 있으면 레퍼런스 보드 탭의 그 줄로(정리 슬라이드도 거기) · 아래 머리줄의 필터로 팀·맵 고르기')
+    .setFontColor('#6b7280').setFontSize(9);
+  const head = ['날짜', '맵', '팀 A', 'A 조합', '', '', '', '', '스코어', 'B 조합', '', '', '', '', '팀 B', '영상', 'VLR', '보드'];
+  sh.getRange(R0 - 1, 1, 1, head.length).setValues([head]).setFontWeight('bold').setBackground('#132D65').setFontColor('#ffffff').setHorizontalAlignment('center');
+  // 숨김 도우미 열 V=A 조합, W=B 조합, X=경기 번호
+  sh.getRange(R0 - 1, 22, 1, 3).setValues([['A 조합(글)', 'B 조합(글)', 'matchId']]);
+  sh.getRange(R0, 1, n, 1).setNumberFormat('@');
+  sh.getRange(R0, 1, n, 3).setValues(recs.map(x => [x.date, x.idx + '맵(' + x.map + ')', x.A]));
+  sh.getRange(R0, 9, n, 1).setValues(recs.map(x => [x.sa + ' : ' + x.sb]));
+  sh.getRange(R0, 15, n, 1).setValues(recs.map(x => [x.B]));
+  sh.getRange(R0, 22, n, 3).setValues(recs.map(x => [x.ca, x.cb, x.m]));
+  const ic = recs.map((x, i) => { const r = R0 + i; return [1, 2, 3, 4, 5].map(k => iconFormula_('$V' + r, k)).concat(['']).concat([1, 2, 3, 4, 5].map(k => iconFormula_('$W' + r, k))); });
+  sh.getRange(R0, 4, n, 5).setFormulas(ic.map(v => v.slice(0, 5)));
+  sh.getRange(R0, 10, n, 5).setFormulas(ic.map(v => v.slice(6, 11)));
+  sh.getRange(R0, 16, n, 2).setRichTextValues(recs.map(x => [
+    x.yt ? SpreadsheetApp.newRichTextValue().setText('▶ 유튜브').setLinkUrl(x.yt).build() : SpreadsheetApp.newRichTextValue().setText('영상 대기').build(),
+    SpreadsheetApp.newRichTextValue().setText('VLR').setLinkUrl(x.vlr || ('https://www.vlr.gg/' + x.m)).build()]));
+  if (BG !== null) sh.getRange(R0, 18, n, 1).setFormulas(recs.map((x, i) => { const r = R0 + i;
+    return ['=IFERROR(HYPERLINK("#gid=' + BG + '&range=A"&(ARRAYFORMULA(MATCH(1,(' + BR('A') + '="' + x.map + '")*(((' + BR('B') + '=$C' + r + ')*(' + BR('D') + '=$O' + r + '))+((' + BR('B') + '=$O' + r + ')*(' + BR('D') + '=$C' + r + '))>0),0))+1),"🗺 보드"),"")']; }));
+  // 모양: 경기마다 번갈아 배경, 이긴 팀 굵게·초록
+  let gi = -1, prev = null;
+  sh.getRange(R0, 1, n, 18).setBackgrounds(recs.map(x => { if (x.m !== prev) { gi++; prev = x.m; } return new Array(18).fill(gi % 2 ? '#EAF2FA' : '#ffffff'); }));
+  sh.getRange(R0, 3, n, 1).setFontWeights(recs.map(x => [x.sa > x.sb ? 'bold' : 'normal'])).setFontColors(recs.map(x => [x.sa > x.sb ? '#15803d' : '#3C4A63']));
+  sh.getRange(R0, 15, n, 1).setFontWeights(recs.map(x => [x.sb > x.sa ? 'bold' : 'normal'])).setFontColors(recs.map(x => [x.sb > x.sa ? '#15803d' : '#3C4A63']));
+  sh.getRange(R0, 1, n, 18).setVerticalAlignment('middle');
+  sh.getRange(R0, 1, n, 2).setHorizontalAlignment('center'); sh.getRange(R0, 9, n, 1).setHorizontalAlignment('center').setFontWeight('bold');
+  sh.getRange(R0, 16, n, 3).setHorizontalAlignment('center').setFontSize(9);
+  sh.setRowHeights(R0, n, 34);
+  sh.setColumnWidth(1, 90); sh.setColumnWidth(2, 120); sh.setColumnWidth(3, 150); sh.setColumnWidths(4, 5, 34); sh.setColumnWidth(9, 70);
+  sh.setColumnWidths(10, 5, 34); sh.setColumnWidth(15, 150); sh.setColumnWidths(16, 3, 70);
+  sh.hideColumns(22, 3); sh.hideColumns(19, 3);
+  sh.getRange(R0 - 1, 1, n + 1, 18).createFilter();
+  sh.setFrozenRows(R0 - 1);
+  return true;
+}
+/* 편집기에서 🏆 챔피언스 탭만 바로 다시 그리기 */
+function champTab() {
+  useYear_(2026);
+  const s = ss_(), dsh = s.getSheetByName('_data');
+  const all = dsh.getRange(2, 1, dsh.getLastRow() - 1, DATA_HEAD.length).getValues();
+  if (renderChampions_(s, all, nowKst_())) { const sh = s.getSheetByName(CHAMP_TAB); s.setActiveSheet(sh); s.moveActiveSheet(s.getSheetByName('요약').getIndex() + 1); }
+}
+
+/* ───────────── 실행 / 트리거 / 검증 ───────────── */
+function run() {
+  useYear_(2026);
+  // 연도별 후속 작업(buildPending)이 끊겨 있으면 다시 이어 붙임
+  const pp = PropertiesService.getScriptProperties();
+  if ([2026, 2025, 2024, 2023].some(y => !pp.getProperty('sides6_' + y)) &&
+      !ScriptApp.getProjectTriggers().some(t => t.getHandlerFunction() === 'buildPending'))
+    ScriptApp.newTrigger('buildPending').timeBased().after(60 * 1000).create();
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(1000)) return;
+  try {
+    const r = updateData();
+    const rendered = PropertiesService.getScriptProperties().getProperty('rendered');
+    const rankChanged = ensureRanks_();
+    // 다시 그리다 시간 초과로 끊기면 dirty 표시가 남아 다음 시간에 다시 그림
+    const dirty = PropertiesService.getScriptProperties().getProperty('dirty');
+    if (!r.more && (r.added > 0 || r.ytFixed > 0 || !rendered || rankChanged || dirty)) {
+      PropertiesService.getScriptProperties().setProperty('dirty', nowKst_());
+      render();
+      PropertiesService.getScriptProperties().deleteProperty('dirty');
+    }
+  } finally { lock.releaseLock(); }
+}
+
+function setupTrigger() {
+  ScriptApp.getProjectTriggers().forEach(t => { if (t.getHandlerFunction() === 'run') ScriptApp.deleteTrigger(t); });
+  ScriptApp.newTrigger('run').timeBased().everyHours(1).create();
+  Logger.log('매시간 run 트리거 등록');
+  buildPending();
+}
+
+/* 2025·2024·2023 시트를 한 해씩 만들고, 남은 해는 1분 뒤 자동으로 이어서 만듦 (다 만들면 멈춤) */
+function buildPending() {
+  ScriptApp.getProjectTriggers().forEach(t => { if (t.getHandlerFunction() === 'buildPending') ScriptApp.deleteTrigger(t); });
+  const props = PropertiesService.getScriptProperties();
+  const years = [2025, 2024, 2023];
+  const todo = years.filter(y => !props.getProperty('rendered_' + y));
+  if (!todo.length) {
+    const rr = [2026, 2025, 2024, 2023].filter(y => !props.getProperty('rr3_' + y));
+    if (rr.length) {
+      useYear_(rr[0]); render(); props.setProperty('rr3_' + rr[0], nowKst_()); useYear_(2026);
+      Logger.log(rr[0] + ' 다시 그림 (상위 팀 조합 추가)');
+      if (rr.length > 1) ScriptApp.newTrigger('buildPending').timeBased().after(60 * 1000).create();
+      return;
+    }
+    const sd = [2026, 2025, 2024, 2023].filter(y => !props.getProperty('sides6_' + y));
+    if (sd.length) {
+      // 다음 실행을 먼저 예약 (이번 실행이 시간 초과로 끊겨도 이어지게). 겹치면 잠금으로 건너뜀
+      ScriptApp.newTrigger('buildPending').timeBased().after(60 * 1000).create();
+      const lock = LockService.getScriptLock();
+      if (!lock.tryLock(5000)) return;
+      const y = sd[0];
+      try {
+        useYear_(y);
+        if (!props.getProperty('sidesfill_' + y)) {
+          if (backfillSides_()) props.setProperty('sidesfill_' + y, nowKst_());
+        } else {
+          const tries = +(props.getProperty('sidestry6_' + y) || 0) + 1;
+          props.setProperty('sidestry6_' + y, String(tries));
+          if (tries > 3) { props.setProperty('sides6_' + y, 'skip'); Logger.log(y + ' 다시 그리기 3번 실패 — 건너뜀'); }
+          else { render(); props.setProperty('sides6_' + y, nowKst_()); Logger.log(y + ' 팀 승률 탭 완료'); }
+        }
+      } finally { lock.releaseLock(); useYear_(2026); }
+      return;
+    }
+    Logger.log('연도별 시트 모두 완료');
+    return;
+  }
+  buildYear_(todo[0]);
+  ScriptApp.newTrigger('buildPending').timeBased().after(60 * 1000).create();
+}
+
+function verify() {
+  const s = ss_();
+  const vals = s.getSheetByName('_data').getRange(2, 1, s.getSheetByName('_data').getLastRow() - 1, DATA_HEAD.length).getValues();
+  const report = [];
+  const maps = {};
+  vals.forEach(r => (maps[r[4]] = maps[r[4]] || []).push(r));
+  Object.keys(maps).sort().forEach(mp => {
+    const rows = maps[mp], cnt = {}, tms = {}, win = {};
+    rows.forEach(r => { cnt[r[9]] = (cnt[r[9]] || 0) + 1; (tms[r[9]] = tms[r[9]] || {})[r[5]] = 1; win[r[9]] = (win[r[9]] || 0) + (+r[7] > +r[8] ? 1 : 0); });
+    const exp = Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a] || Object.keys(tms[b]).length - Object.keys(tms[a]).length || cmp_(a.toLowerCase(), b.toLowerCase()))
+      .slice(0, 3).map(c => [c, cnt[c], Object.keys(tms[c]).length, win[c]].join('|'));
+    const sh = s.getSheetByName(mp);
+    sh.getRange('C1').setValue('전체'); sh.getRange('E1').setValue('전체');
+    SpreadsheetApp.flush();
+    const got = sh.getRange('K4:N6').getDisplayValues().map(r => r.join('|'));
+    const recRows = sh.getLastRow() - DATA_ROW + 1;
+    const ok = JSON.stringify(exp) === JSON.stringify(got) && recRows === rows.length;
+    report.push(mp + ' ' + (ok ? 'OK' : 'MISMATCH') + ' rows=' + recRows + '/' + rows.length + (ok ? '' : ' exp=' + JSON.stringify(exp) + ' got=' + JSON.stringify(got)));
+  });
+  Logger.log(report.join('\n'));
+  return report;
+}
