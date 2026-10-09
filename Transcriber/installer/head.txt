@@ -1,0 +1,104 @@
+@echo off
+rem ================================================================
+rem  Class transcriber - Desktop shortcut with the WON icon (one click)
+rem  Double-click this file once. It finds the Transcriber folder,
+rem  puts the icon and the shortcut scripts there and makes the
+rem  Desktop shortcut. Nothing is downloaded.
+rem ================================================================
+setlocal
+title Class transcriber setup
+echo Setting up the class transcriber shortcut...
+set "TRSC_SELF=%~f0"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$t = [IO.File]::ReadAllText($env:TRSC_SELF, [Text.Encoding]::UTF8); $a = $t.IndexOf('#PS' + '_BEGIN'); $b = $t.IndexOf('#PS' + '_END'); iex $t.Substring($a, $b - $a)"
+rem If PowerShell stopped before its own messages, keep the window open so the error can be read
+if errorlevel 1 (
+  echo.
+  echo  Setup stopped. Please send a screenshot of this window.
+  pause
+)
+exit /b
+
+#PS_BEGIN
+# ---- PowerShell: 수업 전사 폴더를 찾아 아이콘·스크립트를 넣고 바탕화면 바로가기를 만든다 ----
+try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
+$ErrorActionPreference = 'Stop'
+try {
+    $all = [IO.File]::ReadAllText($env:TRSC_SELF, [Text.Encoding]::UTF8)
+
+    # 1) 수업 전사 폴더 찾기: 이 파일 옆 -> 바탕화면 바로가기가 가리키는 곳 -> 자주 쓰던 위치
+    $cands = New-Object System.Collections.ArrayList
+    [void]$cands.Add((Split-Path -Parent $env:TRSC_SELF))
+    $desks = @([Environment]::GetFolderPath('Desktop'))
+    if ($env:USERPROFILE) { $desks += (Join-Path $env:USERPROFILE 'OneDrive\Desktop'); $desks += (Join-Path $env:USERPROFILE 'Desktop') }
+    $sh = New-Object -ComObject WScript.Shell
+    $peek = Join-Path $env:TEMP 'ClassTranscribe_peek.lnk'
+    foreach ($d in ($desks | Select-Object -Unique)) {
+        foreach ($n in @('전사.lnk', '수업 전사.lnk', 'Transcriber.lnk')) {
+            $p = Join-Path $d $n
+            if (-not (Test-Path -LiteralPath $p)) { continue }
+            try {
+                # 한글 이름 .lnk 는 WScript.Shell 로 못 열어서 영문 이름 복사본으로 읽는다
+                Copy-Item -LiteralPath $p -Destination $peek -Force
+                $tp = $sh.CreateShortcut($peek).TargetPath
+                if ($tp) { [void]$cands.Add([IO.Path]::GetDirectoryName($tp)) }
+            } catch { }
+        }
+    }
+    Remove-Item -LiteralPath $peek -Force -ErrorAction SilentlyContinue
+    $docs = [Environment]::GetFolderPath('MyDocuments')
+    if ($docs) { [void]$cands.Add((Join-Path $docs 'Transcriber')) }
+    if ($env:USERPROFILE) {
+        foreach ($n in @('Documents\Transcriber', 'OneDrive\Documents\Transcriber', 'Transcriber', 'ClassRecord', '.aside\u\0\tools\ClassRecord')) { [void]$cands.Add((Join-Path $env:USERPROFILE $n)) }
+    }
+
+    # 엔진까지 있는 실제 설치 폴더를 먼저 고르고, 없으면 Transcribe.bat 만 있는 폴더
+    $root = $null
+    foreach ($needEngine in @($true, $false)) {
+        foreach ($c in $cands) {
+            if ($root -or -not $c) { continue }
+            # 없는 드라이브(빠진 USB 등)를 가리켜도 멈추지 않게 .NET 으로 확인한다
+            try {
+                if (-not [IO.File]::Exists([IO.Path]::Combine($c, 'Transcribe.bat'))) { continue }
+                if ($needEngine -and -not [IO.File]::Exists([IO.Path]::Combine($c, 'engine', 'faster-whisper-xxl.exe'))) { continue }
+            } catch { continue }
+            $root = $c
+        }
+    }
+    if (-not $root) { throw "수업 전사 도구 폴더(Transcribe.bat 이 있는 곳)를 찾지 못했어요.`n이 파일을 그 폴더에 넣고 다시 더블클릭해 주세요." }
+    Write-Host ''
+    Write-Host (' 수업 전사 폴더: ' + $root) -ForegroundColor Cyan
+
+    # 2) 이 파일 맨 아래에 든 아이콘·스크립트를 폴더에 넣는다. 내용이 다른 기존 파일은 _backup_ 폴더에 남긴다
+    $at = $all.IndexOf('#PS' + '_END')
+    $ms = [regex]::Matches($all.Substring($at), '#FILE (\S+)\r?\n([A-Za-z0-9+/=\r\n]+)')
+    if ($ms.Count -lt 6) { throw '파일 부분을 찾지 못했어요. 이 파일이 잘렸는지 확인해 주세요.' }
+    $bk = Join-Path $root ('_backup_' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
+    foreach ($m in $ms) {
+        $name = $m.Groups[1].Value
+        $bytes = [Convert]::FromBase64String(($m.Groups[2].Value -replace '\s', ''))
+        $dst = Join-Path $root $name
+        if (Test-Path -LiteralPath $dst) {
+            if ([Convert]::ToBase64String([IO.File]::ReadAllBytes($dst)) -eq [Convert]::ToBase64String($bytes)) { continue }
+            if (-not (Test-Path -LiteralPath $bk)) { New-Item -ItemType Directory -Path $bk | Out-Null }
+            Copy-Item -LiteralPath $dst -Destination (Join-Path $bk $name) -Force
+        }
+        [IO.File]::WriteAllBytes($dst, $bytes)
+        Write-Host ('   넣음: ' + $name) -ForegroundColor DarkGray
+    }
+    # 지난번에 보낸 아이콘 파일들은 이제 안 쓴다
+    foreach ($n in @('transcribe-bunny.ico', 'transcribe-dog.ico', 'TranscribeIcon.exe')) {
+        Remove-Item -LiteralPath (Join-Path $root $n) -Force -ErrorAction SilentlyContinue
+    }
+
+    # 3) 바로가기 만들기. MakeShortcut.bat 과 같은 조건으로 돌린다
+    $ErrorActionPreference = 'Continue'
+    & (Join-Path $root '_shortcut.ps1')
+}
+catch {
+    Write-Host ''
+    Write-Host ('[오류] ' + $_.Exception.Message) -ForegroundColor Red
+}
+Write-Host ''
+Write-Host ' Enter 를 누르면 창이 닫혀요.'
+[void](Read-Host)
+#PS_END
