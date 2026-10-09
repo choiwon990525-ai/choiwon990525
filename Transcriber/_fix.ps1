@@ -84,35 +84,10 @@ try {
   Write-Host "   [주의] 실패: $($_.Exception.Message)" -ForegroundColor Yellow
 }
 
-# 바탕화면 바로가기 다시 만들기 (새 경로 기준)
+# 바탕화면 바로가기 다시 만들기 (MakeShortcut 과 같은 '수업 전사' 토끼 아이콘)
 Write-Host ""
 Write-Host " 바탕화면 바로가기를 새 경로로 다시 만듭니다..." -ForegroundColor White
-$desk = $null
-$cands = @([Environment]::GetFolderPath('Desktop'))
-if ($env:USERPROFILE) { $cands += (Join-Path $env:USERPROFILE "OneDrive\Desktop"); $cands += (Join-Path $env:USERPROFILE "Desktop") }
-foreach ($d in ($cands | Select-Object -Unique)) { if ($d -and (Test-Path $d)) { $desk = $d; break } }
-
-if ($desk) {
-  try {
-    $ws = New-Object -ComObject WScript.Shell
-    $tmpL = Join-Path $desk "Transcriber.lnk"
-    foreach ($x in @($tmpL, (Join-Path $desk "전사.lnk"))) { if (Test-Path -LiteralPath $x) { Remove-Item -LiteralPath $x -Force -ErrorAction SilentlyContinue } }
-    $s = $ws.CreateShortcut($tmpL)
-    $s.TargetPath       = (Join-Path $root "Transcribe.bat")
-    $s.WorkingDirectory = $root
-    $s.IconLocation     = "$env:SystemRoot\System32\SHELL32.dll,116"
-    $s.Description      = "Transcribe audio to text"
-    $s.Hotkey           = "CTRL+ALT+T"
-    $s.Save()
-    $fin = Join-Path $desk "전사.lnk"
-    $ok = $false
-    try { Rename-Item -LiteralPath $tmpL -NewName "전사.lnk" -ErrorAction Stop; $ok = $true } catch { }
-    if (-not $ok) { try { [System.IO.File]::Move($tmpL, $fin); $ok = $true } catch { } }
-    Write-Host "   바로가기: $(if($ok){"'전사' 생성 완료 (Ctrl+Alt+T)"}else{"'Transcriber' 생성 완료"})" -ForegroundColor Green
-  } catch {
-    Write-Host "   [주의] 바로가기 생성 실패: $($_.Exception.Message)" -ForegroundColor Yellow
-  }
-}
+& (Join-Path $root "_shortcut.ps1")
 
 Write-Host ""
 if ($okRun -and $after -eq 0) {
@@ -120,7 +95,7 @@ if ($okRun -and $after -eq 0) {
   Write-Host " 복구 완료! 이제 전사가 됩니다." -ForegroundColor Green
   Write-Host "=======================================" -ForegroundColor Green
   Write-Host ""
-  Write-Host " 바탕화면 '전사' 아이콘을 눌러보세요. (또는 Ctrl+Alt+T)"
+  Write-Host " 바탕화면 '수업 전사' 아이콘을 눌러보세요. (또는 Ctrl+Alt+T)"
 } else {
   Write-Host "=======================================" -ForegroundColor Yellow
   Write-Host " 일부 항목이 복구되지 않았습니다." -ForegroundColor Yellow

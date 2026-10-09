@@ -26,6 +26,11 @@ if (-not (Test-Path $target)) {
   exit 1
 }
 
+# 바로가기 아이콘: 헤드셋 낀 토끼 (파일이 없으면 예전 윈도우 기본 아이콘)
+$ico = Join-Path $root "transcribe-bunny.ico"
+$iconLoc = if (Test-Path -LiteralPath $ico) { "$ico,0" } else { "$env:SystemRoot\System32\SHELL32.dll,116" }
+LQ "아이콘: $iconLoc"
+
 # 바탕화면 후보를 전부 조사
 $cands = New-Object System.Collections.ArrayList
 function AddC($p, $why) {
@@ -78,14 +83,35 @@ foreach ($desk in $valid) {
     if (Test-Path -LiteralPath $p) { try { Remove-Item -LiteralPath $p -Force -ErrorAction Stop } catch { LQ "  기존 파일 삭제 실패: $p" } }
   }
 
+  # 권한복구가 만들던 '전사' 바로가기는 이 도구를 가리킬 때만 지운다 (단축키가 겹치지 않게)
+  # 한글 이름 .lnk 는 WScript.Shell 로 못 열어서, 영문 이름 복사본으로 대상을 확인한다
+  foreach ($old in @("전사.lnk","Transcriber.lnk")) {
+    $op = Join-Path $desk $old
+    if (-not (Test-Path -LiteralPath $op)) { continue }
+    $peek = Join-Path $env:TEMP "ClassTranscribe_peek.lnk"
+    try {
+      Copy-Item -LiteralPath $op -Destination $peek -Force -ErrorAction Stop
+      $tp = (New-Object -ComObject WScript.Shell).CreateShortcut($peek).TargetPath
+      if ($tp -like "*\Transcribe.bat") {
+        Remove-Item -LiteralPath $op -Force -ErrorAction Stop
+        L "  예전 바로가기 정리: $op"
+      }
+    } catch {
+      LQ "  예전 바로가기 확인 실패: $op ($($_.Exception.Message))"
+    } finally {
+      Remove-Item -LiteralPath $peek -Force -ErrorAction SilentlyContinue
+    }
+  }
+
   $made = $false
   try {
     $ws = New-Object -ComObject WScript.Shell
     $s = $ws.CreateShortcut($tempPath)
     $s.TargetPath       = $target
     $s.WorkingDirectory = $root
-    $s.IconLocation     = "$env:SystemRoot\System32\SHELL32.dll,116"
+    $s.IconLocation     = $iconLoc
     $s.Description      = "Transcribe class recordings"
+    $s.Hotkey           = "CTRL+ALT+T"
     $s.Save()
     $made = Test-Path -LiteralPath $tempPath
     LQ "  생성 시도: $(if($made){'성공'}else{'저장됐다는데 파일 없음'})"
@@ -109,10 +135,13 @@ foreach ($desk in $valid) {
 
 L ""
 if ($okAny) {
+  # 아이콘 새로 그리기 (예전 그림이 남아 보일 때)
+  Start-Process -FilePath 'ie4uinit.exe' -ArgumentList '-show' -WindowStyle Hidden -ErrorAction SilentlyContinue
   L "======================================="
-  L " 완료! 바탕화면을 확인하세요." 
+  L " 완료! 바탕화면을 확인하세요."
   L "======================================="
-  L " 아이콘 이름: 수업 전사"
+  L " 아이콘 이름: 수업 전사 (헤드셋 토끼)"
+  L " 단축키    : Ctrl+Alt+T"
 } else {
   L "[실패] 바로가기를 만들지 못했습니다."
   L ""
