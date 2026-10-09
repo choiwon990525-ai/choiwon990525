@@ -84,7 +84,7 @@ try {
   Write-Host "   [주의] 실패: $($_.Exception.Message)" -ForegroundColor Yellow
 }
 
-# 바탕화면 바로가기 다시 만들기 (MakeShortcut 과 같은 '수업 전사' 토끼 아이콘)
+# 바탕화면 바로가기 다시 만들기 (MakeShortcut 과 같은 '수업 전사' 강아지 아이콘)
 Write-Host ""
 Write-Host " 바탕화면 바로가기를 새 경로로 다시 만듭니다..." -ForegroundColor White
 & (Join-Path $root "_shortcut.ps1")
