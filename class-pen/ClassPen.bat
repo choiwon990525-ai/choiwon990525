@@ -38,7 +38,6 @@ try {
 
     $old = ''
     if (Test-Path $src) { $old = [IO.File]::ReadAllText($src, [Text.Encoding]::UTF8) }
-    $built = $false
 
     if (($old -ne $code) -or $iconChanged -or -not (Test-Path $exe)) {
         Write-Host 'ClassPen 준비 중... (처음 한 번만 몇 초 걸려요)'
@@ -60,7 +59,6 @@ try {
             throw '빌드에 실패했어요. 위 내용을 캡처해서 보내 주세요.'
         }
         Move-Item -Force $tmp $src
-        $built = $true
     }
 
     # 시그니처 강아지는 프로그램 안에 들어 있다. ClassPen.bat 옆에 강아지.png 가 있으면 그 그림을 대신 쓴다.
@@ -80,30 +78,7 @@ try {
         Remove-Item -LiteralPath $sig -Force   # 바꿔 둔 그림을 치우면 기본 강아지로 돌아간다
     }
 
-    # 바탕화면 · 시작 메뉴에 강아지 아이콘 바로가기를 만든다 (그걸로 켜면 까만 창 없이 바로 켜진다).
-    # 처음 설치하거나 업데이트할 때만 만들고, 못 만들어도 프로그램은 그대로 켠다.
-    $welcome = $false
-    if ($built) {
-        try {
-            $shell = New-Object -ComObject WScript.Shell
-            $desktop = [Environment]::GetFolderPath('Desktop')
-            foreach ($folder in @($desktop, [Environment]::GetFolderPath('Programs'))) {
-                if (-not $folder) { continue }
-                $lnkPath = Join-Path $folder 'ClassPen.lnk'
-                if ($folder -eq $desktop -and -not (Test-Path -LiteralPath $lnkPath)) { $welcome = $true }
-                $lnk = $shell.CreateShortcut($lnkPath)
-                $lnk.TargetPath = $exe
-                $lnk.WorkingDirectory = $dir
-                $lnk.IconLocation = "$ico,0"
-                $lnk.Description = 'ClassPen - 수업용 화면 판서 도구'
-                $lnk.Save()
-            }
-        }
-        catch { $welcome = $false }
-    }
-
-    if ($welcome) { Start-Process -FilePath $exe -ArgumentList '--welcome' }
-    else { Start-Process -FilePath $exe }
+    Start-Process -FilePath $exe
     exit 0
 }
 catch {
@@ -1629,6 +1604,7 @@ using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.Drawing.Text;
 using System.IO;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using Microsoft.Win32;
@@ -1640,7 +1616,7 @@ namespace ClassPen
         static bool showingError;
 
         [STAThread]
-        static void Main(string[] args)
+        static void Main()
         {
             bool first;
             using (var mutex = new System.Threading.Mutex(true, "Local\\ClassPen.SingleInstance", out first))
@@ -1664,8 +1640,7 @@ namespace ClassPen
                         MessageBoxDefaultButton.Button1, MessageBoxOptions.DefaultDesktopOnly);
                     showingError = false;
                 };
-                // --welcome: ClassPen.bat 이 바탕화면 아이콘을 막 만들었을 때 시작 화면에 안내를 한 줄 더 띄운다.
-                Application.Run(new Overlay(Array.IndexOf(args, "--welcome") >= 0));
+                Application.Run(new Overlay());
                 GC.KeepAlive(mutex);
             }
         }
@@ -2350,12 +2325,62 @@ namespace ClassPen
     }
 
     // ------------------------------------------------------------------
+    // 바탕화면 · 시작 메뉴 바로가기 (아이콘은 ClassPen.exe 에 들어 있는 강아지)
+    // ------------------------------------------------------------------
+    static class Shortcuts
+    {
+        public static string DesktopLink
+        {
+            get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "ClassPen.lnk"); }
+        }
+
+        static string StartMenuLink
+        {
+            get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), "ClassPen.lnk"); }
+        }
+
+        public static bool CreateAll()
+        {
+            bool desktop = Create(DesktopLink);
+            Create(StartMenuLink);
+            return desktop;
+        }
+
+        // WScript.Shell 을 늦은 바인딩으로 불러 .lnk 를 만든다 (참조 추가 없이 윈도우 기본 기능만 사용).
+        static bool Create(string lnkPath)
+        {
+            object shell = null, link = null;
+            try
+            {
+                Type shellType = Type.GetTypeFromProgID("WScript.Shell");
+                if (shellType == null) return false;
+                shell = Activator.CreateInstance(shellType);
+                link = shellType.InvokeMember("CreateShortcut", BindingFlags.InvokeMethod, null, shell, new object[] { lnkPath });
+                Type linkType = link.GetType();
+                string exe = Application.ExecutablePath;
+                linkType.InvokeMember("TargetPath", BindingFlags.SetProperty, null, link, new object[] { exe });
+                linkType.InvokeMember("WorkingDirectory", BindingFlags.SetProperty, null, link, new object[] { Path.GetDirectoryName(exe) });
+                linkType.InvokeMember("IconLocation", BindingFlags.SetProperty, null, link, new object[] { exe + ",0" });
+                linkType.InvokeMember("Description", BindingFlags.SetProperty, null, link, new object[] { "ClassPen - 수업용 화면 판서 도구" });
+                linkType.InvokeMember("Save", BindingFlags.InvokeMethod, null, link, null);
+                return true;
+            }
+            catch (Exception) { return false; }
+            finally
+            {
+                if (link != null && Marshal.IsComObject(link)) Marshal.ReleaseComObject(link);
+                if (shell != null && Marshal.IsComObject(shell)) Marshal.ReleaseComObject(shell);
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------
     // 설정 저장 (%APPDATA%\ClassPen\settings.ini)
     // ------------------------------------------------------------------
     sealed class Settings
     {
         public int ToolbarX = int.MinValue, ToolbarY = int.MinValue, ColorIndex, WidthIndex = 1;
-        public bool Collapsed, HideFromCapture = true, Watermark = true;
+        public bool Collapsed, HideFromCapture = true, Watermark = true, ShortcutDone;
 
         static string FilePath
         {
@@ -2384,6 +2409,7 @@ namespace ClassPen
                         case "Collapsed": s.Collapsed = value == "1"; break;
                         case "HideFromCapture": s.HideFromCapture = value != "0"; break;
                         case "Watermark": s.Watermark = value != "0"; break;
+                        case "ShortcutDone": s.ShortcutDone = value == "1"; break;
                     }
                 }
             }
@@ -2400,7 +2426,7 @@ namespace ClassPen
                 {
                     "ToolbarX=" + ToolbarX, "ToolbarY=" + ToolbarY, "Color=" + ColorIndex, "Width=" + WidthIndex,
                     "Collapsed=" + (Collapsed ? "1" : "0"), "HideFromCapture=" + (HideFromCapture ? "1" : "0"),
-                    "Watermark=" + (Watermark ? "1" : "0")
+                    "Watermark=" + (Watermark ? "1" : "0"), "ShortcutDone=" + (ShortcutDone ? "1" : "0")
                 });
             }
             catch (Exception) { }
@@ -2453,11 +2479,9 @@ namespace ClassPen
         TextEntry textEntry;
         Cursor customCursor;
         IntPtr previousForeground;
-        readonly bool welcome;
 
-        public Overlay(bool welcome)
+        public Overlay()
         {
-            this.welcome = welcome;
             settings = Settings.Load();
             colorIndex = Geo.Clamp(settings.ColorIndex, 0, Theme.Palette.Length - 1);
             widthIndex = Geo.Clamp(settings.WidthIndex, 0, BaseWidths.Length - 1);
@@ -2554,7 +2578,15 @@ namespace ClassPen
             topTimer.Start();
             RefreshCursor();
             RegisterHotkeys();
-            var splash = new Splash(welcome);
+            // 처음 켤 때 바탕화면 · 시작 메뉴에 강아지 아이콘을 만들고 시작 화면에서 알려 준다.
+            bool created = false;
+            if (!settings.ShortcutDone)
+            {
+                if (!File.Exists(Shortcuts.DesktopLink)) created = Shortcuts.CreateAll();
+                settings.ShortcutDone = true;
+                settings.Save();
+            }
+            var splash = new Splash(created);
             splash.Owner = this;
             splash.Start();
         }
@@ -3222,6 +3254,10 @@ namespace ClassPen
                 };
                 menu.Items.Add(markItem);
             }
+            menu.Items.Add("바탕화면에 ClassPen 아이콘 만들기", null, delegate
+            {
+                ShowToast(Shortcuts.CreateAll() ? "바탕화면과 시작 메뉴에 강아지 아이콘을 만들었어요" : "아이콘을 만들지 못했어요. 윈도우 보안 설정을 확인해 주세요.", 2600);
+            });
             menu.Items.Add("단축키 보기", null, delegate { ShowHelp(); });
             menu.Items.Add(new ToolStripSeparator());
             menu.Items.Add("종료", null, delegate { Close(); });
