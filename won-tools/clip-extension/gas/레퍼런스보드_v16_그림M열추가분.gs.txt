@@ -1,0 +1,66 @@
+/* 레퍼런스 보드 웹 앱 — v16 추가분 (2026-10-09 배포 · 버전 16 · 배포 ID 그대로)
+   편집기 코드 69,551자(v15) → 70,517자(v16). 아래 '바꾼 곳'을 고친 뒤(괄호 안 숫자 = 바꾼 군데 수) 맨 끝에 v16 묶음을 붙였어요.
+   ※ 참고용 사본 — 실제 코드는 Apps Script 편집기(조합 레퍼런스 보드 연결)에 있어요.
+
+   [바꾼 곳]
+   (1) ×1 이전:
+         const TK_IMG_COL = 3, TK_IMG_X = 12, TK_GAP = 14, TK_ROW_H = 21;
+       이후:
+         const TK_IMG_COL = 13, TK_IMG_X = 0, TK_IMG_MIN = 3, TK_GAP = 14, TK_ROW_H = 21;   // v16(코치 10-09): 그림은 M열 선에 맞춰 · 있는 그림 찾기는 C열부터(예전 그림 포함)
+
+   (2) ×2 이전:
+         a.getColumn() >= TK_IMG_COL
+       이후:
+         a.getColumn() >= TK_IMG_MIN
+
+   (3) ×2 이전:
+         a.getColumn() < TK_IMG_COL
+       이후:
+         a.getColumn() < TK_IMG_MIN
+
+   (4) ×1 이전:
+         made: made, linked: linked, images: count,
+       이후:
+         made: made, linked: linked, col: TK_IMG_COL, images: count,
+
+   (5) ×1 이전:
+             let n = 0; const miss = [];
+       이후:
+             let n = 0, moved = 0; const miss = [];
+
+   (6) ×1 이전:
+               if (!sh || !it.url) { miss.push(it.tab || it.sheetId); return; }
+               tkSetLink_(sh, it.url, it.text); n++;
+       이후:
+               if (!sh) { miss.push(it.tab || it.sheetId); return; }
+               if (it.url) { tkSetLink_(sh, it.url, it.text); n++; }
+               if (it.move) moved += tkMoveImgs_(sh);   // v16 예전 C열 그림 → M열
+
+   (7) ×1 이전:
+             return { ok: true, n: n, miss: miss, deck: deck, file: ss.getName(), fileId: ss.getId() };
+       이후:
+             return { ok: true, n: n, moved: moved, miss: miss, deck: deck, file: ss.getName(), fileId: ss.getId() };
+
+   (8) ×1 이전:
+         return { ok: true, round: 1, links: 1, files: files.map(
+       이후:
+         return { ok: true, round: 1, links: 1, imgCol: TK_IMG_COL, files: files.map(
+
+*/
+
+/* ======================= v16: 그림 M열 (2026-10-09) =======================
+   코치(10-09): '시트로 옮길 때 사진을 M라인에 맞춰서' → 새 그림은 M열 선(옆 0px)에 · 위→아래 차례는 그대로
+   예전에 C열에 넣은 그림은 확장이 tacticLinks items[].move로 한 번 옮김 — C열·옆 12px·대체 글 'R13 · …'인 그림만(코치가 옮기거나 직접 넣은 그림은 그대로) */
+function tkMoveImgs_(sh) {
+  let k = 0;
+  sh.getImages().forEach(function (im) {
+    try {
+      const a = im.getAnchorCell();
+      if (a.getColumn() !== 3 || im.getAnchorCellXOffset() !== 12) return;
+      if (!/^R\d{1,2} · /.test(String(im.getAltTextTitle() || ''))) return;
+      const oy = im.getAnchorCellYOffset();
+      im.setAnchorCell(sh.getRange(a.getRow(), TK_IMG_COL)); im.setAnchorCellXOffset(TK_IMG_X); im.setAnchorCellYOffset(oy); k++;
+    } catch (e) {}
+  });
+  return k;
+}

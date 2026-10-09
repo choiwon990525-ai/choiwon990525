@@ -168,7 +168,7 @@ $('bkMemo').onclick = async () => {
 };
 $('bkFull').onclick = async () => {
   msg('전체 백업 만드는 중… (그림이 많으면 시간이 걸립니다)');
-  const keys = (await keysAll()).filter(k => /^(log|meta|img|rounds|board|roster|ann|pics|scnHide|scnMove|tacSent|tags):/.test(k));   // 1.11.1: 분석 화면에 그린 것(ann)·붙인 스크린샷(pics)도
+  const keys = (await keysAll()).filter(k => /^(log|meta|img|rounds|board|roster|ann|pics|scnHide|scnMove|tacSent|tags|view):/.test(k));   // 1.11.1: 분석 화면에 그린 것(ann)·붙인 스크린샷(pics)도
   const data = await S.get(keys);
   const blob = new Blob([JSON.stringify({ app: 'won-clip', kind: 'full', version: 1, at: new Date().toISOString(), data })], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -192,7 +192,7 @@ $('bkFile').onchange = async () => {
       if (k.startsWith('img:')) { if (!cur[k]) { put[k] = v; imgs++; } continue; }
       if (k.startsWith('rounds:') || k.startsWith('board:')) { if (!cur[k] || (v.updated || 0) > (cur[k].updated || 0)) put[k] = v; continue; }
       if (k.startsWith('roster:')) { if (!cur[k]) put[k] = v; continue; }
-      if (/^(ann|pics|scnHide|scnMove|tacSent|tags):/.test(k)) { if (!cur[k]) put[k] = v; continue; }   // 1.11.1: 없는 것만 되살림 (지금 것을 안 덮음)
+      if (/^(ann|pics|scnHide|scnMove|tacSent|tags|view):/.test(k)) { if (!cur[k]) put[k] = v; continue; }   // 1.11.1: 없는 것만 되살림 (지금 것을 안 덮음)
       if (k.startsWith('meta:')) {
         const vidKey = 'log:' + k.slice(5);
         const mine = cur[k];

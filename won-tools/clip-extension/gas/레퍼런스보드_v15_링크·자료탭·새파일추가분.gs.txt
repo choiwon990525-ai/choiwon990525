@@ -1,0 +1,121 @@
+/* 레퍼런스 보드 웹 앱 — v15 추가분 (2026-10-09 배포 · 버전 15 · 배포 ID 그대로)
+   편집기 코드 64,491자(v14) → 69,551자(v15). 아래 '바꾼 곳'을 그대로 고친 뒤, 맨 끝에 v15 묶음을 붙였어요.
+   ※ 참고용 사본입니다 — 실제 코드는 Apps Script 편집기(조합 레퍼런스 보드 연결)에 있어요.
+
+   [바꾼 곳]
+   (1) 이전:
+               try { TK.reformatSheet(sh); } catch (e) {}
+             }
+             // 그림: C열
+       이후:
+               try { TK.reformatSheet(sh); } catch (e) {}
+             }
+             let linked = false; if (d.link && d.link.url) { try { tkSetLink_(sh, d.link.url, d.link.text); linked = true; } catch (e) {} }   // v15 정리 슬라이드 링크
+             // 그림: C열
+
+   (2) 이전:
+         return { ok: true, round: 1, files: files.map(
+       이후:
+         return { ok: true, round: 1, links: 1, files: files.map(
+
+   (3) 이전:
+           const ags = (d.agents || []).map(tkNorm_).filter(function (s) { return s; });
+           if (!d.mapKo || !ags.length) return { ok: false, err: '맵·요원이 없어요' };
+           const name = '텍틱 - ' + d.mapKo + ' - ' + ags.join(' ');
+       이후:
+           const ags = (d.agents || []).map(tkNorm_).filter(function (s) { return s; }), custom = tkNorm_(d.name).replace(/^텍틱\s*-\s*[^-]+?\s*-\s*/, '');   // v15: 코치가 정한 이름
+           if (!d.mapKo || (!ags.length && !custom)) return { ok: false, err: '맵·이름이 없어요' };
+           const name = '텍틱 - ' + d.mapKo + ' - ' + (custom || ags.join(' '));
+
+   (4) 이전:
+         sh.getRange('B3').setValue(ags.join(' · ')); TK.reformatSheet(sh);
+       이후:
+         if (ags.length) sh.getRange('B3').setValue(ags.join(' · ')); TK.reformatSheet(sh);
+
+   (5) 이전:
+         made: made, images: count, ms: Date.now() - t0,
+       이후:
+         made: made, linked: linked, images: count, ms: Date.now() - t0,
+
+   (6) 이전:
+         if (d.kind === 'tacticRound') return json_(putTacticRound_(d));   // v14 라운드마다 새 탭
+       이후:
+         if (d.kind === 'tacticRound') return json_(putTacticRound_(d));   // v14 라운드마다 새 탭
+             if (d.kind === 'tacticLinks') return json_(tacticLinks_(d));   // v15 정리 슬라이드 링크
+             if (d.kind === 'deckSlides') return json_(deckSlides_(d));   // v15 라운드 장 찾기
+
+*/
+
+/* ======================= v15: 정리 슬라이드 링크 · 새 파일 이름 (2026-10-09) =======================
+   코치(10-09): 라운드 탭 안에 PPT(정리 슬라이드) 링크 하나 · 텍틱 파일 이름을 정해 새로 만들기(경기·팀별 파일)
+   코치(10-09 뒤): '이렇게 자동으로 자료 칸에 PPT' — 텍틱 파일의 '자료' 탭 B열에 정리 슬라이드 링크 한 줄 (코치가 직접 만든 자료 탭 모양 그대로)
+   doPost {kind:'tacticLinks', mapKo, fileId, items:[{sheetId, tab, url, text}], deck?} → 그 탭들 C1에 링크 (sheetId로, 없으면 탭 이름으로)
+          + deck(PPT 주소)이 오면 '자료' 탭에 '📊 PPT 이름' 링크 (없으면 탭을 '예시' 뒤에 새로 · 같은 PPT가 이미 있으면 그대로) → {ok, n, miss, deck:{added, tab, row}}
+          {kind:'deckSlides', deck} → {ok, slides:{라운드: 슬라이드 objectId}} — 정리 슬라이드에서 왼쪽 위 'R13' 띠 글자로 라운드 장을 찾음(같은 번호면 앞 장)
+          {kind:'tacticRound', …, link:{url, text}} → 새 탭(또는 이어 붙이는 탭) C1에 링크
+          {kind:'tacticNewFile', mapKo, name} → '텍틱 - 맵 - 이름' (요원 대신 코치가 정한 이름 · B3는 템플릿 그대로)
+   확장이 'PPT 주소#slide=id.…'로 그 라운드 장에 바로 가는 링크를 만듦 */
+function tkSetLink_(sh, url, text) {   // 제목 오른쪽 C1: '📊 정리 슬라이드 R13 ↗' (누르면 PPT 그 라운드 장)
+  if (!url) return;
+  const t = String(text || '📊 정리 슬라이드 ↗');
+  const rt = SpreadsheetApp.newRichTextValue().setText(t).setLinkUrl(String(url)).build();
+  const c = sh.getRange('C1'); c.setRichTextValue(rt); c.setFontSize(10).setFontColor('#4A88C7').setVerticalAlignment('middle');
+}
+function tacticLinks_(d) {
+  const ss = tkOpen_(d);
+  if (!ss) return { ok: false, err: '텍틱 파일을 못 열었어요' };
+  const lock = LockService.getScriptLock(); lock.waitLock(30000);
+  try {
+    const byId = {}; ss.getSheets().forEach(function (s) { byId[String(s.getSheetId())] = s; });
+    let n = 0; const miss = [];
+    (d.items || []).forEach(function (it) {
+      const sh = (it.sheetId != null && byId[String(it.sheetId)]) || (it.tab ? ss.getSheetByName(String(it.tab)) : null);
+      if (!sh || !it.url) { miss.push(it.tab || it.sheetId); return; }
+      tkSetLink_(sh, it.url, it.text); n++;
+    });
+    let deck = null;
+    if (d.deck) { try { deck = tkPutDeck_(ss, d.deck); } catch (e) { deck = { added: false, err: String(e && e.message || e) }; } }
+    SpreadsheetApp.flush();
+    return { ok: true, n: n, miss: miss, deck: deck, file: ss.getName(), fileId: ss.getId() };
+  } finally { lock.releaseLock(); }
+}
+function tkDeckId_(u) { const m = /\/presentation\/d\/([\w-]{20,})/.exec(String(u || '')); return m ? m[1] : (/^[\w-]{20,}$/.test(String(u || '')) ? String(u) : ''); }
+function tkDataTab_(ss) {   // '자료' 탭 — 없으면 '예시'(없으면 '템플릿') 바로 뒤에 새로
+  let sh = ss.getSheetByName('자료'); if (sh) return sh;
+  const after = ss.getSheetByName('예시') || ss.getSheetByName('템플릿');
+  sh = ss.insertSheet('자료', after ? after.getIndex() : ss.getSheets().length);
+  try { sh.setColumnWidth(2, 640); } catch (e) {}
+  return sh;
+}
+function tkPutDeck_(ss, deck) {   // 자료 탭 B열 마지막 글 다음 줄에 '📊 PPT 이름'(링크) — 탭 어디든 같은 PPT 주소·링크가 있으면 안 넣음
+  const id = tkDeckId_(deck); if (!id) return { added: false, err: '정리 슬라이드 주소가 없어요' };
+  const sh = tkDataTab_(ss), rg = sh.getDataRange(), vals = rg.getValues(), rts = rg.getRichTextValues(), fms = rg.getFormulas();
+  let has = false, last = 1;
+  vals.forEach(function (row, r) {
+    row.forEach(function (v, c) {
+      const s = String(v == null ? '' : v); if (c === 1 && s.trim()) last = Math.max(last, r + 1);
+      if (s.indexOf(id) >= 0 || String((fms[r] && fms[r][c]) || '').indexOf(id) >= 0) has = true;   // 글자·HYPERLINK 수식
+      const rt = rts[r] && rts[r][c]; if (rt && !has) rt.getRuns().forEach(function (x) { const u = x.getLinkUrl(); if (u && u.indexOf(id) >= 0) has = true; });
+    });
+  });
+  if (has) return { added: false, tab: sh.getName() };
+  let title = '정리 슬라이드'; try { title = DriveApp.getFileById(id).getName(); } catch (e) {}
+  const row = last + 1, rt = SpreadsheetApp.newRichTextValue().setText('📊 ' + title).setLinkUrl('https://docs.google.com/presentation/d/' + id + '/edit').build();
+  sh.getRange(row, 2).setRichTextValue(rt).setFontSize(11);
+  return { added: true, tab: sh.getName(), row: row };
+}
+function tkSlideIds_(deckId) {
+  const out = {};
+  if (!deckId) return out;
+  SlidesApp.openById(deckId).getSlides().forEach(function (sl) {
+    let n = null;
+    sl.getShapes().some(function (sh) { let t = ''; try { t = sh.getText().asString().trim(); } catch (e) {} const m = /^R(\d{1,2})$/.exec(t); if (m) { n = +m[1]; return true; } return false; });
+    if (n != null && !out[n]) out[n] = sl.getObjectId();
+  });
+  return out;
+}
+function deckSlides_(d) {
+  const id = tkDeckId_(d.deck);
+  if (!id) return { ok: false, err: '정리 슬라이드 주소가 없어요' };
+  try { return { ok: true, deck: id, slides: tkSlideIds_(id) }; } catch (e) { return { ok: false, err: '정리 슬라이드를 못 열었어요: ' + e.message }; }
+}

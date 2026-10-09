@@ -88,6 +88,8 @@ const KEYS = ['140', '130', '100'];
 const OUTMODE = async () => (((await S.get('prefs')).prefs || {}).outKeys === 'all' ? 'all' : 'mm');
 const OUTK = async () => KEYS;
 const BOARDK = async () => (await OUTMODE()) === 'all' ? KEYS : ['140'];   // 보드 그림으로 내보낼 장면
+/* 1.11.5 (코치 10-04 '오프닝 보드는 필요 없음'): 기본(mm)은 보내기 전에 자동 배치를 안 하고, 오프닝 칸은 직접 만든 보드(손댐·대조 끝)가 있을 때만 보드 — 아니면 투명벽 방송 미니맵 사진 */
+const manualBoard = (b) => !!b && ((b.auto !== true && (b.items || []).length > 0) || !!b.done);   // 빈 보드·자동으로만 놓인 보드는 아님
 async function photoJpeg(r, k, ann) {   // 방송 미니맵 사진 → 1024 정사각(보드 그림과 같은 칸 크기) + 아래 설명 줄 · ann = 분석 화면에서 그린 것(있으면 얹음)
   const name = r.shots && r.shots[k]; if (!name) return null;
   const rec = (await S.get('img:' + name))['img:' + name]; if (!rec || !rec.full) return null;
@@ -96,7 +98,7 @@ async function photoJpeg(r, k, ann) {   // 방송 미니맵 사진 → 1024 정�
   const x = c.getContext('2d'); x.fillStyle = '#070b10'; x.fillRect(0, 0, 1024, 1024);
   const sc = Math.min(1024 / im.width, 976 / im.height), w = im.width * sc, h = im.height * sc;
   x.drawImage(im, (1024 - w) / 2, (976 - h) / 2, w, h);
-  const lab = k === '130' ? (r.lab130 || '1:30') : (r.lab100 || '1:00');
+  const lab = k === '140' ? (r.lab140 || '투명벽') : k === '130' ? (r.lab130 || '1:30') : (r.lab100 || '1:00');
   x.fillStyle = '#c9d2e0'; x.font = '22px system-ui, sans-serif'; x.textBaseline = 'bottom';
   x.fillText((ROSTER.mapName || '') + ' · R' + r.n + ' ' + lab + ' · 방송 미니맵', 14, 1016);
   return c.toDataURL('image/jpeg', 0.86);
@@ -165,7 +167,7 @@ async function openRound() {
   drawTeams();
   MODE = await OUTMODE();
   const photoKey = KEY !== 'tac' && !AUTO_AG(KEY);   // 1:25·1:00 — 방송 미니맵 사진으로 나가는 장면
-  if (fresh && KEY !== 'tac' && AUTO_AG(KEY) && CROP && ROSTER.teams.A.agents.some(Boolean) && ACT !== 'thumbs') await autoPlace();
+  if (fresh && KEY !== 'tac' && AUTO_AG(KEY) && CROP && ROSTER.teams.A.agents.some(Boolean) && !ACT) await autoPlace();   // 1.11.5: 분석 화면이 뒤에서 여는 보드(보내기·미리보기)는 자동 배치 안 함
   else if (photoKey && !fresh && !B.done && B.items.length && B.items.every(i => i.auto)) {   // 예전에 자동으로만 채워진(손 안 댄) 1:25·1:00 보드 → 비움
     const n = B.items.length; push(); B.items = []; clearTimeout(saveT); saveT = null; await S.set({ [bKey()]: B });
     msg('자동으로 놓였던 ' + n + '개를 뺐어요 — 이 장면은 방송 미니맵 사진으로 나가요 (되살리려면 Ctrl+Z)');
@@ -1168,36 +1170,43 @@ async function sendToSheet() {
   const btn = $('send'); btn.disabled = true;
   try {
     const cfg = await sheetCfg();
-    save(B.auto); clearTimeout(memoT); await saveMemo($('nMemo').value); await new Promise(r => setTimeout(r, 400));
+    if (!ACT) { save(B.auto); clearTimeout(memoT); await saveMemo($('nMemo').value); await new Promise(r => setTimeout(r, 400)); }   // 분석 화면이 뒤에서 연 보드는 아무것도 저장 안 함 (빈 보드가 생기지 않게)
     const rs = ROUNDS.rounds.filter(r => r.map === MAPI);
     // 보드가 없는 라운드·장면은 먼저 자동 배치 (보내기 전에 '이 맵 전부 자동 배치'를 안 눌렀어도 빠짐없이)
-    const OK = await OUTK(), BK = await BOARDK();
-    if (readyForAuto()) { const made = await autoAll({ quiet: true, keys: BK }); if (made) msg('빠진 보드 ' + made + '장 자동 배치함 — 보내는 중…'); }
+    const OK = await OUTK(), BK = await BOARDK(), MODE = await OUTMODE();
+    if (MODE === 'all' && readyForAuto()) { const made = await autoAll({ quiet: true, keys: BK }); if (made) msg('빠진 보드 ' + made + '장 자동 배치함 — 보내는 중…'); }
     const keys = []; rs.forEach(r => KEYS.forEach(k => keys.push('board:' + VID + ':' + MAPI + ':' + r.n + ':' + k)));
     const saved = await S.get(keys), sceneLog = (await S.get('log:' + VID))['log:' + VID] || [];
-    const extra = await S.get(rs.map(r => WonAnn.key(VID, MAPI, r.n)).concat(rs.map(r => 'pics:' + VID + ':' + MAPI + ':' + r.n)));   // 분석 화면에서 그린 것 · 붙인 스크린샷
+    const extra = await S.get(rs.map(r => WonAnn.key(VID, MAPI, r.n)).concat(rs.map(r => 'pics:' + VID + ':' + MAPI + ':' + r.n), ['view:' + VID]));   // 분석 화면에서 그린 것 · 붙인 스크린샷 · 보기(미니맵만/화면 전체)
+    const VIEW = extra['view:' + VID] || {};
+    const shown = async (u, key, ann) => {   // 1.11.6 분석 화면에 보이는 대로: 장면은 미니맵만 크게(코치가 M으로 바꾼 건 그대로) + 그 보기에 그린 것
+      const crop = await WonScenes.cropMinimap(u), mm = WonScenes.viewMode(key, VIEW, ann, !!crop) === 'mm';
+      return sceneJpeg(mm ? crop.full : u, ann[mm ? key + '#mm' : key]);
+    };
     const out = [];
     for (const r of rs) {
       const images = {}, bs = {}, ann = extra[WonAnn.key(VID, MAPI, r.n)] || {};
       for (const k of KEYS) { const b = saved['board:' + VID + ':' + MAPI + ':' + r.n + ':' + k]; if (b) bs[k] = b; }   // 메모·공수는 세 장면 다 봄
+      let board140 = false;
       for (const k of OK) {
         msg('그림 만드는 중… R' + r.n + ' ' + (k === '140' ? (r.lab140 || '투명벽') : k === '130' ? (r.lab130 || '1:30') : '1:00'));
-        if (BK.includes(k)) { const b = bs[k]; if (b) images[k] = await renderJpeg(b, r, k); }
-        else { const ph = await photoJpeg(r, k, ann['mm:' + k]); if (ph) images[k] = ph; }   // 1:25·1:00 = 방송 미니맵 사진 (분석 화면에서 그린 것 포함)
+        const b = bs[k];
+        if (BK.includes(k) && b && (MODE === 'all' || manualBoard(b))) { images[k] = await renderJpeg(b, r, k); if (k === '140') board140 = true; }
+        else { const ph = await photoJpeg(r, k, ann['mm:' + k]); if (ph) images[k] = ph; }   // 방송 미니맵 사진 (분석 화면에서 그린 것 포함)
       }
       const notes = { memo: memoOf(r, bs) };
       // 🎬 코치가 영상 보며 찍은 장면(스샷+메모) → 정리 슬라이드 '코치 장면' 장 · 보기 페이지
       const scenes = [];
-      if ((ann['mm:140'] || []).length && r.shots && r.shots['140'] && BK.includes('140')) {   // 투명벽 미니맵 사진에 그린 게 있으면 코치 장면 장으로 (라운드 장 첫 칸은 보드)
+      if ((ann['mm:140'] || []).length && r.shots && r.shots['140'] && board140) {   // 오프닝 칸이 보드일 때만: 투명벽 미니맵 사진에 그린 것은 코치 장면 장으로
         const rec = (await S.get('img:' + r.shots['140']))['img:' + r.shots['140']];
         if (rec && rec.full) scenes.push({ seq: '투명벽', sec: shotSec(r, '140'), memo: '', raw: '', img: await sceneJpeg(rec.full, ann['mm:140']) });
       }
       for (const sc of shownScenes(await scenesOf(r, sceneLog))) {
         msg('장면 그림 줄이는 중… R' + r.n + ' 🎬 ' + sc.seq);
-        scenes.push({ seq: String(sc.seq), sec: Math.floor(sc.sec), memo: sc.memo, raw: sc.raw && sc.raw !== sc.memo ? sc.raw : '', img: sc.img ? await sceneJpeg(sc.img, ann['scn:' + sc.key]) : null });
+        scenes.push({ seq: String(sc.seq), sec: Math.floor(sc.sec), memo: sc.memo, raw: sc.raw && sc.raw !== sc.memo ? sc.raw : '', img: sc.img ? await shown(sc.img, 'scn:' + sc.key, ann) : null });
       }
       const pics = shownPics(extra['pics:' + VID + ':' + MAPI + ':' + r.n] || []);   // 📎 붙인 스크린샷도 코치 장면 장으로 (1.11.0)
-      for (let i = 0; i < pics.length; i++) scenes.push({ seq: '스샷' + (i + 1), sec: Math.floor(r.t0 != null ? r.t0 : (r.jump || 0)), memo: pics[i].cap || '', raw: '', img: await sceneJpeg(pics[i].img, ann['pic:' + pics[i].id]) });
+      for (let i = 0; i < pics.length; i++) scenes.push({ seq: '스샷' + (i + 1), sec: Math.floor(r.t0 != null ? r.t0 : (r.jump || 0)), memo: pics[i].cap || '', raw: '', img: await shown(pics[i].img, 'pic:' + pics[i].id, ann) });
       const b130 = saved['board:' + VID + ':' + MAPI + ':' + r.n + ':130'] || saved['board:' + VID + ':' + MAPI + ':' + r.n + ':100'];
       if (Object.keys(images).length || scenes.length) out.push({ n: r.n, sL: r.sL, sR: r.sR, win: r.win || null, t: Math.floor(r.jump), t0: r.t0 != null ? Math.floor(r.t0) : null, notes, images, scenes, def: defTeamFor(r.n, b130 && b130.flip), lab130: r.lab130 || '1:30', lab140: r.lab140 || '투명벽', lab100: r.lab100 || '1:00' });
     }
@@ -1234,7 +1243,7 @@ async function exportDoc() {
     save(B.auto); clearTimeout(memoT); if (memoAt) await saveMemo($('nMemo').value, memoAt[0], memoAt[1]); await new Promise(r => setTimeout(r, 400));
     const rs = ROUNDS.rounds.filter(r => r.map === MAPI);
     const OK = await OUTK(), BK = await BOARDK(), one = false;   // (one: 예전 '투명벽 보드만' 모양 — 이제 안 씀)
-    if (readyForAuto()) { const made = await autoAll({ quiet: true, keys: BK }); if (made) msg('빠진 보드 ' + made + '장 자동 배치함'); }
+    if ((await OUTMODE()) === 'all' && readyForAuto()) { const made = await autoAll({ quiet: true, keys: BK }); if (made) msg('빠진 보드 ' + made + '장 자동 배치함'); }
     const keys = []; rs.forEach(r => { KEYS.concat('tac').forEach(k => keys.push('board:' + VID + ':' + MAPI + ':' + r.n + ':' + k)); keys.push('pics:' + VID + ':' + MAPI + ':' + r.n); });
     const saved = await S.get(keys), sceneLog = (await S.get('log:' + VID))['log:' + VID] || [];
     const A = ROSTER.teams.A, Bt = ROSTER.teams.B, label = mapLabel(MAPI, ROSTER.mapName);
@@ -1319,7 +1328,7 @@ async function makeThumbs() {   // 빈 맵 보드 미리보기 그림 bimg:<영�
   const bk = rs.map(r => 'board:' + VID + ':' + MAPI + ':' + r.n + ':140'), ik = rs.map(r => 'bimg:' + VID + ':' + MAPI + ':' + r.n + ':140');
   const got = await S.get(bk.concat(ik)); let n = 0;
   for (let i = 0; i < rs.length; i++) {
-    const b = got[bk[i]]; if (!b) continue;
+    const b = got[bk[i]]; if (!manualBoard(b)) continue;   // 1.11.5: 직접 만든 보드만 (자동으로만 놓인 오프닝 보드는 미리보기 안 만듦)
     const sig = WonAnn.sig(b); if (got[ik[i]] && got[ik[i]].sig === sig) continue;
     const jpg = await renderJpeg(b, rs[i], '140');
     const im = await WonMapReg.loadImg(jpg), c = document.createElement('canvas'); c.width = c.height = 720; c.getContext('2d').drawImage(im, 0, 0, 720, 720);

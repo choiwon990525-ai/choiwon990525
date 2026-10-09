@@ -1,0 +1,78 @@
+/* 레퍼런스 보드 GAS v14 (배포 버전 14, 2026-10-04 09:54) — 📋 라운드마다 새 탭 추가분 사본
+   편집기 원본: '조합 레퍼런스 보드 연결' (64,491자). 이 파일은 참고용 사본(편집기가 원본)
+   v13 → v14 바뀐 곳 3군데:
+   ① doPost: if (d.kind === 'tacticNewFile') … 줄 바로 다음에
+        if (d.kind === 'tacticRound') return json_(putTacticRound_(d));   // v14 라운드마다 새 탭
+   ② tacticTabs_ 응답에 round: 1 (확장 1.11.6이 이걸 보고 새 버전인지 앎)
+        return { ok: true, round: 1, files: files.map( …
+   ③ 파일 맨 끝에 아래 함수 4개 (tkRoundTpl_ · tkTabName_ · tkTxt_ · tkClearBody_ · putTacticRound_)
+   모의 시험: gasmock/tkmock14.js 30/30 (클라우드) */
+
+/* ======================= v14: 📋 라운드마다 새 탭 (2026-10-04) =======================
+   확장 분석 화면 '텍틱 시트로' → 라운드 하나 = 이 파일의 '템플릿' 탭을 복제한 새 탭
+   탭 이름 = 코치 첫 장면 메모(텍틱 이름) · B1 '공격 > 이름' · B2 긴 메모(이름보다 길 때만) · B3 요원 · 그림을 C열에 위에서부터 차례로 (단계 띠·글 없음, B열은 코치가 적는 자리)
+   doPost {kind:'tacticRound', mapKo, fileId, name, title, summary, agents, images:[{jpeg, imgW, imgH, caption}], width, sheetId?}
+          sheetId가 있으면 그 탭 그림 아래에 이어 붙임(그림이 많아 나눠 보낼 때) → {ok, tab, sheetId, url, images}
+   템플릿 탭이 없으면 '텍틱 템플릿' 파일(TK_TEMPLATE)의 템플릿 탭을 가져옴 · 복제한 탭은 6행부터 비움(템플릿에 그림·단계가 들어가 있어도 깨끗한 틀) */
+function tkRoundTpl_(ss) {
+  const own = ss.getSheetByName('템플릿'); if (own) return own;
+  try { const t = SpreadsheetApp.openById(TK_TEMPLATE).getSheetByName('템플릿'); if (t) return t; } catch (e) {}
+  return null;
+}
+function tkTabName_(ss, want, self) {   // 탭 이름: 줄바꿈·앞뒤 빈칸 정리, 90자 · 같은 이름 있으면 (2)(3)…
+  const base = tkNorm_(want).replace(/^'+|'+$/g, '').slice(0, 90) || '새 텍틱';
+  const used = {}; ss.getSheets().forEach(function (s) { if (s !== self) used[s.getName()] = 1; });
+  let n = base, i = 2; while (used[n]) n = base + ' (' + (i++) + ')';
+  return n;
+}
+function tkTxt_(s) { s = tkNorm_(s); return /^[=+]/.test(s) ? "'" + s : s; }   // = + 로 시작해도 수식이 되지 않게
+function tkClearBody_(sh) {   // 6행부터 비움: 그림·글·A열 코드·띠 배경·굵기 — 머리(1~5행)는 그대로
+  sh.getImages().forEach(function (im) { if (im.getAnchorCell().getRow() >= TK_FIRST - 1) im.remove(); });
+  const n = sh.getMaxRows() - TK_FIRST + 1; if (n < 1) return;
+  const rg = sh.getRange(TK_FIRST, 1, n, sh.getMaxColumns());
+  if (!rg.getValues().some(function (r) { return r.some(function (v) { return String(v).trim(); }); }) && !rg.getBackgrounds().some(function (r) { return r.some(function (b) { return b && b !== '#ffffff'; }); })) return;
+  rg.clearContent(); rg.setBackground(null); rg.setFontWeight(null);
+  sh.setRowHeights(TK_FIRST, n, TK_ROW_H);
+}
+function putTacticRound_(d) {
+  const ss = tkOpen_(d);
+  if (!ss) return { ok: false, err: '텍틱 파일을 못 열었어요 — 창의 ↻로 목록을 다시 읽어 주세요' };
+  const imgs = (d.images || []).filter(function (x) { return x && x.jpeg; });
+  const t0 = Date.now(), lock = LockService.getScriptLock(); lock.waitLock(30000);
+  try {
+    let sh = null, made = false;
+    if (d.sheetId != null && d.sheetId !== '') sh = ss.getSheets().filter(function (s) { return String(s.getSheetId()) === String(d.sheetId); })[0] || null;
+    if (!sh) {
+      const tpl = tkRoundTpl_(ss);
+      if (!tpl) return { ok: false, err: '이 파일에 "템플릿" 탭이 없어요' };
+      sh = tpl.copyTo(ss); made = true;
+      try { sh.setName(tkTabName_(ss, d.name, sh)); } catch (e) { sh.setName(tkTabName_(ss, '새 텍틱', sh)); }
+      tkClearBody_(sh);
+      if (d.title) sh.getRange('B1').setValue(tkTxt_(d.title));
+      if (d.summary) sh.getRange('B2').setValue(tkTxt_(d.summary));
+      if (d.agents) sh.getRange('B3').setValue(tkTxt_(d.agents));
+      try { TK.reformatSheet(sh); } catch (e) {}
+    }
+    // 그림: C열, 6행 위쪽을 0으로 해서 아래로 차례로 (이어 붙일 땐 있는 그림 밑에서)
+    const W = Math.max(200, Math.min(1000, +d.width || 640));
+    let T = tkTops_(sh, TK_FIRST), y = 0;
+    sh.getImages().forEach(function (im) {
+      const a = im.getAnchorCell(); if (a.getColumn() < TK_IMG_COL || a.getRow() < TK_FIRST) return;
+      y = Math.max(y, T.at(a.getRow()) + im.getAnchorCellYOffset() + im.getHeight() + TK_GAP);
+    });
+    let count = 0;
+    imgs.forEach(function (x) {
+      const H = Math.round(W * (+x.imgH || 1) / (+x.imgW || 1)), bottom = y + H;
+      let r = TK_FIRST; while (T.at(r + 1) <= y) r++;
+      let e = r; while (T.at(e + 1) < bottom + TK_ROW_H) e++;
+      if (e + 1 > sh.getMaxRows()) { sh.insertRowsAfter(sh.getMaxRows(), e + 1 - sh.getMaxRows() + 10); T = tkTops_(sh, TK_FIRST); }
+      const blob = Utilities.newBlob(Utilities.base64Decode(String(x.jpeg).split(',').pop()), 'image/jpeg', 'tactic.jpg');
+      const im = sh.insertImage(blob, TK_IMG_COL, r, TK_IMG_X, Math.round(y - T.at(r)));
+      im.setWidth(W).setHeight(H);
+      try { if (x.caption) im.setAltTextTitle(String(x.caption)); } catch (e2) {}
+      y = bottom + TK_GAP; count++;
+    });
+    SpreadsheetApp.flush();
+    return { ok: true, file: ss.getName(), fileId: ss.getId(), tab: sh.getName(), sheetId: sh.getSheetId(), made: made, images: count, ms: Date.now() - t0, url: ss.getUrl() + '#gid=' + sh.getSheetId() };
+  } finally { lock.releaseLock(); }
+}

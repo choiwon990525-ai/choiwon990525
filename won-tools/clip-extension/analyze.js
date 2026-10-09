@@ -5,7 +5,10 @@
                          scnHide:<영상>(PPT에서 뺄 장면) · scnMove:<영상>(옆 라운드로 옮긴 장면) · tacSent:<영상>(텍틱 시트로 보낸 기록)
    새로 생긴 저장: ann:<영상>:<맵>:<라운드> = { 그림키: 그린 것 } (ann.js) · bimg:<영상>:<맵>:<라운드>:140 = 빈 맵 보드 미리보기 그림
    1.11.2: tags:<영상> = { '맵:라운드': 텍틱 이름 } · 모아 보기(G) = 한 팀 공격/수비 라운드의 같은 순간 미니맵 격자 · 스샷 칸 ×·Delete 지우기(되돌리기)
-   PPT로 보내기·보드 미리보기 그림은 보이지 않는 보드 페이지(board.html?act=send|thumbs)가 대신 만듦 — 보드 그리는 코드가 한 곳에만 있게 */
+   PPT로 보내기·보드 미리보기 그림은 보이지 않는 보드 페이지(board.html?act=send|thumbs)가 대신 만듦 — 보드 그리는 코드가 한 곳에만 있게
+   1.11.6: 장면(방송 화면)은 미니맵만 잘라 크게(M으로 화면 전체 ↔ 미니맵) — view:<영상> = { 그림키: 'mm'|'full' }, 미니맵에 그린 것은 '그림키#mm'
+           텍틱 이름 자동 = 라운드 첫 장면 메모 (tags에 코치가 적은 이름이 우선, ''은 '이름 없음')
+           📋 텍틱 시트로 = 라운드마다 텍틱 시트 '템플릿' 탭 복제 → 탭 이름 = 텍틱 이름 · 그림만 차례로 (tacSent의 'round:맵:라운드') */
 const TK_ON = true;   // 📋 텍틱 시트로 (공유판은 끔)
 const S = chrome.storage.local;
 const $ = (id) => document.getElementById(id);
@@ -21,6 +24,7 @@ if (q.has('yt')) setTimeout(() => {   // 유튜브에서 열었는데 뒤쪽 탭
 let ROUNDS = null, R = null, ROSTER = null, LOG = [], MOVES = {}, HIDES = {}, PICS = [], ANN = {}, TILES = [], PICKEYS = new Set();
 let SEL = 0, CMP = -1, FOCUS = 0, TWO = false, TOOL = 'sel', COLOR = WonAnn.COLORS[0];
 let TAGS = {};   // 1.11.2 텍틱 이름: tags:<영상> = { '맵:라운드': 'A 스플릿' } — 모아 보기에서 이 이름으로 걸러 봄
+let VIEW = {};   // 1.11.6 장면·스크린샷 보기: view:<영상> = { 그림키: 'mm'(미니맵만 크게) | 'full'(화면 전체) }
 
 const pad = (n) => String(n).padStart(2, '0');
 const fmt = (s) => { s = Math.max(0, Math.floor(s || 0)); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60; return (h ? h + ':' + pad(m) : m) + ':' + pad(x); };
@@ -61,8 +65,8 @@ const shotSec = (r, k) => {   // 그 미니맵이 영상 몇 초인지 (라운�
 /* ---------- 열기 ---------- */
 async function init() {
   if (!VID) { $('main').innerHTML = '<div id="empty">영상 정보가 없어요 — 유튜브 영상 아래 라운드 막대의 \'분석 열기\'로 들어오세요</div>'; return; }
-  const got = await S.get(['rounds:' + VID, 'log:' + VID, 'scnMove:' + VID, 'scnHide:' + VID, 'tags:' + VID]);
-  TAGS = got['tags:' + VID] || {};
+  const got = await S.get(['rounds:' + VID, 'log:' + VID, 'scnMove:' + VID, 'scnHide:' + VID, 'tags:' + VID, 'view:' + VID]);
+  TAGS = got['tags:' + VID] || {}; VIEW = got['view:' + VID] || {};
   ROUNDS = got['rounds:' + VID];
   LOG = got['log:' + VID] || []; MOVES = got['scnMove:' + VID] || {}; HIDES = got['scnHide:' + VID] || {};
   if (!ROUNDS || !(ROUNDS.rounds || []).length) {
@@ -82,7 +86,7 @@ async function init() {
   maps.forEach(m => $('mapSel').add(new Option(mapLabel(m, mapNameOf(m)), m)));
   if (!maps.includes(MAPI)) MAPI = maps[0];
   try { if (S.getKeys) (await S.getKeys()).forEach(k => { if (k.startsWith('pics:' + VID + ':')) PICKEYS.add(k); }); } catch (e) {}
-  WonTactic.setup({ vid: () => VID, where: () => ({ map: MAPI, n: RN }), mapKo: () => WonNames.mapKo((ROSTER && ROSTER.mapName) || mapNameOf(MAPI)), teams, msg: (t) => msg(t), onSent: () => { drawStrip(); drawItem(); } });
+  WonTactic.setup({ vid: () => VID, where: () => ({ map: MAPI, n: RN }), mapKo: () => WonNames.mapKo((ROSTER && ROSTER.mapName) || mapNameOf(MAPI)), teams, msg: (t) => msg(t), onSent: (src) => { drawStrip(); drawItem(); if (src == null) afterTacticRounds(); } });
   await WonTactic.reload();
   buildTools();
   await openMap(MAPI, RN);
@@ -98,6 +102,7 @@ async function openMap(m, n) {
   if (GRID) drawGrid();
   drawDeckLink();
   setTimeout(() => thumbsIfNeeded(), 1500);
+  setTimeout(() => fillDeckLinks(false).catch(() => {}), 2500);   // 1.11.8 PPT를 보낸 맵이면 텍틱 라운드 탭에 정리 슬라이드 링크 (빠진 것만)
 }
 const roundsOfMap = () => ROUNDS.rounds.filter(r => r.map === MAPI).sort((a, b) => a.n - b.n);
 async function openRound(n, keepKey) {
@@ -119,13 +124,14 @@ async function openRound(n, keepKey) {
 /* ---------- 왼쪽 라운드 목록 ---------- */
 function drawRounds() {
   const box = $('rlist'); box.textContent = '';
-  const rs = roundsOfMap(), scn = WonScenes.assign(ROUNDS.rounds, LOG, MOVES);
+  const rs = roundsOfMap(), scn = scnMap();
   $('rcount').textContent = rs.length + 'R';
   rs.forEach(r => {
     if (r.n === 13 || r.n === 25) { const h = document.createElement('div'); h.className = 'half'; h.textContent = r.n === 13 ? '후반' : '연장'; box.append(h); }
     const def = defTeam(r), [a, b] = scoreAB(r), w = winner(r), ns = (scn.get(r) || []).length, hasPic = PICKEYS.has('pics:' + VID + ':' + MAPI + ':' + r.n);
     const row = document.createElement('div'); row.className = 'rrow' + (r.n === RN ? ' on' : '') + (GRID && GSET.has(r.n) ? ' ing' : ''); row.dataset.n = r.n;
-    const meta = (tagOf(r) ? '<span class="tg">' + esc(tagOf(r)) + '</span> ' : '') + [ns ? '장면 ' + ns : '', hasPic ? '스샷' : '', (r.note || '').trim() ? '<b>메모</b>' : '', w ? esc(teamName(w)) + ' 승' : ''].filter(Boolean).join(' · ');
+    const sentR = WonTactic.sent('round:' + MAPI + ':' + r.n);
+    const meta = (tagOf(r) ? '<span class="tg' + (isAutoTag(r) ? ' auto' : '') + '"' + (isAutoTag(r) ? ' title="첫 장면 메모에서 자동"' : '') + '>' + esc(tagOf(r)) + '</span> ' : '') + [ns ? '장면 ' + ns : '', hasPic ? '스샷' : '', (r.note || '').trim() ? '<b>메모</b>' : '', sentR ? '<span title="텍틱 시트 탭: ' + esc(sentR.tab) + '">📋</span>' : '', w ? esc(teamName(w)) + ' 승' : ''].filter(Boolean).join(' · ');
     row.innerHTML = '<span class="rn">R' + r.n + '</span><span class="who"><i style="background:var(--def)"></i>' + esc(teamName(def)) + ' 수비</span><span class="sc">' + a + ':' + b + '</span>' +
       '<span class="meta">' + (meta || '&nbsp;') + '</span>';
     row.onclick = () => { if (GRID) toggleGrid(false); openRound(r.n); };
@@ -146,33 +152,58 @@ function drawHead() {
 /* ---------- 그림 줄 ---------- */
 async function buildTiles() {
   const r = R, pk = 'pics:' + VID + ':' + MAPI + ':' + RN, ak = WonAnn.key(VID, MAPI, RN), bk = 'board:' + VID + ':' + MAPI + ':' + RN + ':140', ik = 'bimg:' + VID + ':' + MAPI + ':' + RN + ':140';
-  const shots = r.shots || {}, scenes = WonScenes.assign(ROUNDS.rounds, LOG, MOVES).get(r) || [];
+  const shots = r.shots || {}, scenes = scnMap().get(r) || [];
   const fileOf = (x) => (x.files && x.files[0]) || x.file;
   const keys = [pk, ak, bk, ik].concat(['140', '130', '100'].filter(k => shots[k]).map(k => 'img:' + shots[k]), scenes.map(fileOf).filter(Boolean).map(f => 'img:' + f));
   const got = await S.get(keys);
   PICS = got[pk] || []; ANN = got[ak] || {};
   if (PICS.length) PICKEYS.add(pk); else PICKEYS.delete(pk);
   const T = [], bd = got[bk], bi = got[ik];
-  T.push({ kind: 'board', key: 'board', k: '140', lab: '빈 맵 보드', url: bi && bi.img, thumb: bi && bi.img, has: !!bd, stale: !!bd && (!bi || bi.sig !== WonAnn.sig(bd)), n: bd ? (bd.items || []).length : 0 });
+  // 1.11.5: 오프닝 자동 보드는 안 보여 줌 (코치 10-04) — 직접 만든(손댐·대조 끝) 보드만 첫 칸에
+  if (manualB(bd)) T.push({ kind: 'board', key: 'board', k: '140', lab: '빈 맵 보드', url: bi && bi.img, thumb: bi && bi.img, has: true, stale: !bi || bi.sig !== WonAnn.sig(bd), n: (bd.items || []).length });
   ['140', '130', '100'].forEach(k => { if (!shots[k]) return; const rec = got['img:' + shots[k]]; T.push({ kind: 'mm', k, key: 'mm:' + k, lab: labOf(r, k), url: rec && (rec.full || rec.thumb), thumb: rec && (rec.thumb || rec.full), manual: !!(r.manual && r.manual[k]), sec: shotSec(r, k) }); });
   scenes.forEach(x => { const f = fileOf(x), rec = f ? got['img:' + f] : null, sk = WonScenes.key(x); T.push({ kind: 'scn', key: 'scn:' + sk, sk, x, lab: '장면 ' + x.seq, sec: x.sec, url: rec && (rec.full || rec.thumb), thumb: rec && (rec.thumb || rec.full), hide: HIDES[sk] || null, moved: !!MOVES[sk] }); });
   PICS.forEach(p => T.push({ kind: 'pic', key: 'pic:' + p.id, p, lab: '스크린샷', url: p.img, thumb: p.img, hide: p.hide || null }));
+  // 1.11.6 방송 화면(16:9) 장면·스크린샷은 미니맵만 잘라 크게 볼 수 있음 — 장면은 미니맵이 기본, 스크린샷은 화면 전체가 기본 (M으로 바꿈)
+  await Promise.all(T.filter(t => (t.kind === 'scn' || t.kind === 'pic') && t.url).map(async t => { t.crop = await WonScenes.cropMinimap(t.url); }));
+  const pin = {};
+  T.forEach(t => { if (t.kind !== 'scn' && t.kind !== 'pic') return; t.mode = WonScenes.viewMode(t.key, VIEW, ANN, !!t.crop); if (t.kind === 'scn' && t.crop && t.mode === 'full' && !VIEW[t.key]) pin[t.key] = 'full'; });
+  if (Object.keys(pin).length) saveView(pin);   // 예전에 화면 전체에 그려 둔 장면은 화면 전체로 고정 (그린 것을 지워도 갑자기 바뀌지 않게)
   TILES = T;
 }
+const isMm = (t) => !!t && t.mode === 'mm' && !!t.crop;
+const aKey = (t) => isMm(t) ? t.key + '#mm' : t.key;   // 그린 것 저장 칸 — 미니맵으로 볼 때 그린 것은 따로
+const vUrl = (t) => isMm(t) ? t.crop.full : t.url;
+const vThumb = (t) => isMm(t) ? t.crop.thumb : t.thumb;
+async function saveView(obj) {
+  const k = 'view:' + VID, cur = (await S.get(k))[k] || {};
+  Object.assign(cur, obj); VIEW = cur; await S.set({ [k]: cur });
+}
+async function toggleView(t) {
+  if (!t || (t.kind !== 'scn' && t.kind !== 'pic')) return;
+  if (!t.crop) { msg('방송 화면 전체(16:9) 그림이 아니라 미니맵만 볼 수 없어요'); return; }
+  if (annT) await saveAnn();
+  const to = isMm(t) ? 'full' : 'mm', left = (ANN[aKey(t)] || []).length;
+  t.mode = to; await saveView({ [t.key]: to });
+  drawStrip(); await showAll(); drawItem();
+  msg((to === 'mm' ? '미니맵만 크게' : '화면 전체') + ' — 텍틱 시트·PPT에도 이렇게 가요' + (left ? ' · ' + (to === 'mm' ? '화면 전체' : '미니맵') + '에 그린 것 ' + left + '개는 그쪽에 그대로 있어요 (M)' : ''));
+}
+const manualB = (b) => !!b && ((b.auto !== true && (b.items || []).length > 0) || !!b.done);   // 직접 만든 보드 (빈 보드·자동으로만 놓인 보드는 빼고)
+const boardOn = () => TILES.some(t => t.kind === 'board');   // 이 라운드에 직접 만든 보드가 있으면 PPT 오프닝 칸은 보드
 const tileSrc = (t) => t.kind === 'scn' ? 'scn:' + t.sk : t.kind === 'pic' ? 'pic:' + t.p.id : t.kind === 'mm' ? 'mm:' + MAPI + ':' + RN + ':' + t.k : 'board:' + MAPI + ':' + RN + ':140';
-const inPpt = (t) => t.kind === 'board' ? t.has : t.kind === 'mm' ? (t.k !== '140' || !!(ANN[t.key] || []).length) : !t.hide;
+const inPpt = (t) => t.kind === 'board' ? t.has : t.kind === 'mm' ? (t.k !== '140' || !boardOn() || !!(ANN[t.key] || []).length) : !t.hide;   // 방송 미니맵은 보기 바꾸기 없음 (aKey = key)
 const dimmed = (t) => (t.kind === 'scn' || t.kind === 'pic') && !!t.hide;   // PPT에서 뺀 장면·스크린샷만 흐리게 (투명벽 미니맵은 참고용이라 그대로)
 function drawStrip() {
   const box = $('strip'); box.textContent = '';
   TILES.forEach((t, i) => {
     const d = document.createElement('div'); d.className = 'tile' + (i === SEL ? ' on' : '') + (TWO && i === CMP ? ' cmp' : '') + (dimmed(t) ? ' out' : '');
     const th = document.createElement('div'); th.className = 'th';
-    if (t.thumb) { const im = document.createElement('img'); im.src = t.thumb; im.loading = 'lazy'; th.append(im); }
+    if (vThumb(t)) { const im = document.createElement('img'); im.src = vThumb(t); im.loading = 'lazy'; th.append(im); }
     else th.textContent = t.kind === 'board' ? (t.has ? '보드 그림 만드는 중…' : '빈 맵 보드 만들기') : '그림 없음';
     const kind = document.createElement('span'); kind.className = 'kind' + (t.kind === 'board' ? ' b' : '');
-    kind.textContent = t.kind === 'board' ? '보드' : t.kind === 'mm' ? '미니맵' : t.kind === 'scn' ? '장면' : '스샷';
+    kind.textContent = t.kind === 'board' ? '보드' : t.kind === 'mm' ? '미니맵' : (t.kind === 'scn' ? '장면' : '스샷') + (isMm(t) ? ' · 미니맵' : '');
     const flags = document.createElement('span'); flags.className = 'flags';
-    if ((ANN[t.key] || []).length) { const f = document.createElement('span'); f.textContent = '그림'; f.title = '그린 것 ' + ANN[t.key].length + '개'; flags.append(f); }
+    if ((ANN[aKey(t)] || []).length) { const f = document.createElement('span'); f.textContent = '그림'; f.title = '그린 것 ' + ANN[aKey(t)].length + '개'; flags.append(f); }
     if (WonTactic.sent(tileSrc(t))) { const f = document.createElement('span'); f.textContent = '텍틱'; f.title = '텍틱 시트로 보냄: ' + WonTactic.sentTxt(WonTactic.sent(tileSrc(t))); flags.append(f); }
     if (t.hide === 'mm') { const f = document.createElement('span'); f.textContent = '미니맵용'; flags.append(f); }
     const cap = document.createElement('div'); cap.className = 'cap';
@@ -243,16 +274,17 @@ async function show(vi, ti) {
     if (vi === 0 || !TWO) setCurLab(t); return;
   }
   none.textContent = '';
-  let W = t.w, H = t.h;
-  if (!W) { try { const im = await loadImg(t.url); W = t.w = im.naturalWidth; H = t.h = im.naturalHeight; } catch (e) { W = 1; H = 1; } }
+  let W, H;
+  if (isMm(t)) { W = t.crop.w; H = t.crop.h; }
+  else { W = t.w; H = t.h; if (!W) { try { const im = await loadImg(t.url); W = t.w = im.naturalWidth; H = t.h = im.naturalHeight; } catch (e) { W = 1; H = 1; } } }
   if (v.t !== ti) return;   // 그 사이 다른 그림을 고름
-  v.ed.setImage(t.url, W, H, ANN[t.key] || []);
+  v.ed.setImage(vUrl(t), W, H, ANN[aKey(t)] || []);
   v.ed.locked = t.kind === 'board';
   v.ed.tool = TOOL; v.el.dataset.tool = t.kind === 'board' ? 'sel' : TOOL;
   lab.textContent = tileTitle(t); lab.style.display = TWO ? '' : 'none';
   if (vi === 0 || !TWO) setCurLab(t);
 }
-function tileTitle(t) { return t.kind === 'board' ? 'R' + RN + ' · 빈 맵 보드 (오프닝)' : t.kind === 'mm' ? 'R' + RN + ' · ' + t.lab + ' 방송 미니맵' : t.kind === 'scn' ? 'R' + RN + ' · 장면 ' + t.x.seq + ' · ' + fmt(t.sec) : 'R' + RN + ' · 스크린샷'; }
+function tileTitle(t) { return (t.kind === 'board' ? 'R' + RN + ' · 빈 맵 보드 (오프닝)' : t.kind === 'mm' ? 'R' + RN + ' · ' + t.lab + ' 방송 미니맵' : t.kind === 'scn' ? 'R' + RN + ' · 장면 ' + t.x.seq + ' · ' + fmt(t.sec) : 'R' + RN + ' · 스크린샷') + (isMm(t) ? ' · 미니맵만' : ''); }
 function setCurLab(t) {
   const L = $('curLab'); L.textContent = '';
   if (!t) return;
@@ -263,7 +295,7 @@ function setCurLab(t) {
 let annT = null, annAt = null;
 function annChanged(vi, items) {
   const t = TILES[V[vi].t]; if (!t) return;
-  ANN[t.key] = items.slice();
+  ANN[aKey(t)] = items.slice();
   annAt = [MAPI, RN, ANN];
   clearTimeout(annT); annT = setTimeout(saveAnn, 500);
   drawStripFlags();
@@ -284,7 +316,7 @@ function curTile() { return TILES[TWO && FOCUS === 1 ? CMP : SEL]; }
 function drawItem() {
   const t = curTile(), show = (id, on) => { $(id).style.display = on ? '' : 'none'; };
   $('mmPick').style.display = 'none';
-  if (!t) { $('iLab').textContent = '그림 없음'; ['iMemo', 'iPptRow', 'iTac', 'iEdit', 'iMm', 'iPrev', 'iNext', 'iDel'].forEach(x => show(x, false)); $('iInfo').textContent = ''; $('iSent').textContent = ''; return; }
+  if (!t) { $('iLab').textContent = '그림 없음'; ['iMemo', 'iPptRow', 'iTac', 'iEdit', 'iMm', 'iPrev', 'iNext', 'iDel', 'iView'].forEach(x => show(x, false)); $('iInfo').textContent = ''; $('iSent').textContent = ''; return; }
   $('iLab').textContent = '';
   $('iLab').append(document.createTextNode(tileTitle(t)));
   const sec = t.kind === 'scn' ? t.sec - 2 : t.kind === 'mm' ? t.sec - 1 : null;
@@ -299,10 +331,11 @@ function drawItem() {
   show('iMm', t.kind === 'scn' || t.kind === 'pic');
   show('iPrev', t.kind === 'scn'); show('iNext', t.kind === 'scn');
   show('iDel', t.kind === 'pic');
-  const n = (ANN[t.key] || []).length;
+  show('iView', !!t.crop); $('iView').textContent = isMm(t) ? '🖥 화면 전체 보기 (M)' : '🗺 미니맵만 크게 (M)';
+  const n = (ANN[aKey(t)] || []).length;
   $('iInfo').textContent = t.kind === 'board' ? 'PPT 라운드 장 첫 칸(오프닝)으로 들어가요 · 요원·스킬은 \'보드 편집\'에서'
-    : t.kind === 'mm' ? (t.k === '140' ? (n ? '그린 게 있어서 PPT 코치 장면 장에도 들어가요' : '투명벽 미니맵 — 그리면 PPT 코치 장면 장에도 들어가요') : 'PPT 라운드 장에 ' + t.lab + ' 칸으로 들어가요' + (n ? ' (그린 것 포함)' : ''))
-    : t.hide === 'mm' ? '미니맵 채우려고 쓴 화면이라 PPT에서 빠져 있어요' : t.moved ? '다른 라운드에서 옮겨 온 장면' : '';
+    : t.kind === 'mm' ? (t.k === '140' && boardOn() ? (n ? '그린 게 있어서 PPT 코치 장면 장에도 들어가요' : '투명벽 미니맵 — 오프닝 칸은 직접 만든 보드 · 그리면 PPT 코치 장면 장에도 들어가요') : 'PPT 라운드 장에 ' + (t.k === '140' ? '오프닝(' + t.lab + ')' : t.lab) + ' 칸으로 들어가요' + (n ? ' (그린 것 포함)' : ''))
+    : [isMm(t) ? '방송 미니맵 칸만 크게 보는 중 — 텍틱 시트·PPT에도 이 그림으로 가요' : '', t.hide === 'mm' ? '미니맵 채우려고 쓴 화면이라 PPT·텍틱 시트에서 빠져 있어요' : t.moved ? '다른 라운드에서 옮겨 온 장면' : ''].filter(Boolean).join(' · ');
   const s = WonTactic.sent(tileSrc(t)); $('iSent').textContent = s ? '📋 텍틱 시트로 보냄: ' + WonTactic.sentTxt(s) : '';
 }
 $('iMemo').oninput = () => { const t = TILES.find(x => x.key === itemFor), v = $('iMemo').value; clearTimeout(itemT); itemT = setTimeout(() => saveItemMemo(t, v), 500); };
@@ -314,6 +347,7 @@ async function saveItemMemo(t, v) {
     const k = 'log:' + VID, log = (await S.get(k))[k] || [];
     const e = log.find(x => WonScenes.key(x) === t.sk); if (!e) return;
     e.memo = v; t.x.memo = v; LOG = log; await S.set({ [k]: log });
+    drawTag(); drawRoundsSoon();   // 첫 장면 메모 = 자동 텍틱 이름
   } else if (t.kind === 'pic') {
     if ((t.p.cap || '') === v) return;
     t.p.cap = v; await savePics();
@@ -326,50 +360,71 @@ $('iPpt').onchange = async () => {
   if (t.kind === 'scn') { const k = 'scnHide:' + VID, h = (await S.get(k))[k] || {}; if (on) delete h[t.sk]; else h[t.sk] = 'x'; HIDES = h; await S.set({ [k]: h }); t.hide = on ? null : 'x'; }
   if (t.kind === 'pic') { if (on) delete t.p.hide; else t.p.hide = 'x'; t.hide = t.p.hide || null; await savePics(); }
   drawStrip(); drawItem();
-  msg(on ? 'PPT에 넣어요' : 'PPT에서 뺐어요 (여기엔 흐리게 남아요)');
+  msg(on ? 'PPT·텍틱 시트에 넣어요' : 'PPT·텍틱 시트(라운드 탭)에서 뺐어요 (여기엔 흐리게 남아요)');
 };
 $('iTac').onclick = () => tacFor(curTile());
-/* 📋 한 번에 (1.11.3): 이 라운드 장면·스크린샷(+ 그린 게 있는 미니맵)을 목록으로 → 고른 것만 그림마다 새 단계로. 라운드 텍틱 이름과 같은 탭을 먼저 고름 */
-const gameClock = (sec) => {   // 영상 초 → 라운드 시계(1:23) — 라운드 시작(배리어 1:40) t0 기준, 설치 뒤·모르면 null
-  if (!R || R.t0 == null || sec == null) return null;
-  const d = sec - R.t0; if (d < -35) return null; if (d < 0) return '바이 페이즈';
+/* 📋 텍틱 시트로 (1.11.6) — 라운드마다 텍틱 시트 '템플릿' 탭을 복제한 새 탭 · 탭 이름 = 텍틱 이름(첫 장면 메모) · 그 라운드 장면·스크린샷만 차례로 (단계 띠·글 없음)
+   (1.11.3의 '한 탭에 그림마다 N단계'는 코치가 안 씀 — 10-04) */
+const clockOf = (r, sec) => {   // 영상 초 → 그 라운드 시계(1:23) — 라운드 시작(배리어 1:40) t0 기준, 설치 뒤·모르면 null
+  if (!r || r.t0 == null || sec == null) return null;
+  const d = sec - r.t0; if (d < -35) return null; if (d < 0) return '바이 페이즈';
   const c = 100 - d; return c >= 0 ? fmt(c) : null;
 };
+const gameClock = (sec) => clockOf(R, sec);
 const tacCap = (t) => 'R' + RN + ' · ' + (t.kind === 'scn' ? (gameClock(t.sec) || fmt(t.sec)) : t.kind === 'mm' ? t.lab : t.kind === 'board' ? '오프닝 보드' : (t.p.cap || '스크린샷'));
-$('tacAll').onclick = () => tacRound();
-if (!TK_ON) $('tacAll').style.display = 'none';
-async function tacRound() {
+function viewItem(key, getUrl, ann, caption) {   // 보이는 대로(미니맵만/화면 전체 · 그린 것 포함) 보낼 그림 — 목록을 열 때 다 읽지 않고 필요할 때 만듦
+  let base = null;
+  const prep = async () => { if (base) return base; const url = await getUrl(); const crop = url ? await WonScenes.cropMinimap(url) : null; base = { url, crop, mm: WonScenes.viewMode(key, VIEW, ann, !!crop) === 'mm' }; return base; };
+  return {
+    src: key, caption,
+    img: async () => { const b = await prep(); if (!b.url) return null; const u = b.mm ? b.crop.full : b.url, its = ann[b.mm ? key + '#mm' : key] || []; return its.length ? WonAnn.apply(u, its, 1600, 0.9) : u; },
+    thumb: async () => { const b = await prep(); return b.mm ? b.crop.thumb : b.url; }
+  };
+}
+$('tacAll').onclick = () => tacRounds(true);
+if (!TK_ON) { $('tacAll').style.display = 'none'; $('tacBtn').style.display = 'none'; }
+$('tacBtn').onclick = () => tacRounds(false);
+async function tacRounds(onlyCur) {
   await flushSaves();
-  const cand = TILES.filter(t => t.url && (t.kind === 'scn' || t.kind === 'pic' || (t.kind === 'mm' && (ANN[t.key] || []).length)));
-  const secOf = (t) => t.kind === 'pic' || t.sec == null ? Infinity : t.sec;
-  cand.sort((a, b) => secOf(a) - secOf(b));   // 영상 시각 순 = 단계 순 (스크린샷은 시각을 몰라 맨 뒤, 붙인 순서대로)
-  if (!cand.length) { msg('이 라운드엔 보낼 장면·스크린샷이 없어요 — 영상에서 S로 찍거나 여기서 Ctrl+V로 붙여 주세요'); return; }
-  let np = 0;
-  const batch = cand.map(t => {
-    const items = ANN[t.key] || [], src = tileSrc(t), pn = t.kind === 'pic' ? ++np : 0;
-    const clock = t.kind === 'scn' ? gameClock(t.sec) : null;
-    return {
-      src, thumb: t.thumb || t.url,
-      title: t.kind === 'scn' ? '장면 ' + t.x.seq + ' · ' + (clock ? clock + ' (영상 ' + fmt(t.sec) + ')' : fmt(t.sec)) : t.kind === 'pic' ? '스크린샷 ' + pn : t.lab + ' 방송 미니맵 (그린 것)',
-      caption: t.kind === 'pic' ? 'R' + RN + ' · 스크린샷 ' + pn : tacCap(t),
-      memo: t.kind === 'scn' ? (t.x.memo || '') : t.kind === 'pic' ? (t.p.cap || '') : '',
-      img: items.length ? () => WonAnn.apply(t.url, items, 1600, 0.9) : t.url,
-      on: (t.kind === 'scn' || t.kind === 'pic') && !t.hide && !WonTactic.sent(src)
-    };
+  const rs = roundsOfMap(), scn = scnMap(), fileOf = (x) => (x.files && x.files[0]) || x.file;
+  const pk = rs.map(r => 'pics:' + VID + ':' + MAPI + ':' + r.n), ak = rs.map(r => WonAnn.key(VID, MAPI, r.n));
+  const got = await S.get(pk.concat(ak)), out = [];
+  rs.forEach((r, i) => {
+    const ann = (r.n === RN ? ANN : got[ak[i]]) || {};
+    const sc = (scn.get(r) || []).filter(x => fileOf(x) && !HIDES[WonScenes.key(x)]);
+    const pics = ((r.n === RN ? PICS : got[pk[i]]) || []).filter(p => p.img && !p.hide);
+    if (!sc.length && !pics.length) return;
+    const fx = (scn.get(r) || []).find(x => !x.sub && String(x.memo || '').trim()), full = fx ? WonScenes.cleanMemo(fx.memo) : '';
+    const items = sc.map(x => {
+      const f = fileOf(x), memo = x === fx ? '' : String(x.memo || '').trim().split('\n')[0];
+      return viewItem('scn:' + WonScenes.key(x), async () => { const rec = (await S.get('img:' + f))['img:' + f]; return rec && (rec.full || rec.thumb); }, ann, 'R' + r.n + ' · ' + (clockOf(r, x.sec) || fmt(x.sec)) + (memo ? ' · ' + memo : ''));
+    }).concat(pics.map(p => viewItem('pic:' + p.id, async () => p.img, ann, 'R' + r.n + ' · 스크린샷' + (p.cap ? ' · ' + p.cap : ''))));
+    const name = tagOf(r) || full.slice(0, 30) || ('R' + r.n), key = 'round:' + MAPI + ':' + r.n;
+    out.push({ key, n: r.n, name, name0: name, summary: full && full !== name ? full : '', def: defTeam(r), items, on: onlyCur ? r.n === RN : !WonTactic.sent(key) });
   });
-  WonTactic.open({ batch, label: 'R' + RN + ' · 한 번에 ' + batch.length + '장', tab: tagOf(R) });
+  if (!out.length) { msg('이 맵엔 텍틱 시트로 보낼 장면·스크린샷이 없어요 — 영상에서 S로 찍거나 여기서 Ctrl+V로 붙여 주세요'); return; }
+  if (onlyCur && !out.some(x => x.on)) { msg('R' + RN + '엔 보낼 장면·스크린샷이 없어요 — 다른 라운드는 위 \'📋 텍틱 시트로\'에서'); return; }
+  const p = (await S.get('prefs')).prefs || {};
+  const tms = ['A', 'B'].map(t => ({ key: t, name: teamName(t), agents: ((ROSTER && ROSTER.teams && ROSTER.teams[t] && ROSTER.teams[t].agents) || []).filter(Boolean).map(WonNames.agentKo) }));
+  const realName = (t) => !!(ROSTER && ROSTER.teams && ROSTER.teams[t] && ROSTER.teams[t].name && !/^(왼쪽|오른쪽) 팀$/.test(ROSTER.teams[t].name));
+  const fileHint = realName('A') && realName('B') ? teamName('A') + ' vs ' + teamName('B') : String((ROUNDS && ROUNDS.title) || '').replace(/\s*[—|]\s.*$/, '').replace(/\s+-\s.*$/, '').slice(0, 40);
+  WonTactic.open({ rounds: out, teams: tms, onlyCur, fileHint, linkOf: async (n) => deckLink(await deckInfo(), n),
+    label: mapLabel(MAPI, (ROSTER && ROSTER.mapName) || mapNameOf(MAPI)) + ' · 라운드마다 새 탭', team: (p.tacticTeamBy || {})[VID + ':' + MAPI] || null,
+    onTeam: async (k) => { const q = (await S.get('prefs')).prefs || {}; q.tacticTeamBy = Object.assign({}, q.tacticTeamBy, { [VID + ':' + MAPI]: k }); await S.set({ prefs: q }); },
+    onName: (n, name) => saveTag(MAPI, n, name) });
 }
 $('iEdit').onclick = () => openBoard();
+$('iView').onclick = () => toggleView(curTile());
 $('iDel').onclick = () => delPic(curTile());
 /* 스크린샷 지우기 (1.11.2: 스샷 칸 × · 오른쪽 버튼 · Delete 키) — 확인 창 대신 지운 뒤 '되돌리기' */
 let lastDel = null;
 async function delPic(t) {
   if (!t || t.kind !== 'pic') return;
   await flushSaves();
-  const m = MAPI, n = RN, idx = PICS.indexOf(t.p), ann = ANN[t.key] ? ANN[t.key].slice() : null;
-  PICS = PICS.filter(p => p !== t.p); delete ANN[t.key];
+  const m = MAPI, n = RN, idx = PICS.indexOf(t.p), ann = ANN[t.key] ? ANN[t.key].slice() : null, annMm = ANN[t.key + '#mm'] ? ANN[t.key + '#mm'].slice() : null;
+  PICS = PICS.filter(p => p !== t.p); delete ANN[t.key]; delete ANN[t.key + '#mm'];
   await WonAnn.save(VID, m, n, ANN); await savePics();
-  lastDel = { m, n, p: t.p, idx, ann, key: t.key };
+  lastDel = { m, n, p: t.p, idx, ann, annMm, key: t.key };
   await reloadTiles(); drawRounds();
   const w = document.createElement('span'); w.append(document.createTextNode('스크린샷을 지웠어요 (R' + n + ') — '));
   const a = document.createElement('a'); a.href = '#'; a.textContent = '되돌리기'; a.onclick = (e) => { e.preventDefault(); undoDel(); }; w.append(a);
@@ -381,7 +436,8 @@ async function undoDel() {
   arr.splice(Math.max(0, Math.min(d.idx, arr.length)), 0, d.p);
   await S.set({ [pk]: arr }); PICKEYS.add(pk);
   const annObj = (d.m === MAPI && d.n === RN) ? ANN : await WonAnn.load(VID, d.m, d.n);
-  if (d.ann) { annObj[d.key] = d.ann; await WonAnn.save(VID, d.m, d.n, annObj); }
+  if (d.ann) annObj[d.key] = d.ann; if (d.annMm) annObj[d.key + '#mm'] = d.annMm;
+  if (d.ann || d.annMm) await WonAnn.save(VID, d.m, d.n, annObj);
   if (d.m === MAPI && d.n === RN) { PICS = arr; await reloadTiles(d.key); }
   drawRounds(); msg('스크린샷을 되살렸어요');
 }
@@ -395,12 +451,13 @@ $('iMm').onclick = () => {
 };
 async function tacFor(t) {
   if (!t || !t.url) return;
-  const items = ANN[t.key] || [];
-  let img = t.url;
-  if (items.length && t.kind !== 'board') { msg('그린 것 얹는 중…'); img = await WonAnn.apply(t.url, items, 1600, 0.9); msg(''); }
+  const items = ANN[aKey(t)] || [];
+  let img = vUrl(t);
+  if (items.length && t.kind !== 'board') { msg('그린 것 얹는 중…'); img = await WonAnn.apply(vUrl(t), items, 1600, 0.9); msg(''); }
   const cap = tacCap(t);
   const memo = t.kind === 'scn' ? (t.x.memo || '') : t.kind === 'pic' ? (t.p.cap || '') : '';
-  WonTactic.open({ img, memo, caption: cap, src: tileSrc(t), label: tileTitle(t) });
+  const rs = WonTactic.sent('round:' + MAPI + ':' + RN);   // 이 라운드 탭을 만들었으면 그 탭을 먼저 고름
+  WonTactic.open({ img, memo, caption: cap, src: tileSrc(t), label: tileTitle(t), tab: (rs && rs.tab) || tagOf(R) });
 }
 
 /* ---------- 스크린샷 붙이기 · 미니맵으로 쓰기 · 장면 옮기기 ---------- */
@@ -509,13 +566,16 @@ function runBoard(act, n) {
 $('pptBtn').onclick = async () => {
   if (BUSY) { msg('다른 작업 중이에요 — 잠시만요'); return; }
   const ml = mapLabel(MAPI, (ROSTER && ROSTER.mapName) || mapNameOf(MAPI));
-  if (!confirm(ml + ' 라운드 전부를 정리 슬라이드(PPT)로 보낼까요?\n\n· 처음이면 새로 만들고, 다음부터는 바뀐 라운드·그림만 고쳐요\n· 라운드 장 = 오프닝 보드 + 1:25·1:00 미니맵(그린 것 포함) + 라운드 메모\n· 코치 장면 장 = PPT에 넣기로 둔 장면·스크린샷(그린 것 포함)\n· 30초~1분 걸려요')) return;
+  if (!confirm(ml + ' 라운드 전부를 정리 슬라이드(PPT)로 보낼까요?\n\n· 처음이면 새로 만들고, 다음부터는 바뀐 라운드·그림만 고쳐요\n· 라운드 장 = 투명벽·1:25·1:00 방송 미니맵(그린 것 포함) + 라운드 메모 — 직접 만든 보드가 있는 라운드만 오프닝 칸이 보드\n· 코치 장면 장 = PPT에 넣기로 둔 장면·스크린샷(그린 것 포함)\n· 30초~1분 걸려요')) return;
   await flushSaves();
   BUSY = 'send'; $('pptBtn').disabled = true; msg('PPT로 보내는 중…', false, true);
   const d = await runBoard('send');
   BUSY = null; $('pptBtn').disabled = false;
   setTimeout(thumbsIfNeeded, 500);   // 보내면서 자동 배치된 보드 미리보기
-  if (d.ok && d.deck) { const w = document.createElement('span'); w.append(document.createTextNode((d.text || 'PPT 준비됨') + ' — ')); const a = document.createElement('a'); a.href = d.deck; a.target = '_blank'; a.textContent = '정리 슬라이드 열기'; w.append(a); msg(w, false, true); }
+  if (d.ok && d.deck) {
+    const w = document.createElement('span'); w.append(document.createTextNode((d.text || 'PPT 준비됨') + ' — ')); const a = document.createElement('a'); a.href = d.deck; a.target = '_blank'; a.textContent = '정리 슬라이드 열기'; w.append(a); msg(w, false, true);
+    fillDeckLinks(true).then(r => { const t = linkTxt(r); if (t) w.append(document.createTextNode(' · 텍틱 시트: ' + t)); }).catch(() => {});   // 1.11.8 자료 탭 · 라운드 장이 바뀌었을 수 있어 다시
+  }
   else msg(d.text || (d.ok ? 'PPT로 보냄' : '보내기 실패'), !d.ok, true);
 };
 let thumbsBusy = false;
@@ -524,11 +584,77 @@ async function thumbsIfNeeded() {   // 빈 맵 보드 미리보기 그림이 없
   if (BUSY) { clearTimeout(thumbsIfNeeded.t); thumbsIfNeeded.t = setTimeout(thumbsIfNeeded, 3000); return; }
   const rs = roundsOfMap(), bk = rs.map(r => 'board:' + VID + ':' + MAPI + ':' + r.n + ':140'), ik = rs.map(r => 'bimg:' + VID + ':' + MAPI + ':' + r.n + ':140');
   const got = await S.get(bk.concat(ik));
-  const need = rs.filter((r, i) => got[bk[i]] && (!got[ik[i]] || got[ik[i]].sig !== WonAnn.sig(got[bk[i]])));
+  const need = rs.filter((r, i) => manualB(got[bk[i]]) && (!got[ik[i]] || got[ik[i]].sig !== WonAnn.sig(got[bk[i]])));   // 직접 만든 보드만 미리보기
   if (!need.length) return;
   thumbsBusy = true; BUSY = 'thumbs';
   await runBoard('thumbs', need[0].n);
   BUSY = null; thumbsBusy = false;
+}
+/* 정리 슬라이드 ↔ 텍틱 시트 (1.11.8, 코치 10-09 'PPT도 시트 안에 링크 하나'): 텍틱 라운드 탭 C1 = '📊 정리 슬라이드 R13 ↗' → PPT 그 라운드 장
+   라운드 장 id는 GAS deckSlides(장 왼쪽 위 'R13' 띠)로 한 번 읽어 sent:<영상>:<맵>.slides에 둠 — PPT를 다시 보내면 board.js가 sent를 새로 써서 다시 읽음
+   넣은 링크는 tacSent['round:맵:라운드'].link 에 적어 두고, 빠지거나 바뀐 탭만 GAS tacticLinks로 파일마다 한 번에
+   + 코치 10-09 '이렇게 자동으로 자료 칸에 PPT': 같은 요청에 deck을 실어 그 파일 '자료' 탭 B열에 '📊 PPT 이름' 한 줄 (넣은 파일은 sent.dataTab[파일] = PPT 주소) */
+let LINKS_OFF = false, MOVE_OFF = false, deckFail = 0;
+function afterTacticRounds() {   // 1.11.8 라운드를 텍틱 파일에 보낸 뒤: 이 맵 PPT가 있으면 그 파일 '자료' 탭에도 (새 파일이면 바로)
+  fillDeckLinks(true).then(r => { const t = linkTxt(r), m = $('msg'); if (t && /텍틱 시트에 새 탭/.test(m.textContent)) m.append(document.createTextNode(' · ' + t)); else if (t) msg('📋 텍틱 시트: ' + t); }).catch(() => {});
+}
+async function deckInfo() {
+  const k = 'sent:' + VID + ':' + MAPI, s = (await S.get(k))[k];
+  if (!s || !s.deck) return null;
+  if (s.slides && (s.slidesAt || 0) >= (s.at || 0)) return s;
+  if (LINKS_OFF || !TK_ON || Date.now() - deckFail < 60000) return s;   // 1분 안에 실패했으면 다시 안 물음 (라운드마다 묻지 않게)
+  try {
+    const j = await WonNet.postBoard({ kind: 'deckSlides', deck: s.deck });
+    if (j && j.ok && j.slides) { const cur = (await S.get(k))[k]; if (cur && cur.deck === s.deck) { cur.slides = j.slides; cur.slidesAt = Date.now(); await S.set({ [k]: cur }); return cur; } }
+    else if (j && !j.ok && /못 열었/.test(j.err || '')) { deckFail = Date.now(); return null; }   // 정리 슬라이드가 지워졌거나 못 엶 → 링크 안 넣음
+    else if (j && !j.ok && !/주소/.test(j.err || '')) LINKS_OFF = true;   // 옛 GAS(v14) — 이번 화면에선 더 안 물어봄
+  } catch (e) { deckFail = Date.now(); }
+  return s;
+}
+const deckLink = (s, n) => { if (!s || !s.deck) return null; const base = String(s.deck).replace(/[?#].*$/, ''), sid = s.slides && s.slides[n]; return { url: base + (sid ? '#slide=id.' + sid : ''), text: '📊 정리 슬라이드' + (sid ? ' R' + n : '') + ' ↗' }; };
+const linkTxt = (r) => [r.nd ? '\'자료\' 탭에 PPT 링크' : '', r.n ? '라운드 탭 ' + r.n + '개에 그 라운드 슬라이드 링크' : '', r.mv ? '그림 ' + r.mv + '장 M열로 옮김' : ''].filter(Boolean).join(' · ');
+let fillQ = Promise.resolve();
+function fillDeckLinks(quiet) { const p = fillQ.then(() => fillDeckLinks0(quiet)); fillQ = p.catch(() => {}); return p; }   // 차례로 (열 때·PPT 뒤·텍틱 보낸 뒤가 겹쳐도 빠짐없이)
+async function fillDeckLinks0(quiet) {   // → { n: 라운드 탭 C1 링크 수, nd: '자료' 탭에 새로 넣은 PPT 수, mv: M열로 옮긴 그림 수 }
+  const none = { n: 0, nd: 0, mv: 0 };
+  if (!TK_ON || LINKS_OFF || !ROUNDS) return none;
+  const tk = 'tacSent:' + VID, ts0 = (await S.get(tk))[tk] || {}, m0 = MAPI, kOf = (r) => 'round:' + m0 + ':' + r.n;
+  const rs = roundsOfMap().filter(r => { const t = ts0[kOf(r)]; return t && t.fileId && !t.miss; });
+  if (!rs.length) return none;
+  const needMove = (t) => !MOVE_OFF && !(t.col >= 13);   // 1.11.9 예전(C열)에 보낸 라운드 탭 → 그림을 M열로 한 번 (GAS v16)
+  const s = await deckInfo(); if (LINKS_OFF) return none;
+  const hasDeck = !!(s && s.deck);
+  if (!hasDeck && !rs.some(r => needMove(ts0[kOf(r)]))) return none;
+  const base = hasDeck ? String(s.deck).replace(/[?#].*$/, '') : '', put = (hasDeck && s.dataTab) || {}, by = {};
+  rs.forEach(r => {
+    const key = kOf(r), t = ts0[key], l = hasDeck ? deckLink(s, r.n) : null, a = by[t.fileId] = by[t.fileId] || [];
+    const url = l && t.link !== l.url ? l.url : '', move = needMove(t);
+    if (url || move) a.push({ key, sheetId: t.sheetId, tab: t.tab, url, text: url ? l.text : '', move });
+  });
+  const mapKo = WonNames.mapKo((ROSTER && ROSTER.mapName) || mapNameOf(m0)), okFiles = []; let n = 0, nd = 0, mv = 0;
+  for (const fid of Object.keys(by)) {
+    const items = by[fid], deck = hasDeck && put[fid] !== base ? base : '';   // '자료' 탭: 이 파일에 이 PPT를 아직 안 넣었으면 (코치 10-09 '자동으로 자료 칸에 PPT')
+    if (!items.length && !deck) continue;
+    const j = await WonNet.postBoard({ kind: 'tacticLinks', mapKo, fileId: fid, items: items.map(x => ({ sheetId: x.sheetId, tab: x.tab, url: x.url, text: x.text, move: x.move })), deck }).catch(() => null);
+    if (!j || !j.ok) { if (j && !j.ok && !/파일/.test(j.err || '')) LINKS_OFF = true; continue; }   // 옛 GAS(v14)면 이번 화면에선 그만
+    const v16 = j.moved != null; if (!v16 && items.some(x => x.move)) MOVE_OFF = true;   // v15는 그림 옮기기를 모름
+    n += j.n || 0; mv += j.moved || 0;
+    const miss = new Set((j.miss || []).map(String)), cur = (await S.get(tk))[tk] || {};
+    items.forEach(x => {
+      const c = cur[x.key]; if (!c || c.fileId !== fid) return;
+      if (miss.has(String(x.tab)) || miss.has(String(x.sheetId))) { if (v16) c.miss = Date.now(); return; }   // 탭이 없어짐 → 다음부터 안 물음
+      if (x.url) c.link = x.url; if (x.move && v16) c.col = 13;
+    });
+    await S.set({ [tk]: cur });
+    if (deck && j.deck && !j.deck.err) { if (j.deck.added) nd++; okFiles.push(fid); }
+  }
+  if (okFiles.length) {   // 자료 탭에 넣은 파일은 sent 기록에 (PPT를 다시 보내면 board.js가 sent를 새로 써서 한 번 더 확인 — 같은 PPT면 시트가 안 넣음)
+    const k = 'sent:' + VID + ':' + m0, cur = (await S.get(k))[k];
+    if (cur && String(cur.deck || '').replace(/[?#].*$/, '') === base) { cur.dataTab = Object.assign({}, cur.dataTab); okFiles.forEach(f => { cur.dataTab[f] = base; }); await S.set({ [k]: cur }); }
+  }
+  const r = { n, nd, mv };
+  if ((n || nd || mv) && !quiet) msg('📋 텍틱 시트: ' + linkTxt(r));
+  return r;
 }
 /* 정리 슬라이드 ↗ (1.11.4): 이 맵을 PPT로 보낸 적 있으면 머리에 늘 링크 — sent:<영상>:<맵> = { at, rounds, deck } */
 async function drawDeckLink() {
@@ -551,13 +677,14 @@ chrome.storage.onChanged.addListener((ch, area) => {
   for (const k of Object.keys(ch)) {
     const nv = ch[k].newValue;
     if (k === 'rounds:' + VID && nv) { ROUNDS = nv; R = roundsOfMap().find(r => r.n === RN) || R; rounds = true; if (document.activeElement !== $('note') && !noteT) $('note').value = R.note || ''; }
-    else if (k === 'log:' + VID) { LOG = nv || []; tiles = rounds = true; }
+    else if (k === 'log:' + VID) { LOG = nv || []; tiles = rounds = true; drawTag(); }
     else if (k === 'scnMove:' + VID) { MOVES = nv || {}; tiles = rounds = true; }
     else if (k === 'scnHide:' + VID) { HIDES = nv || {}; tiles = true; }
     else if (k === 'pics:' + VID + ':' + MAPI + ':' + RN) tiles = true;
     else if (k === 'bimg:' + VID + ':' + MAPI + ':' + RN + ':140') tiles = true;
     else if (k.startsWith('board:' + VID + ':' + MAPI + ':') && k.endsWith(':140')) { if (k === 'board:' + VID + ':' + MAPI + ':' + RN + ':140') tiles = true; clearTimeout(thumbsIfNeeded.t); thumbsIfNeeded.t = setTimeout(thumbsIfNeeded, 2500); }
-    else if (k === 'tacSent:' + VID) WonTactic.reload().then(() => { drawStrip(); drawItem(); });
+    else if (k === 'tacSent:' + VID) WonTactic.reload().then(() => { drawStrip(); drawItem(); drawRoundsSoon(); drawTag(); });
+    else if (k === 'view:' + VID) { const v = nv || {}; if (JSON.stringify(v) !== JSON.stringify(VIEW)) { VIEW = v; tiles = true; } }
     else if (k === 'sent:' + VID + ':' + MAPI) drawDeckLink();
     else if (k === 'tags:' + VID) { TAGS = nv || {}; rounds = true; drawTag(); if (GRID) { clearTimeout(drawGrid.t); drawGrid.t = setTimeout(drawGrid, 300); } }
   }
@@ -566,11 +693,33 @@ chrome.storage.onChanged.addListener((ch, area) => {
 });
 document.addEventListener('visibilitychange', () => { if (!document.hidden) setTimeout(thumbsIfNeeded, 800); });
 
-/* ---------- 텍틱 이름 (1.11.2) — 라운드마다 한 줄: 'A 스플릿'·'B 러시'… 모아 보기에서 이 이름으로 걸러 봄 ---------- */
-const tagOf = (r) => (r && TAGS[r.map + ':' + r.n]) || '';
+/* ---------- 텍틱 이름 (1.11.2) — 라운드마다 한 줄: 'A 스플릿'·'B 러시'… 모아 보기에서 이 이름으로 걸러 봄 ----------
+   1.11.6: 코치가 안 적으면 그 라운드 첫 장면(부연 말고) 메모로 자동 (WonScenes.memoTag: '113 롱 헤비' · 'B러수'→'B러시' · 요원 역할 나열은 뺌)
+   tags에 ''로 저장된 라운드 = 코치가 지움 → 자동도 안 씀 */
+let SCN = null, SCNK = [], AUTO = new Map();
+function scnMap() {   // 라운드 → 장면 (라운드·장면·옮김이 바뀔 때만 다시 계산)
+  if (!SCN || SCNK[0] !== ROUNDS || SCNK[1] !== LOG || SCNK[2] !== MOVES) { SCN = WonScenes.assign(ROUNDS.rounds, LOG, MOVES); SCNK = [ROUNDS, LOG, MOVES]; AUTO = new Map(); }
+  return SCN;
+}
+function autoTag(r) {
+  if (!r || !ROUNDS) return '';
+  const m = scnMap(); if (AUTO.has(r)) return AUTO.get(r);
+  const x = (m.get(r) || []).find(x => !x.sub && String(x.memo || '').trim()), v = x ? WonScenes.memoTag(x.memo) : '';
+  AUTO.set(r, v); return v;
+}
+const tagOf = (r) => { if (!r) return ''; const v = TAGS[r.map + ':' + r.n]; return v !== undefined ? v : autoTag(r); };
+const isAutoTag = (r) => !!r && TAGS[r.map + ':' + r.n] === undefined && !!autoTag(r);
 function tagCounts(rs) { const c = new Map(); rs.forEach(r => { const t = tagOf(r); if (t) c.set(t, (c.get(t) || 0) + 1); }); return [...c.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'ko')); }
 function drawTag() {
+  if (!R) return;
   const inp = $('tagIn'); if (document.activeElement !== inp) inp.value = tagOf(R);
+  const k = MAPI + ':' + RN, au = autoTag(R), ex = TAGS[k], h = $('tagAuto'); h.textContent = '';
+  const link = (txt, fn) => { const a = document.createElement('a'); a.href = '#'; a.textContent = txt; a.onclick = (e) => { e.preventDefault(); fn(); }; return a; };
+  if (ex === undefined && au) h.append('첫 장면 메모에서 자동 — 고치면 그 이름으로');
+  else if (ex === '' && au) h.append('자동 이름(' + au + ') 안 씀 · ', link('되살리기', () => saveTag(MAPI, RN, au)));
+  else if (ex && au && ex !== au) h.append('첫 메모 이름: ' + au + ' · ', link('그걸로', () => saveTag(MAPI, RN, au)));
+  const st = WonTactic.sent('round:' + k);
+  if (st) { h.append(h.childNodes.length ? ' · ' : ''); const a = document.createElement('a'); a.href = st.url || '#'; a.target = '_blank'; a.textContent = '📋 시트 탭 \'' + st.tab + '\' ↗'; if (!st.url) a.onclick = (e) => e.preventDefault(); h.append(a); }
   const all = tagCounts(ROUNDS.rounds);
   const dl = $('tagList'); dl.textContent = ''; all.forEach(([t]) => { const o = document.createElement('option'); o.value = t; dl.append(o); });
   const q = $('tagQuick'); q.textContent = '';
@@ -584,9 +733,11 @@ let tagT = null, tagAt = null;
 async function saveTag(m, n, v) {
   clearTimeout(tagT); tagT = null;
   const k = m + ':' + n, s = String(v || '').replace(/\s+/g, ' ').trim().slice(0, 40);
-  if ((TAGS[k] || '') === s) return;
+  const r = ROUNDS.rounds.find(x => x.map === m && x.n === n), au = r ? autoTag(r) : '';
+  const nv = s === au ? undefined : (s || (au ? '' : undefined));   // 자동 이름과 같으면 자동을 따라감 · 비우면 '' = 자동도 안 씀
+  if (TAGS[k] === nv) { if (r === R) drawTag(); return; }
   const cur = (await S.get('tags:' + VID))['tags:' + VID] || {};   // 다른 탭에서 붙인 것도 살림
-  if (s) cur[k] = s; else delete cur[k];
+  if (nv === undefined) delete cur[k]; else cur[k] = nv;
   TAGS = cur;
   if (Object.keys(cur).length) await S.set({ ['tags:' + VID]: cur }); else await S.remove('tags:' + VID);
   drawRoundsSoon(); drawTag(); if (GRID) drawGrid();
@@ -672,7 +823,7 @@ async function drawGrid() {
     const w = winner(r), res = w ? (w === G.team ? '승' : '패') : '';
     const cap = document.createElement('div'); cap.className = 'gcap';
     cap.innerHTML = '<b>R' + r.n + '</b><span class="lb">' + esc(labOf(r, G.k)) + '</span>' + (res ? '<span class="res ' + (res === '승' ? 'w' : 'l') + '">' + res + '</span>' : '');
-    const tg = document.createElement('span'); tg.className = 'gtag' + (tagOf(r) ? '' : ' empty'); tg.textContent = tagOf(r) || '+ 텍틱 이름'; tg.title = '누르면 텍틱 이름 붙이기 · 고치기';
+    const tg = document.createElement('span'); tg.className = 'gtag' + (tagOf(r) ? (isAutoTag(r) ? ' auto' : '') : ' empty'); tg.textContent = tagOf(r) || '+ 텍틱 이름'; tg.title = isAutoTag(r) ? '첫 장면 메모에서 자동 — 누르면 고치기' : '누르면 텍틱 이름 붙이기 · 고치기';
     tg.onclick = (e) => { e.stopPropagation(); editTagInline(tg, r); };
     cap.append(tg);
     cell.append(pic, cap);
@@ -692,7 +843,7 @@ function editTagInline(span, r) {
 
 /* ---------- 키보드 ---------- */
 document.addEventListener('keydown', (e) => {
-  if (WonTactic.isOpen()) return;
+  if (WonTactic.isOpen()) { if (e.key === 'Escape') WonTactic.close(); return; }   // 텍틱 창 밖에 초점이 있어도 Esc로 닫힘
   const a = document.activeElement, tag = ((a || {}).tagName || '').toLowerCase();
   if (tag === 'input' && a.type === 'file') a.blur();
   else if (tag === 'textarea' || tag === 'input' || tag === 'select') { if (e.key === 'Escape') a.blur(); return; }
@@ -716,7 +867,7 @@ document.addEventListener('keydown', (e) => {
   else if (k === 'Escape') setTool('sel');
   else {
     const map = { v: 'sel', a: 'arrow', c: 'circle', p: 'pen', t: 'text', e: 'erase' }, t = map[k.toLowerCase()];
-    if (t) setTool(t); else if (k.toLowerCase() === 'd') toggleTwo();
+    if (t) setTool(t); else if (k.toLowerCase() === 'd') toggleTwo(); else if (k.toLowerCase() === 'm') toggleView(curTile());
   }
 });
 window.addEventListener('resize', () => V.forEach(v => v.ed.render()));

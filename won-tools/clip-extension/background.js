@@ -83,6 +83,11 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
       } else if (msg.t === 'openBoard') {
         await chrome.tabs.create(nextTo(sender, chrome.runtime.getURL('board.html?v=' + encodeURIComponent(msg.vid) + '&m=' + (msg.m || 1) + '&r=' + (msg.r || 1) + '&k=140')));
         reply({ ok: true });
+      } else if (msg.t === 'webPost') {   // 1.11.7 분석 화면·보드가 응답을 못 받았을 때 대신 보내기 — 읽기 요청(탭 목록)만
+        if (!msg.body || !/^(tacticTabs|deckSlides|tacticLinks)$/.test(msg.body.kind || '')) { reply({ err: '읽기 요청만' }); return; }
+        const cfg = await sheetCfg();
+        const res = await fetch(cfg.url, { method: 'POST', body: JSON.stringify(Object.assign({}, msg.body, { token: cfg.token })), headers: { 'Content-Type': 'text/plain;charset=utf-8' }, redirect: 'follow', credentials: 'omit', cache: 'no-store' });
+        reply({ status: res.status, url: res.url, text: await res.text() });
       } else if (msg.t === 'reportScan') {   // 스캔을 마친 영상 → 구글 시트 '_스캔' 탭 (🏆 챔피언스 탭 '미니맵' 칸)
         reply(await reportScans(msg.vid ? [msg.vid] : null));
       } else if (msg.t === 'openAnalyze') {   // 1.11.0 분석 화면 (보드·모아보기를 한 화면으로)
@@ -215,7 +220,7 @@ async function autoBackup(force) {
   if (!prefs.autoBackup && !force) return { ok: true, skipped: 'off' };
   const allKeys = chrome.storage.local.getKeys ? await chrome.storage.local.getKeys() : Object.keys(await chrome.storage.local.get(null));
   // 메모 + 라운드 목록·보드·조합(그림은 빼서 가벼움 — 미니맵 그림은 경기 폴더/라운드/에 파일로 있음)
-  const isBk = (k) => /^(log|meta|rounds|board|roster|ann|scnHide|scnMove|tacSent|tags):/.test(k);   // 1.11.1: 분석 화면에 그린 것(ann)·PPT 빼기·옮긴 장면·텍틱 보낸 기록도 (스크린샷 pics는 커서 전체 백업에만)
+  const isBk = (k) => /^(log|meta|rounds|board|roster|ann|scnHide|scnMove|tacSent|tags|view):/.test(k);   // 1.11.1: 분석 화면에 그린 것(ann)·PPT 빼기·옮긴 장면·텍틱 보낸 기록도 (스크린샷 pics는 커서 전체 백업에만)
   const want = allKeys.filter(isBk).concat(['lastBackupSig']);
   const all = await chrome.storage.local.get(want);
   const data = {};
@@ -223,7 +228,7 @@ async function autoBackup(force) {
   for (const k of Object.keys(all)) {
     if (isBk(k)) {
       data[k] = all[k];
-      if (!k.startsWith('log:')) sig += ((all[k] && all[k].updated) || 0) % 1e9 + ((all[k] && all[k].count) || 0) + (/^(roster|ann|scnHide|scnMove|tacSent|tags):/.test(k) ? JSON.stringify(all[k]).length : 0);
+      if (!k.startsWith('log:')) sig += ((all[k] && all[k].updated) || 0) % 1e9 + ((all[k] && all[k].count) || 0) + (/^(roster|ann|scnHide|scnMove|tacSent|tags|view):/.test(k) ? JSON.stringify(all[k]).length : 0);
     }
   }
   const keys = Object.keys(data).filter(k => k.startsWith('log:') || k.startsWith('rounds:'));
@@ -305,7 +310,7 @@ async function reportScans(vids) {
     const rk = (await keysWith('rounds:')).filter(k => !vids || vids.includes(k.slice(7))), all = rk.length ? await chrome.storage.local.get(rk) : {};
     const recs = rk.map(k => all[k]).filter(r => r && r.vid && (r.rounds || []).length);
     if (!recs.length) return { ok: true, maps: 0 };
-    const post = async () => { const cfg = await sheetCfg(); const res = await fetch(cfg.url, { method: 'POST', body: JSON.stringify({ token: cfg.token, kind: 'scan', scans: recs.map(scanSummary) }), headers: { 'Content-Type': 'text/plain;charset=utf-8' }, redirect: 'follow' }); return res.json(); };
+    const post = async () => { const cfg = await sheetCfg(); const res = await fetch(cfg.url, { method: 'POST', body: JSON.stringify({ token: cfg.token, kind: 'scan', scans: recs.map(scanSummary) }), headers: { 'Content-Type': 'text/plain;charset=utf-8' }, redirect: 'follow', credentials: 'omit', cache: 'no-store' }); return res.json(); };   // 1.11.7 쿠키 없이
     let j = await post();
     if (!j.ok && /토큰/.test(j.err || '')) { const p = await getPrefs(); delete p.boardUrl; delete p.boardToken; await chrome.storage.local.set({ prefs: p }); j = await post(); }   // 비밀번호가 바뀌었으면 설정을 새로 읽어 한 번 더
     if (j.ok) await chrome.storage.local.set({ lastScanReport: Date.now() });
