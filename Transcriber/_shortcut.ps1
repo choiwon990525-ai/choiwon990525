@@ -132,6 +132,21 @@ foreach ($desk in $valid) {
       L "  -> 만들었습니다: $resultPath"
     }
   }
+
+  # 도구 폴더(녹음·전사본) 바로가기: 7GB 폴더 자체는 옮기지 않고 바탕화면에서 바로 열리게 한다
+  $fTemp  = Join-Path $desk "ClassTranscribeFolder.lnk"
+  $fFinal = Join-Path $desk "수업 전사 폴더.lnk"
+  foreach ($p in @($fTemp,$fFinal)) { if (Test-Path -LiteralPath $p) { Remove-Item -LiteralPath $p -Force -ErrorAction SilentlyContinue } }
+  try {
+    $s2 = (New-Object -ComObject WScript.Shell).CreateShortcut($fTemp)
+    $s2.TargetPath  = $root
+    $s2.Description = "Class transcriber folder (recordings and transcripts)"
+    $s2.Save()
+    Rename-Item -LiteralPath $fTemp -NewName "수업 전사 폴더.lnk" -ErrorAction Stop
+    L "  -> 만들었습니다: $fFinal"
+  } catch {
+    LQ "  폴더 바로가기 실패: $($_.Exception.Message)"
+  }
 }
 
 L ""
@@ -141,8 +156,8 @@ if ($okAny) {
   L "======================================="
   L " 완료! 바탕화면을 확인하세요."
   L "======================================="
-  L " 아이콘 이름: 수업 전사"
-  L " 단축키    : Ctrl+Alt+T"
+  L " 수업 전사      : 녹음 골라서 전사 (단축키 Ctrl+Alt+T)"
+  L " 수업 전사 폴더 : 녹음 · 전사 폴더 열기"
 } else {
   L "[실패] 바로가기를 만들지 못했습니다."
   L ""

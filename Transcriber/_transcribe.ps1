@@ -42,96 +42,169 @@ if (Test-Path $vocabF) {
 }
 
 function Get-Audio($dir) {
-  if (-not (Test-Path $dir)) { return @() }
+  if (-not (Test-Path -LiteralPath $dir)) { return @() }
   return @(Get-ChildItem -LiteralPath $dir -File -ErrorAction SilentlyContinue |
            Where-Object { $exts -contains $_.Extension.ToLower() })
 }
-function Need-Work($f) {
-  return -not (Test-Path (Join-Path $outDir ($f.BaseName + ".txt")))
+
+# ---- 이 녹음의 전사본 ----
+# 윈도우 녹음기는 '녹음.m4a' 같은 이름을 다시 쓴다. 이름만 보면 오늘 녹음을 예전 전사본으로 착각하므로,
+# 녹음 시각을 붙인 전사본(녹음_2026-10-09_1902.txt)이 있거나
+# 같은 이름 전사본이 녹음보다 나중에 만들어졌을 때만 '전사됨'으로 본다.
+function Get-Stamp($f) { return $f.LastWriteTime.ToString("yyyy-MM-dd_HHmm") }
+function Find-Txt($f) {
+  $stamped = Join-Path $outDir ($f.BaseName + "_" + (Get-Stamp $f) + ".txt")
+  if (Test-Path -LiteralPath $stamped) { return $stamped }
+  $plain = Join-Path $outDir ($f.BaseName + ".txt")
+  if ((Test-Path -LiteralPath $plain) -and ((Get-Item -LiteralPath $plain).LastWriteTime -ge $f.LastWriteTime)) { return $plain }
+  return $null
+}
+# 새 전사본 이름: 같은 이름 전사본이 이미 있으면 녹음 시각을 붙여 예전 것을 덮어쓰지 않는다
+function New-TxtPath($f) {
+  $plain = Join-Path $outDir ($f.BaseName + ".txt")
+  if (-not (Test-Path -LiteralPath $plain)) { return $plain }
+  return (Join-Path $outDir ($f.BaseName + "_" + (Get-Stamp $f) + ".txt"))
+}
+function Norm($p) { try { return [IO.Path]::GetFullPath($p).TrimEnd('\').ToLower() } catch { return "" } }
+
+# 탐색기 창에서 파일 직접 고르기 (여러 개 가능)
+function Pick-Files($initDir) {
+  Add-Type -AssemblyName System.Windows.Forms
+  $dlg = New-Object System.Windows.Forms.OpenFileDialog
+  $dlg.Title = "전사할 녹음 파일을 고르세요 (Ctrl 을 누른 채 여러 개 고를 수 있어요)"
+  $dlg.Filter = "녹음·녹화 파일|" + (($exts | ForEach-Object { "*" + $_ }) -join ";") + "|모든 파일|*.*"
+  $dlg.Multiselect = $true
+  if ($initDir -and (Test-Path -LiteralPath $initDir)) { $dlg.InitialDirectory = $initDir }
+  # 까만 창 뒤에 숨지 않게 맨 위에 띄운다
+  $top = New-Object System.Windows.Forms.Form
+  $top.TopMost = $true
+  $r = $dlg.ShowDialog($top)
+  $top.Dispose()
+  if ($r -ne [System.Windows.Forms.DialogResult]::OK) { return @() }
+  return @($dlg.FileNames | ForEach-Object { Get-Item -LiteralPath $_ })
 }
 
-# ---- 대상 수집 ----
+# ---- 대상 고르기 ----
 $targets = @()
-$fromWin = @()
-$script:scanned = @()
+$fromWin = @{}   # 윈도우 녹음기·OBS 기본 폴더에서 온 파일 (전사 후 '녹음' 폴더로 옮긴다)
 
 if ($Files -and $Files.Count -gt 0) {
   # 드래그앤드롭
-  $targets = @($Files | Where-Object { Test-Path $_ } | ForEach-Object { Get-Item $_ })
+  $targets = @($Files | Where-Object { Test-Path -LiteralPath $_ } | ForEach-Object { Get-Item -LiteralPath $_ })
 } else {
-  # 1) 내 '녹음' 폴더
-  $targets = @(Get-Audio $recDir | Where-Object { Need-Work $_ })
-
-  # 2) 윈도우 녹음기 기본 저장 폴더 자동 탐색
+  # 1) 윈도우 녹음기 / OBS 기본 저장 폴더 (예전과 같은 곳)
   $docs = [Environment]::GetFolderPath('MyDocuments')
-  $cands = @()
+  $winDirs = @()
   foreach ($n in @("소리 녹음","사운드 레코딩","Sound Recordings","사운드 녹음","녹음")) {
-    if ($docs) { $cands += (Join-Path $docs $n) }
+    if ($docs) { $winDirs += (Join-Path $docs $n) }
   }
   $up = $env:USERPROFILE
   if ($up) {
     foreach ($n in @("사운드 레코딩","Sound Recordings")) {
-      $cands += (Join-Path $up "Documents\$n")
-      $cands += (Join-Path $up "OneDrive\Documents\$n")
+      $winDirs += (Join-Path $up "Documents\$n")
+      $winDirs += (Join-Path $up "OneDrive\Documents\$n")
     }
-    # OBS 기본 녹화 저장 위치 (비디오 폴더)
     foreach ($v in @("Videos","비디오","OneDrive\Videos","OneDrive\비디오")) {
-      $cands += (Join-Path $up $v)
+      $winDirs += (Join-Path $up $v)
     }
   }
   $vid = [Environment]::GetFolderPath('MyVideos')
-  if ($vid) { $cands += $vid }
+  if ($vid) { $winDirs += $vid }
 
-  foreach ($c in ($cands | Select-Object -Unique)) {
-    if ((Test-Path $c) -and ((Resolve-Path $c).Path -ne (Resolve-Path $recDir).Path)) {
-      $script:scanned += $c
-      $fromWin += @(Get-Audio $c | Where-Object { Need-Work $_ })
+  # 2) 그 밖에 녹음이 있을 만한 곳: 바탕화면·다운로드·문서·음악·비디오와 OBS 설정의 저장 폴더 (최근 30일, 하위 폴더 2단계)
+  $wideDirs = @()
+  foreach ($k in @('Desktop','MyDocuments','MyMusic','MyVideos')) { $p = [Environment]::GetFolderPath($k); if ($p) { $wideDirs += $p } }
+  if ($up) { foreach ($n in @("Downloads","OneDrive\Desktop","OneDrive\Documents")) { $wideDirs += (Join-Path $up $n) } }
+  if ($env:APPDATA) {
+    $obsProf = Join-Path $env:APPDATA "obs-studio\basic\profiles"
+    if (Test-Path -LiteralPath $obsProf) {
+      foreach ($ini in @(Get-ChildItem -LiteralPath $obsProf -Recurse -Filter "basic.ini" -ErrorAction SilentlyContinue)) {
+        foreach ($ln in @(Get-Content -LiteralPath $ini.FullName -Encoding UTF8 -ErrorAction SilentlyContinue)) {
+          if ($ln -match '^\s*(FilePath|RecFilePath)\s*=\s*(.+?)\s*$') { $wideDirs += $Matches[2] }
+        }
+      }
     }
   }
-  $fromWin = @($fromWin | Sort-Object FullName -Unique)
-}
 
-if (($targets.Count + $fromWin.Count) -eq 0) {
+  $found = @{}
+  foreach ($f in (Get-Audio $recDir)) { $found[$f.FullName.ToLower()] = $f }
+  $recN = Norm $recDir
+  foreach ($d in ($winDirs | Select-Object -Unique)) {
+    try {
+      if (-not $d -or (Norm $d) -eq $recN -or -not (Test-Path -LiteralPath $d)) { continue }
+      foreach ($f in (Get-Audio $d)) { $k = $f.FullName.ToLower(); $found[$k] = $f; $fromWin[$k] = $true }
+    } catch { }
+  }
+  $skip = @((Norm (Join-Path $root "engine")), (Norm $outDir))   # 엔진·전사 폴더는 뒤지지 않는다
+  $cut = (Get-Date).AddDays(-30)
+  foreach ($d in ($wideDirs | Select-Object -Unique)) {
+    try {
+      if (-not $d -or -not (Test-Path -LiteralPath $d)) { continue }
+      foreach ($f in @(Get-ChildItem -LiteralPath $d -File -Recurse -Depth 2 -ErrorAction SilentlyContinue |
+                       Where-Object { $exts -contains $_.Extension.ToLower() -and $_.LastWriteTime -gt $cut -and $_.Length -gt 100KB })) {
+        $dn = Norm $f.DirectoryName
+        $bad = $false
+        foreach ($s in $skip) { if ($s -and ($dn -eq $s -or $dn.StartsWith($s + '\'))) { $bad = $true } }
+        $k = $f.FullName.ToLower()
+        if (-not $bad -and -not $found.ContainsKey($k)) { $found[$k] = $f }
+      }
+    } catch { }
+  }
+
+  # 3) 새 것부터 보여주고 고르게 한다. Enter = 최근 7일 안의 가장 새 '새 녹음'
+  $list = @($found.Values | Sort-Object LastWriteTime -Descending | Select-Object -First 12)
+  $def = $null
+  for ($i = 0; $i -lt $list.Count; $i++) {
+    if (-not (Find-Txt $list[$i]) -and $list[$i].LastWriteTime -gt (Get-Date).AddDays(-7)) { $def = $i; break }
+  }
+
   Write-Host ""
-  Write-Host "새로 전사할 파일이 없습니다." -ForegroundColor Yellow
-  Write-Host ""
-  Write-Host " 확인한 폴더:" -ForegroundColor DarkGray
-  Write-Host "   - $recDir" -ForegroundColor DarkGray
-  foreach ($s in $script:scanned) { Write-Host "   - $s (윈도우 녹음기)" -ForegroundColor DarkGray }
-  if ($script:scanned.Count -eq 0) {
-    Write-Host "   (윈도우 녹음기 폴더를 못 찾았습니다. 파일을 직접 '녹음' 폴더에 넣어주세요)" -ForegroundColor DarkGray
+  Write-Host "=======================================" -ForegroundColor Cyan
+  Write-Host " 최근 녹음·녹화 파일 (새 것부터)" -ForegroundColor Cyan
+  Write-Host "=======================================" -ForegroundColor Cyan
+  if ($list.Count -eq 0) { Write-Host " 최근 녹음 파일을 찾지 못했습니다. F 로 직접 골라 주세요." -ForegroundColor Yellow }
+  for ($i = 0; $i -lt $list.Count; $i++) {
+    $f = $list[$i]; $t = Find-Txt $f
+    $mark = if ($t) { "전사됨" } else { "새 녹음" }
+    $col = if ($t) { "DarkGray" } elseif ($i -eq $def) { "Green" } else { "White" }
+    Write-Host ("{0,3}. {1}  {2}  ({3} MB)  [{4}]" -f ($i + 1), $f.LastWriteTime.ToString("MM/dd HH:mm"), $f.Name, [math]::Round($f.Length / 1MB, 1), $mark) -ForegroundColor $col
+    Write-Host ("       {0}" -f $f.DirectoryName) -ForegroundColor DarkGray
   }
   Write-Host ""
-  Write-Host " 파일을 'Transcribe.bat' 위로 끌어다 놓아도 됩니다."
-  exit 0
-}
-
-# ---- 윈도우 녹음기 폴더에서 찾은 것 확인 ----
-if ($fromWin.Count -gt 0) {
+  if ($null -ne $def) { Write-Host (" Enter : {0}번 전사 (가장 최근 새 녹음)" -f ($def + 1)) -ForegroundColor Green }
+  else { Write-Host " Enter : 파일 직접 고르기 (최근 7일 안에 새 녹음이 없어요)" -ForegroundColor Green }
+  Write-Host " 번호  : 그 파일 전사 (여러 개는 1,3 처럼)"
+  Write-Host " F     : 목록에 없는 파일 직접 고르기"
+  Write-Host " Q     : 끝내기"
   Write-Host ""
-  Write-Host "윈도우 녹음기 폴더에서 아직 전사하지 않은 파일 $($fromWin.Count)개를 찾았습니다:" -ForegroundColor Yellow
-  foreach ($f in $fromWin) {
-    Write-Host ("   - {0}  ({1} MB, {2})" -f $f.Name, [math]::Round($f.Length/1MB,1), $f.LastWriteTime.ToString("MM/dd HH:mm"))
+  $ans = "" + (Read-Host "고르세요")
+  $ans = $ans.Trim()
+  $initDir = if ($list.Count -gt 0) { $list[0].DirectoryName } else { $docs }
+  if ($ans -match '^[Qqㅂ]$') { exit 0 }
+  elseif ($ans -eq "") {
+    if ($null -ne $def) { $targets = @($list[$def]) } else { $targets = @(Pick-Files $initDir) }
   }
-  Write-Host ""
-  $ans = Read-Host "이 파일들도 함께 전사할까요? (Y/n)"
-  if ($ans -match '^\s*[Nn]') { Write-Host "건너뜁니다." -ForegroundColor DarkGray }
-  else { $targets += $fromWin }
+  elseif ($ans -match '^[Ffㄹ]$') { $targets = @(Pick-Files $initDir) }
+  else {
+    foreach ($tok in ($ans -split '[\s,]+')) {
+      $n = 0
+      if ([int]::TryParse($tok, [ref]$n) -and $n -ge 1 -and $n -le $list.Count) { $targets += $list[$n - 1] }
+      elseif ($tok) { Write-Host ("  '{0}' 는 목록에 없는 번호라 건너뜁니다." -f $tok) -ForegroundColor Yellow }
+    }
+  }
 }
 
-$targets = @($targets | Sort-Object FullName -Unique)
-if ($targets.Count -eq 0) { Write-Host "처리할 파일이 없습니다."; exit 0 }
+# 같은 파일을 두 번 고른 경우 한 번만
+$seen = @{}
+$targets = @($targets | Where-Object { $k = $_.FullName.ToLower(); if ($seen.ContainsKey($k)) { $false } else { $seen[$k] = $true; $true } })
+if ($targets.Count -eq 0) { Write-Host ""; Write-Host "고른 파일이 없습니다." -ForegroundColor Yellow; exit 0 }
 
-# 윈도우 녹음기 폴더에서 온 파일 목록 (전사 후 녹음 폴더로 이동시킬 대상)
-$winSet = @{}
-foreach ($w in $fromWin) { $winSet[$w.FullName] = $true }
-
-function Move-ToRecDir($file) {
-  $destName = $file.Name
-  $dest = Join-Path $recDir $destName
+# 녹음 폴더로 옮길 때 전사본과 같은 이름으로 (다음에 '전사됨'으로 바로 보이게)
+function Move-ToRecDir($file, $baseName) {
+  $dest = Join-Path $recDir ($baseName + $file.Extension)
   $i = 1
-  while (Test-Path $dest) {
-    $dest = Join-Path $recDir ($file.BaseName + "_$i" + $file.Extension)
+  while (Test-Path -LiteralPath $dest) {
+    $dest = Join-Path $recDir ($baseName + "_$i" + $file.Extension)
     $i++
   }
   Move-Item -LiteralPath $file.FullName -Destination $dest -ErrorAction Stop
@@ -148,11 +221,21 @@ Write-Host " 결과   : $outDir"
 Write-Host ""
 
 $total = [Diagnostics.Stopwatch]::StartNew()
-$okCount = 0; $failCount = 0
+$okCount = 0; $failCount = 0; $already = 0
+# 엔진은 '원래이름.txt' 로 쓰므로 작업 폴더에서 받은 뒤 정해 둔 이름으로 옮긴다 (예전 전사본을 덮어쓰지 않게)
+$work = Join-Path $outDir "_work"
 
 foreach ($f in $targets) {
-  $done = Join-Path $outDir ($f.BaseName + ".txt")
-  if (Test-Path $done) { Write-Host "[건너뜀] $($f.Name) - 이미 전사됨" -ForegroundColor DarkGray; continue }
+  $have = Find-Txt $f
+  if ($have) {
+    Write-Host ("[이미 전사됨] {0}  ->  전사\{1}" -f $f.Name, (Split-Path $have -Leaf)) -ForegroundColor DarkGray
+    $already++
+    continue
+  }
+  $done = New-TxtPath $f
+  New-Item -ItemType Directory -Force -Path $work | Out-Null
+  $workTxt = Join-Path $work ($f.BaseName + ".txt")
+  if (Test-Path -LiteralPath $workTxt) { Remove-Item -LiteralPath $workTxt -Force }
 
   Write-Host "[처리중] $($f.Name)" -ForegroundColor White
   $sw = [Diagnostics.Stopwatch]::StartNew()
@@ -165,7 +248,7 @@ foreach ($f in $targets) {
     "--compute_type","float16",
     "--batched",
     "--batch_size","8",
-    "--output_dir",$outDir,
+    "--output_dir",$work,
     "--output_format","txt",
     "--sentence",
     "--beep_off",
@@ -177,7 +260,7 @@ foreach ($f in $targets) {
   for ($try = 1; $try -le 3; $try++) {
     & $engine @argv
     Start-Sleep -Milliseconds 700
-    if (Test-Path $done) { break }
+    if (Test-Path -LiteralPath $workTxt) { break }
     if ($try -lt 3) {
       Write-Host ("         엔진 로딩 실패. {0}초 후 재시도 ({1}/3)..." -f (3*$try), $try) -ForegroundColor Yellow
       Start-Sleep -Seconds (3*$try)
@@ -187,19 +270,20 @@ foreach ($f in $targets) {
 
   # 파일 쓰기 완료 대기
   $waited = 0
-  while (-not (Test-Path $done) -and $waited -lt 30) { Start-Sleep -Milliseconds 500; $waited++ }
-  if (Test-Path $done) {
+  while (-not (Test-Path -LiteralPath $workTxt) -and $waited -lt 30) { Start-Sleep -Milliseconds 500; $waited++ }
+  if (Test-Path -LiteralPath $workTxt) {
     $prev = -1
     for ($k = 0; $k -lt 20; $k++) {
-      $cur = (Get-Item $done).Length
+      $cur = (Get-Item -LiteralPath $workTxt).Length
       if ($cur -eq $prev -and $cur -gt 0) { break }
       $prev = $cur; Start-Sleep -Milliseconds 300
     }
+    Move-Item -LiteralPath $workTxt -Destination $done -Force
   }
 
-  if (Test-Path $done) {
-    $chars = (Get-Content $done -Encoding UTF8 -Raw).Length
-    Write-Host ("[완료]   {0}  ({1}분 소요, {2}자)" -f $f.Name, [math]::Round($sw.Elapsed.TotalMinutes,1), $chars) -ForegroundColor Green
+  if (Test-Path -LiteralPath $done) {
+    $chars = (Get-Content -LiteralPath $done -Encoding UTF8 -Raw).Length
+    Write-Host ("[완료]   {0}  ({1}분 소요, {2}자)  ->  전사\{3}" -f $f.Name, [math]::Round($sw.Elapsed.TotalMinutes,1), $chars, (Split-Path $done -Leaf)) -ForegroundColor Green
     $okCount++
 
     # 전사본을 바탕화면\수업\전사 로 복사
@@ -213,9 +297,9 @@ foreach ($f in $targets) {
     }
 
     # 윈도우 녹음기 폴더에서 온 원본은 '녹음' 폴더로 옮긴다 (OneDrive 밖으로 이동)
-    if ($winSet.ContainsKey($f.FullName)) {
+    if ($fromWin.ContainsKey($f.FullName.ToLower())) {
       try {
-        $moved = Move-ToRecDir $f
+        $moved = Move-ToRecDir $f ([IO.Path]::GetFileNameWithoutExtension($done))
         Write-Host ("[이동]   원본을 녹음 폴더로 옮겼습니다 -> {0}" -f (Split-Path $moved -Leaf)) -ForegroundColor DarkCyan
       } catch {
         Write-Host ("[주의]   원본을 옮기지 못했습니다: {0}" -f $_.Exception.Message) -ForegroundColor Yellow
@@ -231,11 +315,12 @@ foreach ($f in $targets) {
 }
 
 $total.Stop()
+if ((Test-Path -LiteralPath $work) -and @(Get-ChildItem -LiteralPath $work -Force).Count -eq 0) { Remove-Item -LiteralPath $work -Force }
 Write-Host "=======================================" -ForegroundColor Cyan
 Write-Host (" 전체 완료: 성공 {0} / 실패 {1} / 총 {2}분" -f $okCount, $failCount, [math]::Round($total.Elapsed.TotalMinutes,1)) -ForegroundColor Cyan
 Write-Host "=======================================" -ForegroundColor Cyan
 Write-Host ""
-if ($okCount -gt 0) { Start-Process explorer.exe $outDir }
+if ($okCount -gt 0 -or $already -gt 0) { Start-Process explorer.exe $outDir }
 
 
 
