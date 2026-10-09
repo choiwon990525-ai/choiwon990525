@@ -23,7 +23,7 @@ try {
     $a = $all.IndexOf('#ICO' + '_BEGIN'); $b = $all.IndexOf('#ICO' + '_END')
     if ($a -lt 0 -or $b -lt 0) { throw '아이콘 부분을 찾지 못했어요. 파일이 잘렸는지 확인해 주세요.' }
     $b64 = ($all.Substring($a + 10, $b - $a - 10) -replace '[^A-Za-z0-9+/=]', '')
-    $ico = Join-Path $dir 'won-dog.ico'
+    $ico = Join-Path $dir 'won-widget-dog.ico'
     [IO.File]::WriteAllBytes($ico, [Convert]::FromBase64String($b64))
 
     # 2) 실행 스크립트: 크롬 앱 창으로 열고 화면 오른쪽에 좁게 붙인다 (이미 열려 있으면 위치만)
@@ -92,7 +92,9 @@ if ($h -ne [IntPtr]::Zero) {
     $psExe = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
     $made = @()
     foreach ($folder in @([Environment]::GetFolderPath('Desktop'), [Environment]::GetFolderPath('Startup'))) {
-        $lnkPath = Join-Path $folder '근무 위젯.lnk'
+        $oldLnk = Join-Path $folder '근무 위젯.lnk'   # 예전 이름 바로가기는 지움
+        if (Test-Path $oldLnk) { Remove-Item $oldLnk -Force }
+        $lnkPath = Join-Path $folder 'WON 근무 위젯.lnk'
         $lnk = $shell.CreateShortcut($lnkPath)
         $lnk.TargetPath = $psExe
         $lnk.Arguments = '-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "' + $ps1 + '"'
@@ -109,7 +111,7 @@ if ($h -ne [IntPtr]::Zero) {
 
     if ($env:WONW_QUIET) { 'OK: ' + ($made -join ' | '); exit 0 }   # 시험용: 알림 창 없이
     [System.Windows.Forms.MessageBox]::Show(
-        "준비됐어요!`n`n· 바탕화면에 '근무 위젯' 아이콘을 만들었어요.`n· 컴퓨터를 켜면 위젯이 화면 오른쪽에 저절로 열려요.`n`n처음 열 때 claude.ai 로그인과 '허용하기'(구글 캘린더·노션)가 필요해요.",
+        "준비됐어요!`n`n· 바탕화면에 'WON 근무 위젯' 아이콘을 만들었어요.`n· 컴퓨터를 켜면 위젯이 화면 오른쪽에 저절로 열려요.`n`n처음 열 때 claude.ai 로그인과 '허용하기'(구글 캘린더·노션)가 필요해요.",
         'WON 근무 위젯', 'OK', 'Information') | Out-Null
     exit 0
 }
