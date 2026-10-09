@@ -117,7 +117,7 @@ namespace ClassPen
     // ------------------------------------------------------------------
     static class Native
     {
-        public const int WS_EX_LAYERED = 0x80000, WS_EX_TRANSPARENT = 0x20, WS_EX_TOOLWINDOW = 0x80, WS_EX_NOACTIVATE = 0x8000000;
+        public const int WS_EX_LAYERED = 0x80000, WS_EX_TRANSPARENT = 0x20, WS_EX_TOOLWINDOW = 0x80, WS_EX_NOACTIVATE = 0x8000000, WS_EX_TOPMOST = 0x8;
         public const int GWL_EXSTYLE = -20;
         public const int WM_HOTKEY = 0x312, WM_MOUSEACTIVATE = 0x21, MA_NOACTIVATE = 3, WM_DPICHANGED = 0x2E0;
         public const int ULW_ALPHA = 2;
@@ -174,6 +174,9 @@ namespace ClassPen
         [DllImport("kernel32.dll", EntryPoint = "RtlMoveMemory")] public static extern void CopyMemory(IntPtr dst, IntPtr src, IntPtr count);
         [DllImport("user32.dll")] public static extern int GetWindowLong(IntPtr hwnd, int index);
         [DllImport("user32.dll")] public static extern int SetWindowLong(IntPtr hwnd, int index, int value);
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern bool SetProp(IntPtr hwnd, string name, IntPtr data);
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] static extern ushort GlobalAddAtom(string name);
+        [DllImport("kernel32.dll")] static extern ushort GlobalDeleteAtom(ushort atom);
         [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
         [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hwnd);
         [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr hwnd, out uint pid);
@@ -225,6 +228,19 @@ namespace ClassPen
             // 한글 입력 상태에서는 글자 키가 ProcessKey 로 들어오므로 실제 키를 다시 얻는다.
             if (key != Keys.ProcessKey) return key;
             try { return (Keys)ImmGetVirtualKey(hwnd); } catch (Exception) { return key; }
+        }
+
+        // 펜 태블릿으로 그릴 때 '길게 눌러 우클릭'·플릭 제스처가 끼어들지 않게 한다.
+        public static void DisableTabletGestures(IntPtr hwnd)
+        {
+            const string name = "MicrosoftTabletPenServiceProperty";
+            try
+            {
+                ushort atom = GlobalAddAtom(name);
+                SetProp(hwnd, name, new IntPtr(0x10019));
+                if (atom != 0) GlobalDeleteAtom(atom);
+            }
+            catch (Exception) { }
         }
 
         public static bool IsOwnWindow(IntPtr hwnd)
@@ -405,6 +421,7 @@ namespace ClassPen
         public abstract RectangleF Bounds { get; }
         public abstract void Draw(Graphics g, float alpha);
         public abstract bool Hit(PointF p, float radius);
+        public abstract void Offset(float dx, float dy);
         public virtual void Release() { }
     }
 
@@ -491,6 +508,13 @@ namespace ClassPen
             return false;
         }
 
+        public override void Offset(float dx, float dy)
+        {
+            for (int i = 0; i < Points.Count; i++) Points[i] = new PointF(Points[i].X + dx, Points[i].Y + dy);
+            minX += dx; maxX += dx; minY += dy; maxY += dy;
+            Release();
+        }
+
         public override void Release()
         {
             if (path != null) { path.Dispose(); path = null; }
@@ -541,6 +565,12 @@ namespace ClassPen
             if (Geo.SegDist(p, A, B) <= radius + Width / 2f) return true;
             return Arrow && Geo.Dist(p, B) <= radius + HeadLength * 0.6f;
         }
+
+        public override void Offset(float dx, float dy)
+        {
+            A = new PointF(A.X + dx, A.Y + dy);
+            B = new PointF(B.X + dx, B.Y + dy);
+        }
     }
 
     sealed class BoxShape : Shape
@@ -585,6 +615,8 @@ namespace ClassPen
             }
             return false;
         }
+
+        public override void Offset(float dx, float dy) { R.Offset(dx, dy); }
     }
 
     sealed class TextShape : Shape
@@ -629,6 +661,12 @@ namespace ClassPen
             RectangleF b = Bounds;
             b.Inflate(radius, radius);
             return b.Contains(p);
+        }
+
+        public override void Offset(float dx, float dy)
+        {
+            Pos = new PointF(Pos.X + dx, Pos.Y + dy);
+            if (path != null) { path.Dispose(); path = null; }
         }
     }
 
@@ -748,7 +786,6 @@ namespace ClassPen
             StartPosition = FormStartPosition.Manual;
             AutoScaleMode = AutoScaleMode.None;
             ImeMode = ImeMode.Disable;
-            TopMost = true;
             screenRect = SystemInformation.VirtualScreen;
             Bounds = screenRect;
 
@@ -788,7 +825,8 @@ namespace ClassPen
             get
             {
                 CreateParams cp = base.CreateParams;
-                cp.ExStyle |= Native.WS_EX_LAYERED | Native.WS_EX_TOOLWINDOW;
+                // TopMost 속성 대신 스타일로 '항상 위'를 건다. (TopMost 속성은 창을 띄울 때 포커스를 뺏는다)
+                cp.ExStyle |= Native.WS_EX_LAYERED | Native.WS_EX_TOOLWINDOW | Native.WS_EX_TOPMOST;
                 if (!IsDrawing) cp.ExStyle |= Native.WS_EX_TRANSPARENT; // 마우스 모드: 클릭이 아래 창으로 통과
                 return cp;
             }
@@ -802,6 +840,7 @@ namespace ClassPen
         protected override void OnHandleCreated(EventArgs e)
         {
             base.OnHandleCreated(e);
+            Native.DisableTabletGestures(Handle);
             CreateSurface();
             RebuildAndPresent();
         }
@@ -888,11 +927,27 @@ namespace ClassPen
                 Rectangle vs = SystemInformation.VirtualScreen;
                 if (vs == screenRect || vs.Width <= 0 || vs.Height <= 0) return;
                 FinishActive();
+                ClearLasers();
+                // 모니터 배치가 바뀌어 화면 원점이 움직여도 그림은 같은 자리에 남도록 옮긴다.
+                OffsetAllShapes(screenRect.X - vs.X, screenRect.Y - vs.Y);
                 screenRect = vs;
                 CreateSurface();
                 RebuildAndPresent();
                 if (toolbar != null) toolbar.EnsureOnScreen();
             });
+        }
+
+        void OffsetAllShapes(float dx, float dy)
+        {
+            if (dx == 0f && dy == 0f) return;
+            var seen = new Dictionary<Shape, bool>();
+            var lists = new List<List<Shape>>();
+            lists.Add(shapes);
+            lists.AddRange(undoStack);
+            lists.AddRange(redoStack);
+            foreach (List<Shape> list in lists)
+                foreach (Shape s in list)
+                    if (!seen.ContainsKey(s)) { seen[s] = true; s.Offset(dx, dy); }
         }
 
         // ---- 단축키 ----
@@ -937,6 +992,7 @@ namespace ClassPen
         protected override void OnKeyDown(KeyEventArgs e)
         {
             base.OnKeyDown(e);
+            if (!IsDrawing) return; // 마우스 모드에서는 키 입력에 반응하지 않는다
             Keys key = Native.RealKey(Handle, e.KeyCode);
             if (e.Control && !e.Alt)
             {
@@ -1007,7 +1063,7 @@ namespace ClassPen
         {
             IntPtr prev = previousForeground;
             previousForeground = IntPtr.Zero;
-            if (prev != IntPtr.Zero && IsHandleCreated && Native.GetForegroundWindow() == Handle)
+            if (prev != IntPtr.Zero && Native.IsOwnWindow(Native.GetForegroundWindow()))
                 Native.SetForegroundWindow(prev);
         }
 
@@ -1493,6 +1549,7 @@ namespace ClassPen
             baked = new Bitmap(surfW, surfH, PixelFormat.Format32bppPArgb);
             lastOverlay = Rectangle.Empty;
             pendingDirty = Rectangle.Empty;
+            indirectOk = true;
         }
 
         void DestroySurface()
@@ -1725,7 +1782,6 @@ namespace ClassPen
             ShowInTaskbar = false;
             StartPosition = FormStartPosition.Manual;
             AutoScaleMode = AutoScaleMode.None;
-            TopMost = true;
             BackColor = Theme.Surface;
             DoubleBuffered = true;
             Cursor = Cursors.SizeAll;
@@ -1819,12 +1875,19 @@ namespace ClassPen
             get
             {
                 CreateParams cp = base.CreateParams;
-                cp.ExStyle |= Native.WS_EX_TOOLWINDOW | Native.WS_EX_NOACTIVATE;
+                cp.ExStyle |= Native.WS_EX_TOOLWINDOW | Native.WS_EX_NOACTIVATE | Native.WS_EX_TOPMOST;
                 return cp;
             }
         }
 
         protected override bool ShowWithoutActivation { get { return true; } }
+
+        protected override void OnFormClosing(FormClosingEventArgs e)
+        {
+            // Alt+F4 등으로 툴바만 닫히지 않게 숨기기로 바꾼다. (끄기는 × 버튼이나 트레이 메뉴)
+            if (e.CloseReason == CloseReason.UserClosing) { e.Cancel = true; Hide(); return; }
+            base.OnFormClosing(e);
+        }
 
         protected override void WndProc(ref Message m)
         {
@@ -2310,7 +2373,6 @@ namespace ClassPen
             ShowInTaskbar = false;
             StartPosition = FormStartPosition.Manual;
             AutoScaleMode = AutoScaleMode.None;
-            TopMost = true;
             BackColor = Theme.Surface;
             DoubleBuffered = true;
             timer.Tick += delegate { timer.Stop(); Hide(); };
@@ -2327,12 +2389,18 @@ namespace ClassPen
             get
             {
                 CreateParams cp = base.CreateParams;
-                cp.ExStyle |= Native.WS_EX_TOOLWINDOW | Native.WS_EX_NOACTIVATE;
+                cp.ExStyle |= Native.WS_EX_TOOLWINDOW | Native.WS_EX_NOACTIVATE | Native.WS_EX_TOPMOST;
                 return cp;
             }
         }
 
         protected override bool ShowWithoutActivation { get { return true; } }
+
+        protected override void OnFormClosing(FormClosingEventArgs e)
+        {
+            if (e.CloseReason == CloseReason.UserClosing) { e.Cancel = true; Hide(); return; }
+            base.OnFormClosing(e);
+        }
 
         protected override void OnHandleCreated(EventArgs e)
         {
@@ -2424,6 +2492,8 @@ namespace ClassPen
             box.Font = new Font(Theme.TextFamily, size, FontStyle.Bold, GraphicsUnit.Pixel);
             box.ForeColor = color;
             box.BackColor = BackColor;
+            box.ImeMode = ImeMode.Hangul; // 그림판이 입력기를 꺼 두므로 글상자에서는 한글로 시작
+
             box.Location = new Point(pad, pad);
             box.KeyDown += OnBoxKeyDown;
             box.TextChanged += delegate { FitToText(); };
