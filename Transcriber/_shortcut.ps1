@@ -26,57 +26,10 @@ if (-not (Test-Path $target)) {
   exit 1
 }
 
-# 바로가기 아이콘: 코치 시그니처 강아지
-# 이 PC 바탕화면은 .ico 파일을 바로 가리키는 바로가기를 빈 종이로 보여준다(근무 위젯·전략 보드와 같은 증상).
-# 그래서 ClassPen 처럼 아이콘을 작은 실행 파일(TranscribeIcon.exe) 안에 넣고 그 파일을 가리킨다.
-# 더블클릭하면 같은 폴더의 Transcribe.bat 을 여는 실행 파일이라, 잘못 눌러도 전사가 켜질 뿐이다.
-$ico     = Join-Path $root "transcribe-dog.ico"
-$iconExe = Join-Path $root "TranscribeIcon.exe"
-$iconLoc = "$env:SystemRoot\System32\SHELL32.dll,116"
-if (Test-Path -LiteralPath $ico) {
-  $stale = (-not (Test-Path -LiteralPath $iconExe)) -or ((Get-Item -LiteralPath $iconExe).LastWriteTime -lt (Get-Item -LiteralPath $ico).LastWriteTime)
-  if ($stale) {
-    $csc = Join-Path $env:WINDIR "Microsoft.NET\Framework64\v4.0.30319\csc.exe"
-    if (-not (Test-Path -LiteralPath $csc)) { $csc = Join-Path $env:WINDIR "Microsoft.NET\Framework\v4.0.30319\csc.exe" }
-    $code = @'
-// 수업 전사 바로가기의 강아지 아이콘을 담는 작은 실행 파일.
-// 더블클릭하면 같은 폴더의 Transcribe.bat 을 연다 (위에 끌어다 놓은 파일도 넘긴다).
-using System;
-using System.Diagnostics;
-using System.IO;
-
-static class TranscribeIcon
-{
-    static void Main(string[] args)
-    {
-        string dir = AppDomain.CurrentDomain.BaseDirectory;
-        string line = "/c \"\"" + Path.Combine(dir, "Transcribe.bat") + "\"";
-        foreach (string a in args) line += " \"" + a + "\"";
-        line += "\"";
-        ProcessStartInfo psi = new ProcessStartInfo("cmd.exe", line);
-        psi.WorkingDirectory = dir;
-        Process.Start(psi);
-    }
-}
-'@
-    $cs = Join-Path $env:TEMP "TranscribeIcon.cs"
-    [System.IO.File]::WriteAllText($cs, $code, (New-Object System.Text.UTF8Encoding($true)))
-    if (Test-Path -LiteralPath $csc) {
-      $out = & $csc /nologo /target:winexe /optimize+ /codepage:65001 "/out:$iconExe" "/win32icon:$ico" $cs 2>&1
-      LQ "아이콘 실행 파일 빌드 (종료 코드 $LASTEXITCODE)"
-      foreach ($o in @($out)) { LQ "  $o" }
-    } else {
-      LQ "C# 컴파일러 없음: $csc"
-    }
-    Remove-Item -LiteralPath $cs -Force -ErrorAction SilentlyContinue
-  }
-  if (Test-Path -LiteralPath $iconExe) {
-    $iconLoc = "$iconExe,0"
-  } else {
-    L "[주의] 강아지 아이콘 실행 파일을 만들지 못했습니다. 아이콘이 빈 종이로 보이면 진단 로그를 보내주세요."
-    $iconLoc = "$ico,0"
-  }
-}
+# 바로가기 아이콘: 바탕화면 아이콘 세트(WON 전략 보드·근무 위젯·장면캡처 도구)와 같은 캐릭터, 호박색 + 마이크 배지
+# 세트처럼 모든 크기를 PNG 로 넣은 .ico 를 쓴다 (작은 크기를 BMP 로 넣었던 근무 위젯 아이콘은 빈 종이로 나왔다)
+$ico = Join-Path $root "won-transcribe.ico"
+$iconLoc = if (Test-Path -LiteralPath $ico) { "$ico,0" } else { "$env:SystemRoot\System32\SHELL32.dll,116" }
 LQ "아이콘: $iconLoc"
 
 # 바탕화면 후보를 전부 조사
@@ -188,7 +141,7 @@ if ($okAny) {
   L "======================================="
   L " 완료! 바탕화면을 확인하세요."
   L "======================================="
-  L " 아이콘 이름: 수업 전사 (강아지)"
+  L " 아이콘 이름: 수업 전사"
   L " 단축키    : Ctrl+Alt+T"
 } else {
   L "[실패] 바로가기를 만들지 못했습니다."

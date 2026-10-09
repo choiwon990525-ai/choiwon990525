@@ -1,7 +1,8 @@
 ﻿# 전사 도구 권한 복구
 # Low 무결성 라벨 때문에 엔진이 실행되지 않는 문제를 고친다.
 $ErrorActionPreference = "Continue"
-$root = "C:\Users\elsha\Transcriber"
+# 이 스크립트가 있는 폴더 (도구 폴더를 옮겨도 그대로 동작)
+$root = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 Write-Host ""
 Write-Host "=======================================" -ForegroundColor Cyan
@@ -84,7 +85,7 @@ try {
   Write-Host "   [주의] 실패: $($_.Exception.Message)" -ForegroundColor Yellow
 }
 
-# 바탕화면 바로가기 다시 만들기 (MakeShortcut 과 같은 '수업 전사' 강아지 아이콘)
+# 바탕화면 바로가기 다시 만들기 (MakeShortcut 과 같은 '수업 전사' 아이콘)
 Write-Host ""
 Write-Host " 바탕화면 바로가기를 새 경로로 다시 만듭니다..." -ForegroundColor White
 & (Join-Path $root "_shortcut.ps1")

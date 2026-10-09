@@ -7,6 +7,5 @@ engine/
 배포본/
 _find_log.txt
 _shortcut_log.txt
-# 바로가기 아이콘용 실행 파일(PC에서 빌드)과 아이콘 만들기가 남기는 백업
-TranscribeIcon.exe
+# 아이콘 설치 파일이 덮어쓰기 전 원래 파일을 남기는 백업 폴더
 _backup_*/
