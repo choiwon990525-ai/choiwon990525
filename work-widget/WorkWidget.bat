@@ -68,8 +68,8 @@ public static class WonWin {
 }
 "@
 
-# 창 제목 "WON 근무 시간표"에서 한글을 피하려고 "WON "으로 찾는다
-function Find-Widget { [WonWin]::Find('WON ') }
+# 창 제목 "WON 근무 시간표"로 찾는다 ("WON "만 보면 엣지로 연 "WON 전략 보드" 창을 대신 옮겨 버림)
+function Find-Widget { [WonWin]::Find('근무 시간표') }
 
 $h = Find-Widget
 if ($h -eq [IntPtr]::Zero) {
