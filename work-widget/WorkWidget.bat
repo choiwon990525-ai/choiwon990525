@@ -31,7 +31,7 @@ try {
 # WON 근무 위젯 열기: 크롬 앱 창으로 열고 화면 오른쪽에 좁게 붙인다.
 # 이미 열려 있으면 새로 열지 않고 위치만 맞춘다.
 $url    = 'https://claude.ai/artifact/MPvVhuGbMfDYo6NtSb7epL#widget'
-$width  = 480
+$width  = 696   # 코치님이 맞춘 크기 (10/10)
 $chrome = @(
   (Join-Path $env:ProgramFiles 'Google\Chrome\Application\chrome.exe'),
   (Join-Path ${env:ProgramFiles(x86)} 'Google\Chrome\Application\chrome.exe'),
