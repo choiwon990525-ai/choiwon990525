@@ -3,11 +3,9 @@ $ErrorActionPreference = 'Continue'
 $tools = Split-Path -Parent $MyInvocation.MyCommand.Path
 $icons = Join-Path $tools 'icons'
 
-# 바탕화면 이름(확장자 빼고) → 아이콘
+# 바탕화면 이름(확장자 빼고) → 아이콘 (근무 위젯은 work-widget 쪽 아이콘을 쓰므로 여기서 안 건드림)
 $map = [ordered]@{
   'WON 전략 보드'           = 'won-board.ico'
-  'WON 근무 위젯'           = 'won-work.ico'
-  '근무 위젯'               = 'won-work.ico'
   '근무 시간표 (항상 최신)' = 'won-schedule.ico'
   '장면캡처 도구'           = 'clip-bunny.ico'
 }
