@@ -48,6 +48,6 @@
 ## 지우기(삭제)
 
 - 바탕화면과 시작프로그램(`Win+R` → `shell:startup`)의 **근무 위젯** 바로가기를 지웁니다.
-- `%LOCALAPPDATA%\WON` 폴더의 `open-widget.ps1`, `won-widget.ico` 를 지웁니다.
+- `%LOCALAPPDATA%\WON` 폴더의 `open-widget.ps1`, `won-dog.ico` 를 지웁니다.
 
 노션·구글 캘린더의 일정과 기록은 그대로 남습니다.
