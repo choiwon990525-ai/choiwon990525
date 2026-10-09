@@ -1,0 +1,2 @@
+# Windows batch files must keep CRLF line endings byte-for-byte (cmd.exe misparses LF-only files)
+*.bat -text
