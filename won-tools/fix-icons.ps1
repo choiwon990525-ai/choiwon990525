@@ -53,7 +53,7 @@ function Make-Lnk($name, $target, $ico, $style, $desc) {
   $l.Save()
   if (Test-Path -LiteralPath $p) { Write-Host ('  만듦: ' + $name) -ForegroundColor Green } else { Write-Host ('  실패: ' + $name) -ForegroundColor Red }
 }
-Make-Lnk '장면캡처 도구.lnk'        (Join-Path $tools 'clip-tool\restore.html') (Join-Path $icons 'clip-tool.ico')   1 '장면 캡처 도구 복구/설명 페이지'
+Make-Lnk '장면캡처 도구.lnk'        (Join-Path $tools 'open-clip-tool.vbs')     (Join-Path $icons 'clip-bunny.ico')  1 '장면 캡처 도구 — 관리 페이지 열기'
 Make-Lnk '받아쓰기 서버 재시작.lnk' (Join-Path $asrDir 'restart-asr.bat')       (Join-Path $icons 'asr-restart.ico') 7 '음성 받아쓰기 서버를 껐다 켭니다'
 Make-Lnk '관전캡처 정리.lnk'        (Join-Path $tools 'sort-clips.bat')         (Join-Path $icons 'sort-clips.ico')  7 '다운로드 폴더의 캡처를 경기별 폴더로 정리'
 
