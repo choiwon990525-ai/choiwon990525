@@ -49,6 +49,23 @@ try {
         Move-Item -Force $tmp $src
     }
 
+    # 코치 시그니처 강아지 그림: ClassPen.bat 옆이나 다운로드 폴더에서 찾아 설정 폴더로 복사
+    $here = Split-Path -Parent $env:CLASSPEN_SELF
+    $downloads = Join-Path $env:USERPROFILE 'Downloads'
+    $candidates = @(
+        (Join-Path $here '강아지.png'),
+        (Join-Path $here 'WON캐릭터_누끼.png'),
+        (Join-Path $downloads 'WON캐릭터_누끼.png')
+    )
+    foreach ($c in $candidates) {
+        if (Test-Path -LiteralPath $c) {
+            $cfg = Join-Path $env:APPDATA 'ClassPen'
+            if (-not (Test-Path $cfg)) { New-Item -ItemType Directory -Path $cfg | Out-Null }
+            Copy-Item -LiteralPath $c -Destination (Join-Path $cfg 'signature.png') -Force
+            break
+        }
+    }
+
     Start-Process -FilePath $exe
     exit 0
 }
@@ -410,7 +427,7 @@ namespace ClassPen
     // ------------------------------------------------------------------
     // 그림 요소
     // ------------------------------------------------------------------
-    enum Tool { Mouse, Pen, Highlighter, Laser, Line, Arrow, Rect, Ellipse, Text, Eraser }
+    enum Tool { Mouse, Pen, Highlighter, Laser, Line, Arrow, Rect, Ellipse, Text, Eraser, Stamp }
     enum Board { None, White, Black }
     enum StrokeKind { Pen, Highlighter, Laser }
 
@@ -671,12 +688,130 @@ namespace ClassPen
     }
 
     // ------------------------------------------------------------------
+    // 코치 시그니처 강아지: ClassPen.bat 이 %APPDATA%\ClassPen\signature.png 로 복사해 둔 그림
+    // ------------------------------------------------------------------
+    static class Mascot
+    {
+        static Bitmap image;
+        static bool loaded;
+
+        public static Bitmap Image
+        {
+            get
+            {
+                if (loaded) return image;
+                loaded = true;
+                try
+                {
+                    string path = Path.Combine(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ClassPen"), "signature.png");
+                    if (File.Exists(path))
+                    {
+                        using (var ms = new MemoryStream(File.ReadAllBytes(path)))
+                        using (var src = new Bitmap(ms))
+                        using (var small = Shrink(src, 512))
+                            image = CropTransparent(small);
+                    }
+                }
+                catch (Exception) { image = null; }
+                return image;
+            }
+        }
+
+        static Bitmap Shrink(Image src, int max)
+        {
+            float k = Math.Min(1f, max / (float)Math.Max(src.Width, src.Height));
+            int w = Math.Max(1, (int)Math.Round(src.Width * k)), h = Math.Max(1, (int)Math.Round(src.Height * k));
+            var bmp = new Bitmap(w, h, PixelFormat.Format32bppArgb);
+            using (Graphics g = Graphics.FromImage(bmp))
+            {
+                g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+                g.DrawImage(src, new Rectangle(0, 0, w, h));
+            }
+            return bmp;
+        }
+
+        // 누끼 그림 둘레의 투명한 여백을 잘라내야 아이콘·도장이 작아 보이지 않는다.
+        static Bitmap CropTransparent(Bitmap src)
+        {
+            int w = src.Width, h = src.Height, minX = w, minY = h, maxX = -1, maxY = -1;
+            BitmapData data = src.LockBits(new Rectangle(0, 0, w, h), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+            try
+            {
+                var row = new byte[w * 4];
+                for (int y = 0; y < h; y++)
+                {
+                    Marshal.Copy(new IntPtr(data.Scan0.ToInt64() + (long)y * data.Stride), row, 0, row.Length);
+                    for (int x = 0; x < w; x++)
+                    {
+                        if (row[x * 4 + 3] <= 8) continue;
+                        if (x < minX) minX = x;
+                        if (x > maxX) maxX = x;
+                        if (y < minY) minY = y;
+                        if (y > maxY) maxY = y;
+                    }
+                }
+            }
+            finally { src.UnlockBits(data); }
+            var r = maxX < 0 ? new Rectangle(0, 0, w, h) : Rectangle.FromLTRB(minX, minY, maxX + 1, maxY + 1);
+            return src.Clone(r, PixelFormat.Format32bppPArgb);
+        }
+
+        public static RectangleF Fit(RectangleF box)
+        {
+            Bitmap img = Image;
+            if (img == null) return box;
+            float k = Math.Min(box.Width / img.Width, box.Height / img.Height);
+            float w = img.Width * k, h = img.Height * k;
+            return new RectangleF(box.X + (box.Width - w) / 2f, box.Y + (box.Height - h) / 2f, w, h);
+        }
+
+        public static void Draw(Graphics g, RectangleF dest, float alpha)
+        {
+            Bitmap img = Image;
+            if (img == null || alpha <= 0f) return;
+            InterpolationMode old = g.InterpolationMode;
+            g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+            if (alpha >= 1f) g.DrawImage(img, dest);
+            else
+            {
+                using (var attrs = new ImageAttributes())
+                {
+                    var cm = new ColorMatrix();
+                    cm.Matrix33 = alpha;
+                    attrs.SetColorMatrix(cm);
+                    var pts = new[] { dest.Location, new PointF(dest.Right, dest.Top), new PointF(dest.Left, dest.Bottom) };
+                    g.DrawImage(img, pts, new RectangleF(0, 0, img.Width, img.Height), GraphicsUnit.Pixel, attrs);
+                }
+            }
+            g.InterpolationMode = old;
+        }
+    }
+
+    sealed class StampShape : Shape
+    {
+        public RectangleF R;
+
+        public override RectangleF Bounds { get { RectangleF b = R; b.Inflate(2f, 2f); return b; } }
+        public override void Draw(Graphics g, float alpha) { Mascot.Draw(g, R, alpha); }
+
+        public override bool Hit(PointF p, float radius)
+        {
+            RectangleF b = R;
+            b.Inflate(radius, radius);
+            return b.Contains(p);
+        }
+
+        public override void Offset(float dx, float dy) { R.Offset(dx, dy); }
+    }
+
+    // ------------------------------------------------------------------
     // 설정 저장 (%APPDATA%\ClassPen\settings.ini)
     // ------------------------------------------------------------------
     sealed class Settings
     {
         public int ToolbarX = int.MinValue, ToolbarY = int.MinValue, ColorIndex, WidthIndex = 1;
-        public bool Collapsed, HideFromCapture = true;
+        public bool Collapsed, HideFromCapture = true, Watermark = true;
 
         static string FilePath
         {
@@ -704,6 +839,7 @@ namespace ClassPen
                         case "Width": if (isNumber) s.WidthIndex = n; break;
                         case "Collapsed": s.Collapsed = value == "1"; break;
                         case "HideFromCapture": s.HideFromCapture = value != "0"; break;
+                        case "Watermark": s.Watermark = value != "0"; break;
                     }
                 }
             }
@@ -719,7 +855,8 @@ namespace ClassPen
                 File.WriteAllLines(FilePath, new[]
                 {
                     "ToolbarX=" + ToolbarX, "ToolbarY=" + ToolbarY, "Color=" + ColorIndex, "Width=" + WidthIndex,
-                    "Collapsed=" + (Collapsed ? "1" : "0"), "HideFromCapture=" + (HideFromCapture ? "1" : "0")
+                    "Collapsed=" + (Collapsed ? "1" : "0"), "HideFromCapture=" + (HideFromCapture ? "1" : "0"),
+                    "Watermark=" + (Watermark ? "1" : "0")
                 });
             }
             catch (Exception) { }
@@ -735,6 +872,7 @@ namespace ClassPen
         static readonly float[] BaseWidths = { 3f, 6f, 11f };
         static readonly float[] TextSizes = { 22f, 32f, 46f };
         static readonly float[] EraserSizes = { 10f, 18f, 30f };
+        static readonly float[] StampSizes = { 90f, 140f, 220f };
         const int LaserHold = 1100, LaserFade = 600, MaxUndo = 100;
         const int HkDraw = 1, HkLaser = 2, HkUndo = 3, HkClear = 4, HkToolbar = 5, HkCapture = 6;
 
@@ -818,6 +956,14 @@ namespace ClassPen
 
         float TextSize { get { return TextSizes[widthIndex] * uiScale; } }
         float EraserRadius { get { return EraserSizes[widthIndex] * uiScale; } }
+
+        RectangleF StampRect(PointF center)
+        {
+            float h = StampSizes[widthIndex] * uiScale;
+            return Mascot.Fit(new RectangleF(center.X - h, center.Y - h / 2f, h * 2f, h));
+        }
+
+        bool ShowStampPreview { get { return tool == Tool.Stamp && pointerInside && Mascot.Image != null; } }
 
         // ---- 창 설정 ----
         protected override CreateParams CreateParams
@@ -1013,6 +1159,7 @@ namespace ClassPen
                 case Keys.O: SetTool(Tool.Ellipse); break;
                 case Keys.T: SetTool(Tool.Text); break;
                 case Keys.E: SetTool(Tool.Eraser); break;
+                case Keys.S: if (Mascot.Image != null) SetTool(Tool.Stamp); break;
                 case Keys.B: CycleBoard(); break;
                 case Keys.Delete: ClearAll(); break;
                 case Keys.OemOpenBrackets: SetWidth(widthIndex - 1); break;
@@ -1036,7 +1183,7 @@ namespace ClassPen
             {
                 lastDrawTool = t;
                 inkHidden = false;
-                if (t != Tool.Eraser) lastInkTool = t;
+                if (t != Tool.Eraser && t != Tool.Stamp) lastInkTool = t;
             }
             tool = t;
             erasing = false;
@@ -1073,7 +1220,7 @@ namespace ClassPen
         {
             colorIndex = Geo.Clamp(index, 0, Theme.Palette.Length - 1);
             // 색을 고르면 바로 그릴 수 있게 마지막 그리기 도구로 돌아간다.
-            if (tool == Tool.Mouse || tool == Tool.Eraser) SetTool(lastInkTool);
+            if (tool == Tool.Mouse || tool == Tool.Eraser || tool == Tool.Stamp) SetTool(lastInkTool);
             RefreshCursor();
             RefreshUi();
         }
@@ -1287,6 +1434,14 @@ namespace ClassPen
                     lastErase = p;
                     EraseAlong(p, p);
                     break;
+                case Tool.Stamp:
+                    if (Mascot.Image != null)
+                    {
+                        var stamp = new StampShape();
+                        stamp.R = StampRect(p);
+                        Commit(stamp);
+                    }
+                    break;
             }
             RequestFrame();
         }
@@ -1305,7 +1460,7 @@ namespace ClassPen
             else if (ln != null) ln.B = shift ? Geo.Snap45(ln.A, p) : p;
             else if (box != null) box.R = Geo.BoxFrom(dragStart, p, shift);
             else if (erasing) { EraseAlong(lastErase, p); lastErase = p; }
-            if (active != null || tool == Tool.Eraser) RequestFrame();
+            if (active != null || tool == Tool.Eraser || tool == Tool.Stamp) RequestFrame();
         }
 
         protected override void OnMouseUp(MouseEventArgs e)
@@ -1464,6 +1619,15 @@ namespace ClassPen
                         Geo.Prep(g);
                         g.TranslateTransform(screenRect.X - sb.X, screenRect.Y - sb.Y);
                         if (!inkHidden) foreach (Shape s in shapes) s.Draw(g, 1f);
+                        if (settings.Watermark && Mascot.Image != null)
+                        {
+                            // 학생에게 보내는 캡처에 코치 시그니처 강아지를 오른쪽 아래에 넣는다.
+                            g.ResetTransform();
+                            float h = shot.Height * 0.12f, margin = 16f * uiScale;
+                            RectangleF wm = Mascot.Fit(new RectangleF(shot.Width - margin - h * 2f, shot.Height - margin - h, h * 2f, h));
+                            wm.X = shot.Width - margin - wm.Width;
+                            Mascot.Draw(g, wm, 0.92f);
+                        }
                     }
                     string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyPictures), "ClassPen");
                     Directory.CreateDirectory(dir);
@@ -1498,6 +1662,17 @@ namespace ClassPen
                 toast.HideFromCapture = settings.HideFromCapture;
             };
             menu.Items.Add(hideItem);
+            if (Mascot.Image != null)
+            {
+                var markItem = new ToolStripMenuItem("캡처에 강아지 넣기");
+                markItem.Checked = settings.Watermark;
+                markItem.Click += delegate
+                {
+                    settings.Watermark = !settings.Watermark;
+                    markItem.Checked = settings.Watermark;
+                };
+                menu.Items.Add(markItem);
+            }
             menu.Items.Add("단축키 보기", null, delegate { ShowHelp(); });
             menu.Items.Add(new ToolStripSeparator());
             menu.Items.Add("종료", null, delegate { Close(); });
@@ -1521,7 +1696,7 @@ namespace ClassPen
                 "Ctrl+Alt+S   화면 캡처 (클립보드 + 사진 폴더)\n\n" +
                 "[그리는 중 단축키]\n" +
                 "P 펜 · H 형광펜 · L 레이저 · I 직선 · A 화살표\n" +
-                "R 사각형 · O 원 · T 텍스트 · E 지우개 · Esc 마우스\n" +
+                "R 사각형 · O 원 · T 텍스트 · E 지우개 · S 강아지 도장 · Esc 마우스\n" +
                 "1~8 색 · [ ] 굵기 · B 보드 · Delete 전체 지우기\n" +
                 "Ctrl+Z 실행 취소 · Ctrl+Y 다시 실행\n" +
                 "Shift 누르고 그리기: 45° 직선 · 정사각형 · 정원";
@@ -1680,6 +1855,12 @@ namespace ClassPen
                 float er = EraserRadius + 3f;
                 Accumulate(ref r, ref any, new RectangleF(pointer.X - er, pointer.Y - er, er * 2f, er * 2f));
             }
+            if (ShowStampPreview)
+            {
+                RectangleF sr = StampRect(pointer);
+                sr.Inflate(2f, 2f);
+                Accumulate(ref r, ref any, sr);
+            }
             if (!any) return Rectangle.Empty;
             Rectangle ri = Geo.Outer(r);
             ri.Intersect(new Rectangle(0, 0, surfW, surfH));
@@ -1708,6 +1889,7 @@ namespace ClassPen
                     using (var p1 = new Pen(Color.FromArgb(160, 0, 0, 0), 3f)) g.DrawEllipse(p1, pointer.X - er, pointer.Y - er, er * 2f, er * 2f);
                     using (var p2 = new Pen(Color.FromArgb(235, 255, 255, 255), 1.5f)) g.DrawEllipse(p2, pointer.X - er, pointer.Y - er, er * 2f, er * 2f);
                 }
+                if (ShowStampPreview) Mascot.Draw(g, StampRect(pointer), 0.5f); // 찍힐 자리 미리보기
             }
         }
 
@@ -1744,11 +1926,11 @@ namespace ClassPen
     // ------------------------------------------------------------------
     // 떠 있는 툴바
     // ------------------------------------------------------------------
-    enum IconKind { None, Mouse, Pen, Highlighter, Laser, Line, Arrow, Rect, Ellipse, Text, Eraser, Undo, Redo, Trash, Board, Eye, EyeOff, Camera, ChevronUp, ChevronDown, Close }
+    enum IconKind { None, Mouse, Pen, Highlighter, Laser, Line, Arrow, Rect, Ellipse, Text, Eraser, Stamp, Undo, Redo, Trash, Board, Eye, EyeOff, Camera, ChevronUp, ChevronDown, Close }
 
     sealed class Toolbar : Form
     {
-        static readonly Tool[] ToolOrder = { Tool.Mouse, Tool.Pen, Tool.Highlighter, Tool.Laser, Tool.Line, Tool.Arrow, Tool.Rect, Tool.Ellipse, Tool.Text, Tool.Eraser };
+        static readonly Tool[] ToolOrder = { Tool.Mouse, Tool.Pen, Tool.Highlighter, Tool.Laser, Tool.Line, Tool.Arrow, Tool.Rect, Tool.Ellipse, Tool.Text, Tool.Eraser, Tool.Stamp };
         static readonly string[] ToolTips =
         {
             "마우스 (Esc)\n그림은 그대로 두고 클릭은 아래 화면으로",
@@ -1760,12 +1942,14 @@ namespace ClassPen
             "사각형 (R)\nShift: 정사각형",
             "원 (O)\nShift: 정원",
             "텍스트 (T)\nEnter 완료 · Shift+Enter 줄바꿈 · Esc 취소",
-            "지우개 (E)\n닿은 획을 통째로 지워요"
+            "지우개 (E)\n닿은 획을 통째로 지워요",
+            "강아지 도장 (S)\n누른 곳에 시그니처 강아지를 찍어요 · 크기는 굵기 버튼으로"
         };
 
         readonly Overlay app;
         readonly ToolTip tip;
         readonly List<TbButton> toolButtons = new List<TbButton>();
+        readonly List<Tool> tools = new List<Tool>();
         readonly List<TbButton> colorButtons = new List<TbButton>();
         readonly List<TbButton> widthButtons = new List<TbButton>();
         readonly TbButton undoButton, redoButton, clearButton, boardButton, inkButton, captureButton, collapseButton, closeButton, modeButton;
@@ -1794,6 +1978,8 @@ namespace ClassPen
             for (int i = 0; i < ToolOrder.Length; i++)
             {
                 Tool t = ToolOrder[i];
+                if (t == Tool.Stamp && Mascot.Image == null) continue; // 강아지 그림이 있을 때만 도장 버튼
+                tools.Add(t);
                 toolButtons.Add(AddButton(IconFor(t), ToolTips[i], delegate { app.SetTool(t); }));
             }
             for (int i = 0; i < Theme.Palette.Length; i++)
@@ -1856,6 +2042,7 @@ namespace ClassPen
                 case Tool.Ellipse: return IconKind.Ellipse;
                 case Tool.Text: return IconKind.Text;
                 case Tool.Eraser: return IconKind.Eraser;
+                case Tool.Stamp: return IconKind.Stamp;
                 default: return IconKind.Mouse;
             }
         }
@@ -1967,7 +2154,7 @@ namespace ClassPen
         void LayoutButtons()
         {
             SuspendLayout();
-            int pad = S(8), cell = S(36), gap = S(4), row = S(28), header = S(22), small = S(20);
+            int pad = S(8), cell = S(36), gap = S(4), row = S(28), header = S(Mascot.Image != null ? 32 : 22), small = S(20);
             int contentW = cell * 2 + gap;
             int y = pad;
             closeButton.Bounds = new Rectangle(pad + contentW - small, y + (header - small) / 2, small, small);
@@ -1992,7 +2179,8 @@ namespace ClassPen
             {
                 for (int i = 0; i < toolButtons.Count; i++)
                     toolButtons[i].Bounds = new Rectangle(pad + (i % 2) * (cell + gap), y + (i / 2) * (cell + gap), cell, cell);
-                y += 5 * cell + 4 * gap;
+                int toolRows = (toolButtons.Count + 1) / 2;
+                y += toolRows * cell + (toolRows - 1) * gap;
                 sep1 = y + S(6);
                 y += S(13);
                 for (int i = 0; i < colorButtons.Count; i++)
@@ -2029,7 +2217,7 @@ namespace ClassPen
         {
             for (int i = 0; i < toolButtons.Count; i++)
             {
-                toolButtons[i].Checked = ToolOrder[i] == app.CurrentTool;
+                toolButtons[i].Checked = tools[i] == app.CurrentTool;
                 toolButtons[i].Swatch = app.CurrentColor;
             }
             for (int i = 0; i < colorButtons.Count; i++) colorButtons[i].Checked = i == app.ColorIndex;
@@ -2059,12 +2247,20 @@ namespace ClassPen
             using (var path = Geo.RoundRect(new RectangleF(0.5f, 0.5f, Width - 2f, Height - 2f), S(6)))
             using (var pen = new Pen(Theme.Border, 1f))
                 g.DrawPath(pen, path);
-            using (var b = new SolidBrush(Theme.Dim))
+            if (Mascot.Image != null)
             {
-                float d = 3f * scale, x0 = S(14), y0 = S(8) + S(11);
-                for (int i = 0; i < 3; i++)
-                    for (int j = 0; j < 2; j++)
-                        g.FillEllipse(b, x0 + i * 5f * scale - d / 2f, y0 + (j - 0.5f) * 5f * scale - d / 2f, d, d);
+                // 머리 부분에 코치 시그니처 강아지 (빈 곳이라 끌어서 옮기기도 그대로 된다)
+                Mascot.Draw(g, Mascot.Fit(new RectangleF(S(10), S(8), collapseButton.Left - S(14), S(32))), 1f);
+            }
+            else
+            {
+                using (var b = new SolidBrush(Theme.Dim))
+                {
+                    float d = 3f * scale, x0 = S(14), y0 = S(8) + S(11);
+                    for (int i = 0; i < 3; i++)
+                        for (int j = 0; j < 2; j++)
+                            g.FillEllipse(b, x0 + i * 5f * scale - d / 2f, y0 + (j - 0.5f) * 5f * scale - d / 2f, d, d);
+                }
             }
             using (var pen = new Pen(Theme.Border, Math.Max(1f, scale)))
             {
@@ -2327,6 +2523,20 @@ namespace ClassPen
                     case IconKind.ChevronDown:
                         g.DrawLines(pen, new[] { P(5f, 7.5f), P(10f, 12.5f), P(15f, 7.5f) });
                         break;
+                    case IconKind.Stamp:
+                        if (Mascot.Image != null) Mascot.Draw(g, Mascot.Fit(new RectangleF(0f, 0f, 20f, 20f)), 1f);
+                        else
+                        {
+                            using (var paw = new SolidBrush(fg))
+                            {
+                                g.FillEllipse(paw, 6f, 10f, 8f, 7f);
+                                g.FillEllipse(paw, 3f, 6.5f, 3.4f, 3.8f);
+                                g.FillEllipse(paw, 7f, 3.5f, 3.4f, 3.8f);
+                                g.FillEllipse(paw, 11f, 3.5f, 3.4f, 3.8f);
+                                g.FillEllipse(paw, 14.4f, 6.5f, 3.4f, 3.8f);
+                            }
+                        }
+                        break;
                     case IconKind.Close:
                         g.DrawLine(pen, 5.5f, 5.5f, 14.5f, 14.5f);
                         g.DrawLine(pen, 14.5f, 5.5f, 5.5f, 14.5f);
@@ -2346,10 +2556,15 @@ namespace ClassPen
                 using (Graphics g = Graphics.FromImage(bmp))
                 {
                     g.SmoothingMode = SmoothingMode.AntiAlias;
-                    using (var path = Geo.RoundRect(new RectangleF(1f, 1f, 30f, 30f), 7f))
-                    using (var b = new SolidBrush(Theme.Accent))
-                        g.FillPath(b, path);
-                    Icons.Draw(g, IconKind.Pen, new RectangleF(5f, 5f, 22f, 22f), Color.White, Color.White, Board.None, 2.2f);
+                    if (Mascot.Image != null)
+                        Mascot.Draw(g, Mascot.Fit(new RectangleF(0f, 0f, 32f, 32f)), 1f); // 트레이 아이콘도 시그니처 강아지
+                    else
+                    {
+                        using (var path = Geo.RoundRect(new RectangleF(1f, 1f, 30f, 30f), 7f))
+                        using (var b = new SolidBrush(Theme.Accent))
+                            g.FillPath(b, path);
+                        Icons.Draw(g, IconKind.Pen, new RectangleF(5f, 5f, 22f, 22f), Color.White, Color.White, Board.None, 2.2f);
+                    }
                 }
                 return Icon.FromHandle(bmp.GetHicon()); // 프로그램이 끝날 때까지 쓰는 아이콘
             }
