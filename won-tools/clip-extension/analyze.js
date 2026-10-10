@@ -100,7 +100,7 @@ async function openMap(m, n) {
   const rs = roundsOfMap();
   await openRound(rs.find(r => r.n === n) ? n : (rs[0] ? rs[0].n : 1));
   if (GRID) drawGrid();
-  drawDeckLink();
+  drawDeckLink(); drawTacLink();
   setTimeout(() => thumbsIfNeeded(), 1500);
   setTimeout(() => fillDeckLinks(false).catch(() => {}), 2500);   // 1.11.8 PPT를 보낸 맵이면 텍틱 라운드 탭에 정리 슬라이드 링크 (빠진 것만)
 }
@@ -596,7 +596,7 @@ async function thumbsIfNeeded() {   // 빈 맵 보드 미리보기 그림이 없
    + 코치 10-09 '이렇게 자동으로 자료 칸에 PPT': 같은 요청에 deck을 실어 그 파일 '자료' 탭 B열에 '📊 PPT 이름' 한 줄 (넣은 파일은 sent.dataTab[파일] = PPT 주소) */
 let LINKS_OFF = false, MOVE_OFF = false, deckFail = 0;
 function afterTacticRounds() {   // 1.11.8 라운드를 텍틱 파일에 보낸 뒤: 이 맵 PPT가 있으면 그 파일 '자료' 탭에도 (새 파일이면 바로)
-  fillDeckLinks(true).then(r => { const t = linkTxt(r), m = $('msg'); if (t && /텍틱 시트에 새 탭/.test(m.textContent)) m.append(document.createTextNode(' · ' + t)); else if (t) msg('📋 텍틱 시트: ' + t); }).catch(() => {});
+  fillDeckLinks(true).then(r => { const t = linkTxt(r), m = $('msg'); if (t && /텍틱 시트.*에 새 탭/.test(m.textContent)) m.append(document.createTextNode(' · ' + t)); else if (t) msg('📋 텍틱 시트: ' + t); }).catch(() => {});
 }
 async function deckInfo() {
   const k = 'sent:' + VID + ':' + MAPI, s = (await S.get(k))[k];
@@ -656,6 +656,16 @@ async function fillDeckLinks0(quiet) {   // → { n: 라운드 탭 C1 링크 수
   if ((n || nd || mv) && !quiet) msg('📋 텍틱 시트: ' + linkTxt(r));
   return r;
 }
+/* 텍틱 시트 ↗ (1.11.10, 코치 10-10 '어디 있는지 찾기 힘들다'): 이 맵 라운드를 보낸 텍틱 파일 — 여러 파일이면 마지막에 보낸 파일 */
+async function drawTacLink() {
+  const k = 'tacSent:' + VID, ts = (await S.get(k))[k] || {}, a = $('tacLink'), pre = 'round:' + MAPI + ':', files = {};
+  let best = null;
+  Object.keys(ts).forEach(key => { const t = ts[key]; if (key.indexOf(pre) !== 0 || !t || !t.fileId || !t.url) return; files[t.fileId] = (files[t.fileId] || 0) + 1; if (!best || (t.at || 0) > (best.at || 0)) best = t; });
+  if (!best) { a.style.display = 'none'; return; }
+  a.href = String(best.url).replace(/#.*$/, ''); a.style.display = '';
+  const nf = Object.keys(files).length;
+  a.textContent = '텍틱 시트 ↗'; a.title = '이 맵 라운드를 보낸 텍틱 시트' + (best.file ? ' — ' + best.file : '') + ' (라운드 탭 ' + files[best.fileId] + '개' + (nf > 1 ? ' · 다른 파일 ' + (nf - 1) + '개에도 보냄' : '') + ')';
+}
 /* 정리 슬라이드 ↗ (1.11.4): 이 맵을 PPT로 보낸 적 있으면 머리에 늘 링크 — sent:<영상>:<맵> = { at, rounds, deck } */
 async function drawDeckLink() {
   const k = 'sent:' + VID + ':' + MAPI, s = (await S.get(k))[k], a = $('deckLink');
@@ -683,7 +693,7 @@ chrome.storage.onChanged.addListener((ch, area) => {
     else if (k === 'pics:' + VID + ':' + MAPI + ':' + RN) tiles = true;
     else if (k === 'bimg:' + VID + ':' + MAPI + ':' + RN + ':140') tiles = true;
     else if (k.startsWith('board:' + VID + ':' + MAPI + ':') && k.endsWith(':140')) { if (k === 'board:' + VID + ':' + MAPI + ':' + RN + ':140') tiles = true; clearTimeout(thumbsIfNeeded.t); thumbsIfNeeded.t = setTimeout(thumbsIfNeeded, 2500); }
-    else if (k === 'tacSent:' + VID) WonTactic.reload().then(() => { drawStrip(); drawItem(); drawRoundsSoon(); drawTag(); });
+    else if (k === 'tacSent:' + VID) WonTactic.reload().then(() => { drawStrip(); drawItem(); drawRoundsSoon(); drawTag(); drawTacLink(); });
     else if (k === 'view:' + VID) { const v = nv || {}; if (JSON.stringify(v) !== JSON.stringify(VIEW)) { VIEW = v; tiles = true; } }
     else if (k === 'sent:' + VID + ':' + MAPI) drawDeckLink();
     else if (k === 'tags:' + VID) { TAGS = nv || {}; rounds = true; drawTag(); if (GRID) { clearTimeout(drawGrid.t); drawGrid.t = setTimeout(drawGrid, 300); } }

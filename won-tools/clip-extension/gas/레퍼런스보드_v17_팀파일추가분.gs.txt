@@ -1,0 +1,66 @@
+/* 레퍼런스 보드 웹 앱 — v17 추가분 (2026-10-10 배포 · 버전 17 · 배포 ID 그대로)
+   편집기 코드 70,517자(v16) → 72,012자(v17). 아래 '바꾼 곳'을 고친 뒤 맨 끝에 v17 묶음을 붙였어요.
+   ※ 참고용 사본 — 실제 코드는 Apps Script 편집기(조합 레퍼런스 보드 연결)에 있어요.
+
+   [바꾼 곳]
+   (1) 이전:
+             const n = tkNorm_(f.getName()), rest = n.indexOf(base + ' - ') === 0 ? n.slice(base.length + 3) : '';
+             out.push({ id: id, name: n, url: f.getUrl(), agents: rest ? rest.split(/[\s·,\/]+/).filter(function (s) { return s; }) : [], base: !rest, t: f.getLastUpdated().getTime() });
+       이후:
+             const n = tkNorm_(f.getName()), own = n !== base && n.indexOf('텍틱 - ') !== 0;   // v17 코치가 지은 이름('라우드 어비스 ( 요루 … )')
+             const rest = n.indexOf(base + ' - ') === 0 ? n.slice(base.length + 3) : own ? n : '';
+             out.push({ id: id, name: n, url: f.getUrl(), agents: rest ? rest.split(/[\s·,\/()\[\]]+/).filter(function (s) { return s && s !== mapKo; }) : [], base: !rest, own: own, t: f.getLastUpdated().getTime() });
+
+   (2) 이전:
+           const ok = function (f) { const n = tkNorm_(f.getName()); return (n === base || n.indexOf(base + ' - ') === 0) && f.getMimeType() === TK_MIME && !f.isTrashed(); };
+       이후:
+           const ok = function (f) { const n = tkNorm_(f.getName()); return (n === base || n.indexOf(base + ' - ') === 0) && f.getMimeType() === TK_MIME && !f.isTrashed(); };
+           const mine = function (f) { const n = tkNorm_(f.getName()); return n.indexOf(mapKo) >= 0 && !/^텍틱\s*(피드백|템플릿)/.test(n) && f.getId() !== TK_TEMPLATE && f.getMimeType() === TK_MIME && !f.isTrashed(); };   // v17 '01 코칭 업무'에서 맵 이름이 든 시트 = 코치가 이름 지은 텍틱 파일
+
+   (3) 이전:
+         try { const it = DriveApp.getFolderById(TK_FOLDER).getFiles(); while (it.hasNext()) { const f = it.next(); if (ok(f)) add(f); } } catch (e) {}
+       이후:
+         try { const it = DriveApp.getFolderById(TK_FOLDER).getFiles(); while (it.hasNext()) { const f = it.next(); if (ok(f) || mine(f)) add(f); } } catch (e) {}
+
+   (4) 이전:
+         if (tkNorm_(ss.getName()).indexOf('텍틱 - ') === 0 || d.fileId === TK_FILES[d.mapKo]) return ss;
+       이후:
+         if (tkNorm_(ss.getName()).indexOf('텍틱 - ') === 0 || d.fileId === TK_FILES[d.mapKo] || tkInFolder_(d.fileId)) return ss; /* v17 '01 코칭 업무' 안 시트면 코치 이름이어도 */
+
+   (5) 이전:
+           const teams = (d.teams || []).map(function (t) { return (t || []).map(tkKey_); });
+       이후:
+           const teams = (d.teams || []).map(function (t) { return (t || []).map(tkAgKey_); });
+
+   (6) 이전:
+             const ks = f.agents.map(tkKey_); f.score = 0; f.team = -1;
+       이후:
+             const ks = f.agents.map(tkAgKey_); f.score = 0; f.team = -1;
+
+   (7) 이전:
+         return { id: f.id, name: f.name, url: f.url, agents: f.agents, base: f.base, score: f.score, team: f.team }; })
+       이후:
+         return { id: f.id, name: f.name, url: f.url, agents: f.agents, base: f.base, own: !!f.own, t: f.t, score: f.score, team: f.team }; })
+
+   (8) 이전:
+         return { ok: true, round: 1, links: 1, imgCol: TK_IMG_COL, files: files.map(
+       이후:
+         return { ok: true, round: 1, links: 1, imgCol: TK_IMG_COL, named: 1, files: files.map(
+
+   (9) 이전:
+           const name = '텍틱 - ' + d.mapKo + ' - ' + (custom || ags.join(' '));
+       이후:
+           const name = d.exact && custom ? (custom.indexOf(d.mapKo) >= 0 ? custom : custom + ' ' + d.mapKo) : '텍틱 - ' + d.mapKo + ' - ' + (custom || ags.join(' '));   // v17 exact: 코치 방식 이름 그대로(맵 이름은 꼭 들어가게)
+
+*/
+
+/* ======================= v17: 팀 조합마다 파일 · 코치가 지은 파일 이름 (2026-10-10) =======================
+   코치(10-10): 'PPT·시트로 보내기 했는데 어디 있는지 찾기 힘들다' → Vitality vs NS 라운드가 '스플릿 (prx …)' 파일에 섞여 들어갔던 것
+   → 확장이 '누구 텍틱' 팀의 그 맵 파일(이름에 팀 · 요원 5명)을 골라 보내고, 없으면 'NS 스플릿 (요원…)'처럼 코치 방식 이름으로 새로 만듦(tacticNewFile exact)
+   '01 코칭 업무'(TK_FOLDER)에서 맵 이름이 든 시트는 이름이 '텍틱 - '로 시작하지 않아도 텍틱 파일로 봄(텍틱 피드백·템플릿 빼고) · 요원 오타(오맨 등)도 같은 요원으로 */
+const TK_AG_ALIAS = { '오맨': '오멘', 'kj': '킬조이', '킬조': '킬조이', '케이오': '케이/오', 'kayo': '케이/오', '브림': '브림스톤', '데드락': '데드록', '페닉스': '피닉스', '아스': '아스트라' };
+function tkAgKey_(s) { const k = tkKey_(s); return tkKey_(TK_AG_ALIAS[k] || k); }
+function tkInFolder_(id) {   // 이 파일이 '01 코칭 업무' 폴더 안에 있나
+  try { const it = DriveApp.getFileById(id).getParents(); while (it.hasNext()) { if (it.next().getId() === TK_FOLDER) return true; } } catch (e) {}
+  return false;
+}

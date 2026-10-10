@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "장면 캡처 도구",
   "short_name": "장면캡처",
-  "version": "1.11.9",
+  "version": "1.11.10",
   "description": "유튜브 경기 영상 분석용 — 라운드 자동 찾기 · S키 장면 캡처·메모 · 분석 화면(미니맵·장면·스크린샷 위에 그리기) · PPT·텍틱 시트로 보내기",
   "icons": {
     "16": "icons/icon16.png",

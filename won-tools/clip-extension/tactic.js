@@ -8,6 +8,7 @@
      → 그림마다 탭 맨 아래에 새 단계(N단계) 띠 + 그 옆에 그림 + 그 아래 메모 줄 — 한 장씩 차례로 보냄(시트 연결 GAS는 그대로 'tactic')
    1.11.8: '＋ 새 파일' = 이름을 정해 새 텍틱 파일('텍틱 - 맵 - 이름', GAS v15 tacticNewFile name) · 라운드 탭 C1에 정리 슬라이드 링크(open({linkOf(n)}))
    1.11.9: 그림은 M열 선에 (GAS v16 TK_IMG_COL 13 · 코치 10-09) — 보낸 기록에 col
+   1.11.10: 팀 조합마다 파일 (코치 10-10) — 라운드 보내기는 '누구 텍틱' 팀의 그 맵 파일(이름에 팀 · 요원 5명)을 고르고, 없으면 'NS 스플릿 (요원…)'처럼 새로 만들어 보냄(GAS v17 exact) · 기억 prefs.tacticFileByTeam[영상:맵:팀]
    1.11.6 라운드마다 새 탭: WonTactic.open({ rounds: [{ key:'round:맵:라운드', n, name, summary, def(수비 팀 A|B), items:[{ img(), thumb(), caption, src }], on }], team, onTeam(k), onName(n, 이름) })
      → 라운드마다 GAS v14 {kind:'tacticRound'} = 그 파일 '템플릿' 탭 복제 · 탭 이름 · B1 '공격|수비 > 이름' · B3 요원 · 그림만 차례로 (단계 띠·글 없음)
      누구 텍틱(팀)을 고르면 그 팀 기준으로 공격/수비 · 옛 GAS(v13)면 막고 안내 */
@@ -94,15 +95,20 @@
       '<div class="ft"><span id="tkMsg"></span><button id="tkGo" class="pri">보내기</button></div></div></div>';
     document.body.appendChild(d);
     $('tkMap').onchange = () => loadTabs(false);
-    $('tkFile').onchange = async () => {   // 고른 파일은 이 영상에서 이 맵에 계속 씀
-      const mapKo = $('tkMap').value, id = $('tkFile').value, p = await prefs();
+    $('tkFile').onchange = async () => {   // 고른 파일은 이 영상에서 이 맵에 계속 씀 (라운드 보내기는 이 영상·맵·팀마다)
+      const mapKo = $('tkMap').value, id = $('tkFile').value, p = await prefs(), T = teamNow();
+      if (TK && TK.rounds) {
+        TK.manual = true; if (id === '__new') return;
+        if (T) { p.tacticFileByTeam = Object.assign({}, p.tacticFileByTeam, { [CTX.vid() + ':' + mapKo + ':' + T.key]: id }); await S.set({ prefs: p }); }
+        return loadTabs(false, id);
+      }
       p.tacticFileBy = Object.assign({}, p.tacticFileBy, { [CTX.vid() + ':' + mapKo]: id }); await S.set({ prefs: p });
       loadTabs(false, id);
     };
     $('tkTab').onchange = () => bands();
     $('tkNameBtn').onclick = () => {   // 1.11.8 이름을 정해 새 파일
       const r = $('tkNameRow'), on = r.style.display === 'none'; r.style.display = on ? '' : 'none';
-      if (on) { $('tkNamePre').textContent = '텍틱 - ' + $('tkMap').value + ' - '; if (!$('tkNewName').value) $('tkNewName').value = (TK && TK.fileHint) || ''; $('tkNewName').focus(); $('tkNewName').select(); }
+      if (on) { const named = TK_CUR && TK_CUR.named, T = teamNow(); $('tkNamePre').textContent = named ? '' : '텍틱 - ' + $('tkMap').value + ' - '; if (!$('tkNewName').value) $('tkNewName').value = named ? (T ? proposeName(T, $('tkMap').value) : (((TK && TK.fileHint) || '') + ' ' + $('tkMap').value).trim()) : ((TK && TK.fileHint) || ''); $('tkNewName').focus(); $('tkNewName').select(); }
     };
     $('tkNameGo').onclick = () => newNamedFile();
     $('tkNewName').onkeydown = (e) => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); newNamedFile(); } };
@@ -136,7 +142,21 @@
   }
   function say(t, err) { $('tkMsg').textContent = t || ''; $('tkMsg').style.color = err ? '#D0504A' : '#7A879C'; }
   async function prefs() { return (await S.get('prefs')).prefs || {}; }
-  const short = (name, mapKo) => { const n = String(name || '').trim(), b = '텍틱 - ' + mapKo; return n.indexOf(b + ' - ') === 0 ? n.slice(b.length + 3) : '기본 파일 (' + n + ')'; };
+  const short = (name, mapKo) => { const n = String(name || '').trim(), b = '텍틱 - ' + mapKo; return n.indexOf(b + ' - ') === 0 ? n.slice(b.length + 3) : n === b ? '기본 파일 (' + n + ')' : n; };   // 코치가 지은 이름은 그대로
+  const teamNow = () => (TK && TK.rounds && TK.team) ? (TK.teams || CTX.teams()).find(t => t.key === TK.team) || null : null;
+  function teamFile(files, T) {   // 1.11.10 그 팀 파일: 요원을 알면 이름에 요원이 다 있는 파일(다른 팀 이름이 붙은 건 빼고 · 팀 이름도 있으면 먼저) · 모르면 이름에 팀이 있는 파일 · 같으면 최근에 고친 것
+    if (!T || !files) return null;
+    const N = root.WonNames, info = N.teamInfo(T.name), ags = (T.agents || []).map(N.agKey).filter(Boolean);
+    let best = null, bs = -1;
+    files.forEach(f => {
+      const mine = N.teamInName(f.name, info); if (!mine && N.teamOfName(f.name)) return;
+      const fa = (f.agents || []).map(N.agKey), comp = ags.filter(a => fa.indexOf(a) >= 0).length;
+      let sc; if (ags.length >= 4) { if (comp < ags.length) return; sc = 10 + (mine ? 5 : 0); } else { if (!mine) return; sc = 5; }
+      sc += (f.t || 0) / 1e14; if (sc > bs) { bs = sc; best = f; }
+    });
+    return best;
+  }
+  const proposeName = (T, mapKo) => root.WonNames.teamInfo(T.name).short + ' ' + mapKo + (T.agents && T.agents.length ? ' (' + T.agents.join(' ') + ')' : '');
   const sentTxt = (s) => (s.file ? '[' + s.file + '] ' : '') + s.tab + (s.band ? ' › ' + s.band : '');
   async function reload() { if (!CTX) return TSENT; TSVID = CTX.vid(); TSENT = (await S.get(tsKey()))[tsKey()] || {}; return TSENT; }
   const sent = (src) => (CTX && TSVID === CTX.vid() ? TSENT[src] : null) || null;
@@ -207,8 +227,8 @@
   async function loadTabs(force, fileId) {
     const mapKo = $('tkMap').value, ts = $('tkTab'), bs = $('tkBand'), fs = $('tkFile');
     ts.textContent = ''; bs.textContent = ''; $('tkGo').disabled = true; $('tkOpen').style.display = 'none'; $('tkNameRow').style.display = 'none';
-    const p = await prefs(), vkey = CTX.vid() + ':' + mapKo;
-    if (fileId === undefined) fileId = (p.tacticFileBy || {})[vkey] || '';   // 이 영상에서 이 맵에 쓰던 파일 → 없으면 조합으로 자동
+    const p = await prefs(), vkey = CTX.vid() + ':' + mapKo, rounds = !!(TK && TK.rounds), T = teamNow(), explicit = fileId !== undefined;
+    if (!explicit) fileId = rounds ? ((T && (p.tacticFileByTeam || {})[vkey + ':' + T.key]) || '') : ((p.tacticFileBy || {})[vkey] || '');   // 이 영상에서 이 맵에 쓰던 파일(라운드는 팀마다) → 없으면 자동
     say('시트에서 파일·탭 목록 읽는 중… (처음엔 10초쯤)');
     try {
       const teams = CTX.teams(), ask = async (id) => {
@@ -220,19 +240,29 @@
       };
       let c = await ask(fileId);
       if (!c || (fileId && c.data.files && !c.data.files.some(f => f.id === fileId))) c = await ask('');   // 기억한 파일이 지워졌으면 자동으로
-      let d = c.data;
-      const mapLast = (p.tacticFile || {})[mapKo];   // 조합이 맞는 파일이 없으면 이 맵에서 마지막으로 쓴 파일
-      if (d.auto && d.files && !d.files.some(f => f.score > 0) && mapLast && mapLast !== d.fileId && d.files.some(f => f.id === mapLast)) { c = await ask(mapLast) || c; d = c.data; }
-      TK_CUR = { mapKo, fileId: d.fileId || '', file: d.file || '', files: d.files || null, links: !!d.links };
+      let d = c.data, newName = null, picked = null;
+      if (rounds && d.named) {   // 1.11.10 팀 조합마다 파일 (GAS v17): 기억한 파일 → 그 팀 파일 → 없으면 새로 만들 이름
+        const mem = !explicit && fileId && d.files.some(f => f.id === fileId) ? fileId : null;
+        let want = explicit ? (fileId || null) : mem;
+        if (!want && !explicit && T) { picked = teamFile(d.files, T); want = picked ? picked.id : null; }
+        if (want && want !== d.fileId) { c = await ask(want) || c; d = c.data; }
+        if (!want && !explicit && T) newName = proposeName(T, mapKo);
+      } else if (!rounds) {
+        const mapLast = (p.tacticFile || {})[mapKo];   // 조합이 맞는 파일이 없으면 이 맵에서 마지막으로 쓴 파일
+        if (d.auto && d.files && !d.files.some(f => f.score > 0) && mapLast && mapLast !== d.fileId && d.files.some(f => f.id === mapLast)) { c = await ask(mapLast) || c; d = c.data; }
+      }
+      TK_CUR = { mapKo, fileId: newName ? '' : (d.fileId || ''), file: newName || d.file || '', files: d.files || null, links: !!d.links, named: !!d.named, isNew: !!newName, data: d };
       fs.textContent = '';
+      if (newName) fs.add(new Option('＋ 새 파일: ' + newName, '__new'));
       if (d.files && d.files.length) {
         d.files.forEach(f => { const t = teams[f.team]; fs.add(new Option(short(f.name, mapKo) + (f.score && t ? '  — ' + t.name + ' 조합 ' + f.score + '/' + t.agents.length : ''), f.id)); });
-        fs.value = d.fileId;
+        fs.value = newName ? '__new' : d.fileId;
       } else fs.add(new Option(d.file || '', ''));
       $('tkFileRow').style.display = d.files ? '' : 'none';
       $('tkNameBtn').style.display = d.links ? '' : 'none';   // GAS v15부터
-      newFileBtns(d, teams);
-      $('tkOpen').href = d.url; $('tkOpen').style.display = ''; $('tkOpen').textContent = '↗ 시트 열기';
+      if (rounds && d.named) { $('tkNewFileRow').style.display = 'none'; } else newFileBtns(d, teams);   // 라운드 보내기(v17)는 팀 파일을 알아서 만듦
+      $('tkOpen').href = d.url; $('tkOpen').style.display = newName ? 'none' : ''; $('tkOpen').textContent = '↗ 시트 열기';
+      if (newName) { $('tkNamePre').textContent = ''; $('tkNewName').value = newName; $('tkNameRow').style.display = ''; }
       const tabs = d.tabs.filter(t => t.tactic && !/^(템플릿|예시)$/.test(t.name)).concat(d.tabs.filter(t => !t.tactic || /^(템플릿|예시)$/.test(t.name)));
       tabs.forEach(t => ts.add(new Option(t.name + (t.tactic ? '' : ' (텍틱 탭 아님)'), t.name)));
       const last = (p.tacticLast || {})[d.fileId || mapKo] || (!d.files || d.files.length < 2 ? (p.tacticLast || {})[mapKo] : '');
@@ -246,8 +276,10 @@
         : d.auto && f0 && f0.score && t0 ? t0.name + ' 조합과 ' + f0.score + '명 겹치는 파일을 골랐어요' : '');
       $('tkGo').disabled = !tabs.length;
       if (TK && TK.rounds) {
-        if (!TK.team && f0 && f0.score && t0) { TK.team = t0.key; try { TK.onTeam && TK.onTeam(t0.key); } catch (e) {} drawTeams(); drawRoundList(); }   // 조합 파일의 팀 = 누구 텍틱
+        if (!TK.team && f0 && f0.score && t0) { TK.team = t0.key; try { TK.onTeam && TK.onTeam(t0.key); } catch (e) {} drawTeams(); drawRoundList(); if (d.named && !explicit) return loadTabs(false); }   // 조합 파일의 팀 = 누구 텍틱 (v17이면 그 팀 파일로 다시)
         if (!d.round) { say('시트 스크립트(GAS)가 옛 버전이라 라운드마다 새 탭을 못 만들어요 — 새 버전(v14) 배포가 필요해요', true); $('tkGo').disabled = true; }
+        else if (newName) { say('\'' + newName + '\' 파일이 아직 없어서 보낼 때 새로 만들어요 — 이름은 위 칸에서 고칠 수 있어요'); $('tkGo').disabled = false; }
+        else if (picked) say('\'' + short(picked.name, mapKo) + '\' — ' + T.name + ' 파일에 보내요');
         else if (!/파일을 골랐어요/.test($('tkMsg').textContent)) say(d.tabs.some(t => t.name === '템플릿') ? '' : '이 파일엔 \'템플릿\' 탭이 없어서 텍틱 템플릿 파일의 틀을 가져다 써요');
         if (!TK.onlyCur) TK.rounds.forEach(rd => { if (!rd.touched) { const st = TSENT[rd.key]; rd.on = !(st && (!st.fileId || st.fileId === TK_CUR.fileId)); } });   // 이 파일에 아직 안 보낸 라운드만 기본으로
         drawRoundList();
@@ -279,13 +311,15 @@
     } catch (e) { say('새 파일 실패: ' + e.message, true); [...$('tkNewFiles').children].forEach(b => { b.disabled = false; }); }
   }
   async function newNamedFile() {   // 1.11.8 '텍틱 - 맵 - 이름' 새 파일 (같은 이름이 있으면 그 파일)
-    const mapKo = $('tkMap').value, nm = $('tkNewName').value.replace(/\s+/g, ' ').trim().replace(/^텍틱\s*-\s*[^-]+?\s*-\s*/, '');   // '텍틱 - 맵 - '까지 적어도 이름만
+    const mapKo = $('tkMap').value, named = !!(TK_CUR && TK_CUR.named), T = teamNow(), nm = $('tkNewName').value.replace(/\s+/g, ' ').trim().replace(/^텍틱\s*-\s*[^-]+?\s*-\s*/, '');   // '텍틱 - 맵 - '까지 적어도 이름만
     if (!nm) { say('파일 이름을 적어 주세요', true); $('tkNewName').focus(); return; }
-    $('tkNameGo').disabled = true; say('\'텍틱 - ' + mapKo + ' - ' + nm + '\' 만드는 중… (10~20초)');
+    $('tkNameGo').disabled = true; say('\'' + (named ? nm : '텍틱 - ' + mapKo + ' - ' + nm) + '\' 만드는 중… (10~20초)');
     try {
-      const j = await WonNet.postBoard({ kind: 'tacticNewFile', mapKo, name: nm });
+      const j = await WonNet.postBoard(Object.assign({ kind: 'tacticNewFile', mapKo, name: nm }, named ? { exact: true, agents: T ? T.agents : [] } : {}));   // v17: 코치 방식 이름 그대로
       if (!j.ok) throw new Error(j.err || '실패');
-      const p = await prefs(); p.tacticFileBy = Object.assign({}, p.tacticFileBy, { [CTX.vid() + ':' + mapKo]: j.id }); await S.set({ prefs: p });
+      const p = await prefs(); p.tacticFileBy = Object.assign({}, p.tacticFileBy, { [CTX.vid() + ':' + mapKo]: j.id });
+      if (T) p.tacticFileByTeam = Object.assign({}, p.tacticFileByTeam, { [CTX.vid() + ':' + mapKo + ':' + T.key]: j.id });
+      if (TK) TK.manual = true; await S.set({ prefs: p });
       Object.keys(TKTABS).forEach(k => { if (k.indexOf(mapKo + '|') === 0) delete TKTABS[k]; });
       await loadTabs(true, j.id);
       if (!/못 읽었어요/.test($('tkMsg').textContent)) say((j.created ? '새 파일을 만들었어요: ' : '같은 이름 파일이 이미 있어서 그 파일로: ') + j.name);
@@ -383,7 +417,7 @@
     (TK.teams || CTX.teams()).forEach(t => {
       const b = document.createElement('button'); b.type = 'button'; b.className = TK.team === t.key ? 'on' : ''; b.textContent = t.name + ' 텍틱';
       b.title = t.agents.join(' · ') + ' — 이 팀 기준으로 탭 제목 공격/수비 · B3 요원 줄';
-      b.onclick = () => { TK.team = t.key; try { TK.onTeam && TK.onTeam(t.key); } catch (e) {} drawTeams(); drawRoundList(); };
+      b.onclick = () => { const ch = TK.team !== t.key; TK.team = t.key; try { TK.onTeam && TK.onTeam(t.key); } catch (e) {} drawTeams(); drawRoundList(); if (ch && TK.rounds && !TK.manual && TK_CUR && TK_CUR.named) loadTabs(false); };   // 1.11.10 팀이 바뀌면 그 팀 파일로
       box.append(b);
     });
   }
@@ -424,16 +458,25 @@
     if (!list.length) { say('보낼 라운드를 골라 주세요', true); return; }
     const T = (R0.teams || CTX.teams()).find(t => t.key === R0.team);
     if (!T) { say('누구 텍틱인지 골라 주세요 (탭 제목 공격/수비 · 요원 줄에 써요)', true); return; }
-    const c = TK_CUR && TKTABS[TK_CUR.mapKo + '|' + (TK_CUR.fileId || 'auto')];
+    const c = TK_CUR && (TK_CUR.data ? { data: TK_CUR.data } : TKTABS[TK_CUR.mapKo + '|' + (TK_CUR.fileId || 'auto')]);
     if (!c || !c.data.round) { say('시트 스크립트(GAS)가 옛 버전이라 라운드마다 새 탭을 못 만들어요 — 새 버전(v14) 배포가 필요해요', true); return; }
+    const newNm = TK_CUR.isNew ? ($('tkNewName').value || TK_CUR.file).replace(/\s+/g, ' ').trim() : '';
+    if (TK_CUR.isNew && !newNm) { say('새 파일 이름을 적어 주세요', true); $('tkNewName').focus(); return; }
     const again = list.filter(x => TSENT[x.key] && TSENT[x.key].fileId === (TK_CUR && TK_CUR.fileId)).length;   // 같은 파일에 또 만드는 것만 묻기
     if (again && !confirm('이미 탭을 만든 라운드 ' + again + '개가 섞여 있어요. 새 탭을 또 만들까요? (같은 이름이면 \'(2)\'가 붙어요)')) return;
     const mapKo = $('tkMap').value, W = +$('tkW').value || 640, capOn = $('tkCapOn').checked;
     const cur = TK_CUR || { mapKo, fileId: '', file: '' }, vid = CTX.vid(), at = CTX.where(), k = 'tacSent:' + vid;
-    let done = 0, fid = cur.fileId || '', fileName = cur.file || '', lastUrl = '', curN = null, lost = 0;
-    const known = new Set(((c && c.data.tabs) || []).map(t => t.name));   // 보내기 전에 있던 탭 — 응답이 사라졌을 때 새 탭이 생겼는지 비교
+    let done = 0, fid = cur.fileId || '', fileName = cur.file || '', lastUrl = '', curN = null, lost = 0, made = null;
+    const known = new Set(cur.isNew ? ['템플릿', '예시', '자료'] : ((c && c.data.tabs) || []).map(t => t.name));   // 보내기 전에 있던 탭 — 응답이 사라졌을 때 새 탭이 생겼는지 비교
     SENDING = true; $('tkGo').disabled = true; $('tkX').disabled = true;
     try {
+      if (cur.isNew) {   // 1.11.10 이 팀 파일이 없으면 먼저 만듦 ('NS 스플릿 (요원…)' — 같은 이름이 있으면 그 파일)
+        say('\'' + newNm + '\' 새 파일 만드는 중… (10~20초)');
+        made = await WonNet.postBoard({ kind: 'tacticNewFile', mapKo, name: newNm, exact: true, agents: T.agents });
+        if (!made.ok) throw new Error('새 파일: ' + (made.err || '실패'));
+        fid = made.id; fileName = made.name; TK_CUR = Object.assign({}, cur, { fileId: made.id, file: made.name, isNew: false });
+        const p0 = await prefs(); p0.tacticFileByTeam = Object.assign({}, p0.tacticFileByTeam, { [vid + ':' + mapKo + ':' + T.key]: made.id }); await S.set({ prefs: p0 });
+      }
       for (const rd of list) {
         curN = rd.n;
         const name = String(rd.name || '').replace(/\s+/g, ' ').trim() || ('R' + rd.n), side = rd.def === T.key ? '수비' : '공격', head = 'R' + rd.n + ' (' + (done + 1) + '/' + list.length + ') ';
@@ -466,23 +509,24 @@
           known.add(j.tab);
           sheetId = j.sheetId; fid = j.fileId || fid; fileName = j.file || fileName;
         }
-        const fshort = cur.files && cur.files.length > 1 ? short(fileName, mapKo) : '';
+        const fshort = fileName ? short(fileName, mapKo) : '';
         const all = (await S.get(k))[k] || {}; all[rd.key] = { file: fshort, fileId: fid, tab: j.tab, band: '', at: Date.now(), sheetId: j.sheetId, url: j.url || '', link: link && j.linked ? link.url : '', col: j.col || 0 };   // 링크는 시트가 넣었다고 한 것만 · col = 그림 열(v16 M=13, 예전 C면 분석 화면을 열 때 M열로)
         await S.set({ [k]: all }); TSENT = all; TSVID = vid;
         rd.on = false; rd.name0 = name; done++; lastUrl = j.url || lastUrl;
       }
       const p = await prefs(); p.tacticMap = mapKo;
-      if (fid) { p.tacticFileBy = Object.assign({}, p.tacticFileBy, { [vid + ':' + mapKo]: fid }); p.tacticFile = Object.assign({}, p.tacticFile, { [mapKo]: fid }); }
+      if (fid) { p.tacticFileBy = Object.assign({}, p.tacticFileBy, { [vid + ':' + mapKo]: fid }); p.tacticFile = Object.assign({}, p.tacticFile, { [mapKo]: fid }); p.tacticFileByTeam = Object.assign({}, p.tacticFileByTeam, { [vid + ':' + mapKo + ':' + T.key]: fid }); }
       await S.set({ prefs: p });
       Object.keys(TKTABS).forEach(x => { if (x.indexOf(mapKo + '|') === 0) delete TKTABS[x]; });
       SENDING = false; close();
-      const w = document.createElement('span'); w.append(document.createTextNode('📋 텍틱 시트에 새 탭 ' + done + '개 만듦 ✓ (라운드마다 그림만 차례로)' + (lost ? ' · 그림 ' + lost + '장은 응답이 끊겨 못 붙였어요 — 시트에서 확인' : '') + ' — '));
+      const w = document.createElement('span'); w.append(document.createTextNode('📋 텍틱 시트' + (fileName ? ' \'' + short(fileName, mapKo) + '\'' + (made && made.created ? '(새 파일)' : '') : '') + '에 새 탭 ' + done + '개 만듦 ✓ (라운드마다 그림만 차례로)' + (lost ? ' · 그림 ' + lost + '장은 응답이 끊겨 못 붙였어요 — 시트에서 확인' : '') + ' — '));
       const a = document.createElement('a'); a.href = lastUrl || (c.data.url || '#'); a.target = '_blank'; a.textContent = '시트 열기'; w.append(a);
       CTX.msg(w);
       try { CTX.onSent && CTX.onSent(null, null); } catch (e) {}
     } catch (e) {
       SENDING = false;
       Object.keys(TKTABS).forEach(x => { if (x.indexOf(mapKo + '|') === 0) delete TKTABS[x]; });
+      if (made && made.ok && built && isOpen() && TK === R0) { $('tkNameRow').style.display = 'none'; loadTabs(true, made.id); }   // 새 파일은 만들었으면 그 파일로
       if (built && isOpen() && TK === R0) drawRoundList();
       say((done ? done + '라운드 만들고 ' : '') + 'R' + curN + '에서 멈췄어요: ' + e.message + (done ? ' — 남은 라운드만 다시 보내면 돼요' : ''), true);
       try { if (done) CTX.onSent && CTX.onSent(null, null); } catch (e2) {}
