@@ -205,7 +205,8 @@
   .h2big em{font-style:normal;color:var(--accent);}
   .cfgbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 20px;padding:12px 16px;margin-bottom:12px;}
   .cfg{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);}
-  .cfg > span{font-weight:700;color:var(--text);}
+  .cfg > span{font-weight:700;color:var(--text);white-space:nowrap;}
+  .cfg{flex-wrap:wrap;}
   .cfg input[type=number]{width:74px;background:var(--bg);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:5px 8px;
     font:700 15px 'Rajdhani',sans-serif;}
   .cfg.chk{cursor:pointer;} .cfg.chk input{accent-color:var(--accent);width:15px;height:15px;margin:0;}
@@ -240,6 +241,45 @@
   .keys kbd{display:inline-block;font:700 11.5px 'Rajdhani','Noto Sans KR',sans-serif;color:var(--text);background:var(--surface2);border:1px solid var(--line);
     border-bottom-width:2px;border-radius:6px;padding:1px 7px;margin:0 3px 0 10px;}
   .g-overlay .tiny{font-size:11.5px;color:var(--dim);}
+  .g-overlay .map-line{color:var(--accent);font-weight:700;font-size:13px;}
+  .gxc{position:absolute;inset:0;width:100%;height:100%;z-index:3;pointer-events:none;}
+  .sel{background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:999px;padding:6px 30px 6px 12px;font:600 12.5px 'Noto Sans KR',sans-serif;
+    appearance:none;-webkit-appearance:none;cursor:pointer;
+    background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);
+    background-position:calc(100% - 15px) 50%,calc(100% - 10px) 50%;background-size:5px 5px;background-repeat:no-repeat;}
+  .sel:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+  .xh-card{margin-bottom:12px;}
+  .xh-card summary{list-style:none;display:flex;align-items:center;gap:12px;padding:10px 16px;cursor:pointer;}
+  .xh-card summary::-webkit-details-marker{display:none;}
+  .xh-card summary .xh-title{font-weight:700;font-size:14px;}
+  .xh-card summary small{color:var(--muted);font-size:12px;flex:1;min-width:0;}
+  .xh-card summary .chev{font-style:normal;color:var(--muted);transition:transform .2s;}
+  .xh-card[open] summary .chev{transform:rotate(180deg);}
+  #xhMini{width:40px;height:40px;border-radius:8px;background:#1b1f27;flex:none;}
+  .xh-body{display:grid;grid-template-columns:300px minmax(0,1fr);gap:20px;padding:4px 16px 18px;}
+  .xh-left{display:flex;flex-direction:column;gap:10px;}
+  #xhPrev{width:300px;height:220px;border-radius:12px;border:1px solid var(--line);}
+  .xh-row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+  .xh-note,.xh-msg{margin:0;font-size:11.5px;color:var(--dim);line-height:1.5;}
+  .xh-msg{color:var(--muted);min-height:1em;}
+  .xh-msg.err{color:var(--accent);}
+  .xh-code{display:flex;gap:6px;}
+  .xh-code input{flex:1;min-width:0;background:var(--bg);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:7px 9px;font:500 12px ui-monospace,Menlo,Consolas,monospace;}
+  .mini{border:1px solid var(--line);background:var(--surface2);color:var(--text);border-radius:8px;padding:6px 11px;font:600 12px 'Noto Sans KR',sans-serif;cursor:pointer;white-space:nowrap;}
+  .mini:hover{border-color:var(--accent);}
+  .xh-presets{display:flex;flex-wrap:wrap;gap:6px;}
+  .xh-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 22px;align-content:start;}
+  .xh-col h4{margin:0 0 6px;font-size:12px;letter-spacing:.12em;color:var(--muted);font-family:'Rajdhani','Noto Sans KR',sans-serif;}
+  .xh-item{display:grid;grid-template-columns:minmax(0,1fr) 46px;align-items:center;gap:2px 8px;margin:0 0 7px;font-size:12px;color:var(--muted);}
+  .xh-item input[type=range]{grid-column:1 / -1;width:100%;accent-color:var(--accent);margin:0;}
+  .xh-item output{text-align:right;font:700 13px 'Rajdhani',sans-serif;color:var(--text);}
+  .xh-item.tg{grid-template-columns:minmax(0,1fr) auto;}
+  .xh-item.tg input{accent-color:var(--accent);width:16px;height:16px;margin:0;}
+  .xh-item.off{opacity:.45;}
+  .xh-colors{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;}
+  .xh-colors button{width:24px;height:24px;border-radius:6px;border:2px solid transparent;cursor:pointer;padding:0;}
+  .xh-colors button.on{border-color:var(--text);box-shadow:0 0 0 2px var(--accent);}
+  .xh-colors input[type=color]{width:30px;height:26px;border:none;background:none;padding:0;cursor:pointer;}
   .g-overlay{overflow:auto;}
   .touch-only{display:none;}
   @media (pointer:coarse){
@@ -317,6 +357,9 @@
   @media (max-width:900px){
     .explain{grid-template-columns:1fr;}
     .g-stats{grid-template-columns:1fr 1fr;}
+    .xh-body{grid-template-columns:1fr;}
+    #xhPrev{width:100%;}
+    .xh-grid{grid-template-columns:1fr 1fr;}
   }
   @media (max-width:760px){
     .wrap{padding:18px 16px 56px;}
@@ -338,6 +381,8 @@
     .g-hud.bl span,.g-hud.br span{display:none;}
     .sum-grid{grid-template-columns:1fr 1fr;}
     .g-overlay h3{font-size:18px;}
+    .xh-grid{grid-template-columns:1fr;}
+    .xh-card summary small{display:none;}
     .g-overlay{gap:8px;padding:12px;}
     .g-overlay p{font-size:12.5px;}
     .btn{padding:10px 22px;font-size:14px;}
@@ -533,16 +578,37 @@
         <button role="tab" data-mode="hold" class="on" aria-selected="true">홀드 연습</button>
         <button role="tab" data-mode="peek" aria-selected="false" title="키보드·마우스 필요">피킹 연습</button>
       </div>
+      <label class="cfg"><span>맵</span><select id="mapSel" class="sel"></select></label>
       <div class="cfg"><span>핑</span><div class="chips" data-k="ping"><button data-v="0">0</button><button data-v="35" class="on">35</button><button data-v="80">80</button><button data-v="130">130</button></div></div>
       <div class="cfg"><span>상대</span><div class="chips" data-k="lv"><button data-v="pro">프로</button><button data-v="high" class="on">상급</button><button data-v="mid">보통</button><button data-v="low">입문</button></div></div>
-      <div class="cfg hold-only"><span>내 시작 위치</span><div class="chips" data-k="mySpot"><button data-v="2">벽에서 2m</button><button data-v="6" class="on">6m</button><button data-v="10">10m</button></div></div>
-      <div class="cfg peek-only"><span>상대 위치</span><div class="chips" data-k="botSpot"><button data-v="0" class="on">랜덤</button><button data-v="2">벽에서 2m</button><button data-v="6">6m</button><button data-v="10">10m</button></div></div>
+      <div class="cfg hold-only"><span>내 시작 위치</span><div class="chips" data-k="mySpot" id="chipsMy"></div></div>
+      <div class="cfg peek-only"><span>상대 위치</span><div class="chips" data-k="botSpot" id="chipsBot"></div></div>
       <label class="cfg"><span>감도</span><input type="number" id="sens" min="0.05" max="5" step="0.01" value="0.35"><small>발로란트 감도</small></label>
       <label class="cfg chk hold-only"><input type="checkbox" id="guide" checked>정답 조준점</label>
       <label class="cfg chk hold-only"><input type="checkbox" id="bait">어깨 미끼 섞기</label>
     </div>
+    <details class="card xh-card" id="xhCard">
+      <summary><canvas id="xhMini" aria-hidden="true"></canvas><span class="xh-title">조준점 설정</span><small>발로란트 조준점 코드 가져오기·내보내기, 색·외곽선·중앙 점·안쪽/바깥쪽 선</small><i class="chev">▾</i></summary>
+      <div class="xh-body">
+        <div class="xh-left">
+          <canvas id="xhPrev" aria-label="조준점 미리보기"></canvas>
+          <div class="xh-row">
+            <div class="chips" id="xhBg"><button data-v="dark" class="on">어둡게</button><button data-v="light">밝게</button><button data-v="map">맵 색</button></div>
+            <label class="cfg chk"><input type="checkbox" id="xhErr">걷기 오차 보기</label>
+          </div>
+          <p class="xh-note">미리보기는 2배 확대. 길이·두께는 1080p 화면 픽셀 기준으로 게임 화면 크기에 맞춰 줄거나 커진다.</p>
+          <div class="xh-code">
+            <input type="text" id="xhCode" spellcheck="false" autocomplete="off" placeholder="발로란트 조준점 코드 (예: 0;P;c;5;h;0;0l;4;0o;2;0a;1;0f;0;1b;0)">
+            <button class="mini" id="xhApply">적용</button><button class="mini" id="xhCopy">복사</button>
+          </div>
+          <p class="xh-msg" id="xhMsg"></p>
+          <div class="xh-presets" id="xhPresets"></div>
+        </div>
+        <div class="xh-grid" id="xhGrid"></div>
+      </div>
+    </details>
     <div class="view game-view" id="gameView">
-      <div class="gx" id="gx"><i></i><i></i><i></i><i></i><i></i></div>
+      <canvas class="gxc" id="gXh"></canvas>
       <div class="g-vig" id="gVig"></div>
       <div class="g-hit" id="gHit"></div>
       <div class="g-hud tl"><b id="gRound">0 / 10</b><span id="gPhase">대기</span></div>
@@ -557,6 +623,7 @@
       <div class="g-toast" id="gToast"><b></b><small></small></div>
       <div class="g-overlay" id="gStart">
         <h3 id="gStartTitle">홀드 연습</h3>
+        <p class="map-line" id="gMapLine"></p>
         <p id="gStartDesc"></p>
         <div class="keys"><kbd>W A S D</kbd> 이동 <kbd>Shift</kbd> 걷기 <kbd>C</kbd> 앉기 <kbd>Space</kbd> 점프 <kbd>클릭</kbd> 사격(누르면 연사) <kbd>R</kbd> 재장전 <kbd>Esc</kbd> 일시정지</div>
         <button class="btn" id="gStartBtn">시작하기</button>
@@ -649,25 +716,25 @@ function segBox(ax, az, bx, bz, w) {
   }
   return t0;
 }
-function firstHit(ax, az, bx, bz) {
+function firstHit(ax, az, bx, bz, walls = LOS_WALLS) {
   let best = -1;
-  for (const w of LOS_WALLS) {
+  for (const w of walls) {
     const t = segBox(ax, az, bx, bz, w);
     if (t >= 0 && (best < 0 || t < best)) best = t;
   }
   return best;
 }
-const blocked = (ax, az, bx, bz) => firstHit(ax, az, bx, bz) >= 0;
+const blocked = (ax, az, bx, bz, walls = LOS_WALLS) => firstHit(ax, az, bx, bz, walls) >= 0;
 const RING = [];
 for (const k of [1, 0.5]) for (let i = 0; i < 48; i++) RING.push([Math.cos(i / 48 * Math.PI * 2) * k, Math.sin(i / 48 * Math.PI * 2) * k]);
 // 눈(ex,ez)에서 상대 몸(중심 cx,cz)의 보이는 지점. 중심이 보이면 중심, 아니면 중심 쪽에 가장 가까운 보이는 가장자리, 없으면 null
-function visiblePoint(ex, ez, cx, cz, r = R_BODY) {
-  if (!blocked(ex, ez, cx, cz)) return [cx, cz];
+function visiblePoint(ex, ez, cx, cz, r = R_BODY, walls = LOS_WALLS) {
+  if (!blocked(ex, ez, cx, cz, walls)) return [cx, cz];
   const lx = cx - ex, lz = cz - ez, ll = Math.hypot(lx, lz);
   let best = null, bd = Infinity;
   for (const [c, s] of RING) {
     const px = cx + c * r, pz = cz + s * r;
-    if (blocked(ex, ez, px, pz)) continue;
+    if (blocked(ex, ez, px, pz, walls)) continue;
     const d = Math.abs((px - ex) * lz - (pz - ez) * lx) / ll;
     if (d < bd) { bd = d; best = [px, pz]; }
   }
@@ -1360,7 +1427,7 @@ const BOT_LV = {
   mid:  { name: '보통', react: [260, 340], flick: [95, 9],  pre: 2.0, head: 0.4,  hit1: 0.8,  hitN: 0.38 },
   low:  { name: '입문', react: [330, 430], flick: [140, 12], pre: 3.5, head: 0.25, hit1: 0.65, hitN: 0.25 },
 };
-const cfg = { mode: 'hold', ping: 35, lv: 'high', mySpot: 6, botSpot: 0, sens: 0.35, guide: true, bait: false };
+const cfg = { mode: 'hold', ping: 35, lv: 'high', map: 'range', mySpot: 1, botSpot: 0, sens: 0.35, guide: true, bait: false };
 const isTouch = matchMedia('(pointer:coarse)').matches;
 const drillEl = $('drill');
 drillEl.dataset.mode = cfg.mode;
@@ -1371,8 +1438,92 @@ const gView = $('gameView');
 const gScene = new THREE.Scene();
 gScene.background = new THREE.Color(BG_POV);
 gScene.fog = new THREE.Fog(BG_POV, 18, 60);
-const gEnv = buildEnv(gScene, null, true);
-const BOXES = [WALL_MAIN, ...ARENA, CRATE];
+/* ---- 맵: 각 맵의 대표 1대1 구간을 단순화한 블록아웃 (형태·거리 느낌만, 실제 치수 아님) ----
+   모든 맵은 같은 좌표 규칙: 핵심 벽의 끝(모서리)이 원점, 피커 쪽 벽면이 z=0, 피커는 남쪽(z>0)에서 +x로,
+   홀더는 북쪽(z<0). 그래서 앵글(벽 라인까지 거리)·봇 판단이 모든 맵에서 그대로 통한다 */
+const W = (x0, x1, z0, z1, h = 4.2, col) => ({ x0, x1, z0, z1, h, col });
+const BX = (x, z, w, d, h, col) => ({ x0: x - w / 2, x1: x + w / 2, z0: z - d / 2, z1: z + d / 2, h, col });
+const OUTER = (x0, x1, z0, z1, h = 5) => [W(x0 - 1, x0, z0, z1, h), W(x1, x1 + 1, z0, z1, h), W(x0 - 1, x1 + 1, z0 - 1, z0, h), W(x0 - 1, x1 + 1, z1, z1 + 1, h)];
+const MAPS = {
+  range: { name: '기본 연습장', sub: '벽 하나', desc: '얇은 벽 하나와 열린 공간. 앵글 감각을 익히는 기본 구간.', grid: true,
+    theme: { sky: 0x0b0d10, floor: 0x2c3038, wall: 0x575d69, top: 0x6a717e, box: 0x575d69, edge: 0x59606e, hemi: 1.1, sun: 1.6 },
+    boxes: [WALL_MAIN, ...ARENA, CRATE], peek: { x: [-3.8, -2.4], z: [0.7, 2.0] }, lane: [0.5, 3.2],
+    holds: [{ name: '근거리', ...holderAtWall(2) }, { name: '중거리', ...holderAtWall(6) }, { name: '원거리', ...holderAtWall(10) }] },
+  ascent: { name: '어센트', sub: 'A 메인 → A 사이트', desc: '폭 약 4.4m의 A 메인에서 A 사이트로 나오는 구간.',
+    theme: { sky: 0xa9bccb, floor: 0x9a8f7e, wall: 0xcdbb9c, top: 0xe2d4ba, box: 0x8a6a48, edge: 0x8d7d63, hemi: 1.5, sun: 2.0 },
+    boxes: [W(-14, 0, -0.4, 0), W(-14, -0.6, 4.4, 5.4), BX(7, -5.5, 2, 2, 2.4), BX(2.6, -10.5, 1.1, 1.1, 1.1), BX(9.6, 2.1, 1.2, 1.2, 1.1), ...OUTER(-14, 17, -17, 10)],
+    peek: { x: [-5, -3], z: [1.0, 3.6] }, lane: [0.6, 3.8],
+    holds: [{ name: '사이트 앞', x: 2.4, z: -3 }, { name: '박스 옆', x: 4.0, z: -7.5 }, { name: '사이트 깊은 곳', x: 5.6, z: -12.5 }] },
+  bind: { name: '바인드', sub: 'B 롱 → B 사이트', desc: '좁고 긴 B 롱(폭 약 3.4m) 끝에서 B 사이트로 나오는 구간.',
+    theme: { sky: 0xe6c9a1, floor: 0xb38c5e, wall: 0xd3a46c, top: 0xe6bd8a, box: 0x7b5a3a, edge: 0x9a7346, hemi: 1.45, sun: 2.0 },
+    boxes: [W(-20, 0, -0.4, 0, 4.4), W(-20, -1, 3.4, 4.4, 4.4), BX(5.6, -9, 1.2, 1.2, 3.0), BX(2.6, -14.5, 1.1, 1.1, 1.1), ...OUTER(-20, 15, -23, 9)],
+    peek: { x: [-6, -3], z: [0.8, 3.0] }, lane: [0.5, 3.0],
+    holds: [{ name: '엘보 근처', x: 3.4, z: -4 }, { name: '기둥 옆', x: 4.2, z: -10.2 }, { name: '사이트 깊은 곳', x: 6.2, z: -18 }] },
+  haven: { name: '헤이븐', sub: 'C 롱', desc: '넓고 긴 C 롱(폭 약 5.5m)의 끝 모서리를 C 사이트 쪽에서 잡는 구간.',
+    theme: { sky: 0xb8cad8, floor: 0x8c8576, wall: 0xe5ded1, top: 0xb5553c, box: 0x6b4a33, edge: 0xa79c8a, hemi: 1.45, sun: 1.9 },
+    boxes: [W(-16, 0, -0.4, 0, 4.4), W(-16, -2, 5.5, 6.5, 4.4), BX(5.0, -7.5, 1.1, 1.1, 1.1), BX(8, -16, 2, 2, 2.6), ...OUTER(-16, 13, -27, 10)],
+    peek: { x: [-6, -3], z: [1.0, 5.0] }, lane: [0.6, 5.0],
+    holds: [{ name: '롱 끝 근처', x: 2.8, z: -7.5 }, { name: '중거리', x: 4.0, z: -14 }, { name: '사이트 깊은 곳', x: 5.2, z: -22 }] },
+  split: { name: '스플릿', sub: 'B 메인 → B 사이트', desc: '좁은 B 메인(폭 약 3m)에서 B 사이트로 나오는 짧은 거리 교전.',
+    theme: { sky: 0x7d8ea3, floor: 0x6f737a, wall: 0x9095a0, top: 0xadb2ba, box: 0x3f4d60, edge: 0x5d6370, hemi: 1.35, sun: 1.8 },
+    boxes: [W(-12, 0, -0.4, 0), W(-12, -0.5, 3.0, 4.0), BX(5, -4.5, 2, 2, 2.2), BX(2.05, -8.95, 1.1, 1.1, 1.1), ...OUTER(-12, 11, -14, 8)],
+    peek: { x: [-5, -2.5], z: [0.8, 2.6] }, lane: [0.5, 2.6],
+    holds: [{ name: '사이트 앞', x: 2.2, z: -2.5 }, { name: '박스 옆', x: 2.8, z: -6.2 }, { name: '백사이트', x: 4.5, z: -11 }] },
+  icebox: { name: '아이스박스', sub: 'B 옐로 → B 사이트', desc: '컨테이너 사이 통로(폭 약 4m)에서 B 사이트로 나오는 구간.',
+    theme: { sky: 0xa9c4d9, floor: 0xc6d3dc, wall: 0xdfe8ee, top: 0xf3f7fa, box: 0xe0a13a, edge: 0x9fb2bf, hemi: 1.4, sun: 1.8 },
+    boxes: [W(-12, 0, -2.4, 0, 3.2, 0xb8402f), W(-12, -1.5, 4, 6.4, 3.2, 0x3b6ea8), W(5, 7.4, -9, -3, 2.6, 0xe0a13a), BX(2.6, -11.5, 1.1, 1.1, 1.1), ...OUTER(-12, 15, -17, 11)],
+    peek: { x: [-6, -3], z: [0.8, 3.6] }, lane: [0.5, 3.6],
+    holds: [{ name: '컨테이너 앞', x: 3.0, z: -3 }, { name: '중간', x: 3.6, z: -7.2 }, { name: '깊은 곳', x: 4.2, z: -13 }] },
+};
+const store = {                                  // 브라우저에 설정 기억 (실패해도 동작)
+  get(k, d) { try { const v = localStorage.getItem('peek.' + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem('peek.' + k, JSON.stringify(v)); } catch (e) { /* 무시 */ } },
+};
+const gLights = { hemi: new THREE.HemisphereLight(0xc4cad8, 0x0a0b0e, 1.1), sun: new THREE.DirectionalLight(0xffffff, 1.6), fill: new THREE.DirectionalLight(0xdfe4ee, 0.55) };
+gLights.sun.position.set(8, 14, 7); gLights.fill.position.set(-6, 8, -10);
+Object.values(gLights).forEach(l => gScene.add(l));
+let mapGroup = null, MAP = MAPS.range, BOXES = [], gWalls = [];
+const GW = { tall: [], all: [] };                // 키 큰 벽은 전부 가리고, 낮은 상자(1.1m)는 몸만 가린다
+// 벽 옆면 음영: 아래로 갈수록 어둡고 바닥 근처에 걸레받이 띠 (코드로 만든 텍스처)
+const wallShade = canvasTex((x, s) => {
+  const gr = x.createLinearGradient(0, 0, 0, s);
+  gr.addColorStop(0, '#ffffff'); gr.addColorStop(0.75, '#d9d9d9'); gr.addColorStop(1, '#a8a8a8');
+  x.fillStyle = gr; x.fillRect(0, 0, s, s);
+  x.fillStyle = 'rgba(0,0,0,.28)'; x.fillRect(0, s * 0.9, s, s * 0.04);
+}, 64);
+function buildMap(id) {
+  MAP = MAPS[id] || MAPS.range;
+  if (mapGroup) { gScene.remove(mapGroup); mapGroup.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material && o.material.dispose) o.material.dispose(); }); }
+  mapGroup = new THREE.Group();
+  const th = MAP.theme;
+  gScene.background.setHex(th.sky); gScene.fog.color.setHex(th.sky);
+  gLights.hemi.intensity = th.hemi; gLights.sun.intensity = th.sun;
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(90, 90), new THREE.MeshStandardMaterial({ color: th.floor, roughness: 1 }));
+  floor.rotation.x = -Math.PI / 2; mapGroup.add(floor);
+  if (MAP.grid) { const g = new THREE.GridHelper(90, 90, 0x2c323d, 0x2c323d); g.position.y = 0.003; mapGroup.add(g); }
+  const edge = new THREE.LineBasicMaterial({ color: th.edge });
+  gWalls = [];
+  for (const b of MAP.boxes) {
+    const low = b.h < 1.75;
+    const side = new THREE.MeshStandardMaterial({ color: b.col !== undefined ? b.col : low ? th.box : th.wall, roughness: 0.88, map: MAP.grid ? null : wallShade });
+    const top = new THREE.MeshStandardMaterial({ color: b.col !== undefined ? new THREE.Color(b.col).lerp(new THREE.Color(0xffffff), 0.25) : low ? th.box : th.top, roughness: 0.88 });
+    const geo = new THREE.BoxGeometry(b.x1 - b.x0, b.h, b.z1 - b.z0);
+    const mesh = new THREE.Mesh(geo, [side, side, top, side, side, side]);
+    mesh.position.set((b.x0 + b.x1) / 2, b.h / 2, (b.z0 + b.z1) / 2);
+    const lines = new THREE.LineSegments(new THREE.EdgesGeometry(geo), edge);
+    lines.position.copy(mesh.position);
+    mapGroup.add(mesh, lines);
+    gWalls.push(mesh);
+  }
+  BOXES = MAP.boxes;
+  GW.tall = MAP.boxes.filter(b => b.h > 1.75);
+  GW.all = MAP.boxes.filter(b => b.h >= 0.9);
+  gScene.add(mapGroup);
+}
+// 게임 안 시야: 머리는 낮은 상자 위로 보이고, 몸은 낮은 상자에 가린다
+const gHeadVis = (ex, ez, cx, cz) => visiblePoint(ex, ez, cx, cz, 0.12, GW.tall);
+const gBodyVis = (ex, ez, cx, cz) => visiblePoint(ex, ez, cx, cz, R_BODY, GW.all);
+const gSees = (ex, ez, cx, cz) => gHeadVis(ex, ez, cx, cz) || gBodyVis(ex, ez, cx, cz);
 const gCam = new THREE.PerspectiveCamera(70, 16 / 9, 0.02, 200);
 gCam.rotation.order = 'YXZ';
 gScene.add(gCam);
@@ -1533,8 +1684,9 @@ function yawPitchTo(fx, fy, fz, tx, ty, tz) {
 function botLook(t, delay = RD.delay) {             // 봇 눈에 보이는 나 (지연된 위치 기준)
   const p = playerAt(t - delay); if (!p) return null;
   const e = botPosAt(t);
-  if (!visiblePoint(e.x, e.z, p.x, p.z)) return null;
-  return { e, p, head: visiblePoint(e.x, e.z, p.x, p.z, 0.12) !== null, hy: eyeY(p.y, p.crouch) };
+  const head = gHeadVis(e.x, e.z, p.x, p.z) !== null, body = gBodyVis(e.x, e.z, p.x, p.z) !== null;
+  if (!head && !body) return null;
+  return { e, p, head, body, hy: eyeY(p.y, p.crouch) };
 }
 // 프레임 사이에서 처음 참이 되는 시각을 이분 탐색 (프레임 간격에 상관없이 ms 단위로 정확하게)
 function refine(test, t0, t1) {
@@ -1574,7 +1726,7 @@ function botUpdate(t) {
       if (st > t || !botReady(st)) break;
       const lk = botLook(st) || look;
       b.nextShot = st + 1000 / VANDAL.rate; b.shots++; b.flashT = 60;
-      const part = lk.head && Math.random() < lv.head ? 'head' : 'body';
+      const part = lk.head && (!lk.body || Math.random() < lv.head) ? 'head' : 'body';
       if (Math.random() < (b.shots === 1 ? lv.hit1 : lv.hitN)) {
         applyDamage(PL, VANDAL[part]);
         ui.hit.classList.add('on'); setTimeout(() => ui.hit.classList.remove('on'), 90);
@@ -1598,15 +1750,16 @@ function newRound() {
   const lv = BOT_LV[cfg.lv];
   const sgn = () => (Math.random() < 0.5 ? -1 : 1);
   if (cfg.mode === 'hold') {
-    const H = holderAtWall(cfg.mySpot); PL.x = H.x; PL.z = H.z;
-    // 봇 = 피커(제트): 와이드 / 타이트 / 어깨 미끼
+    const H = MAP.holds[cfg.mySpot] || MAP.holds[0]; PL.x = H.x; PL.z = H.z;
+    // 봇 = 피커(제트): 와이드 / 타이트 / 어깨 미끼. 통로 폭 안에서 고른다
     const types = cfg.bait ? ['wide', 'wide', 'tight', 'bait'] : ['wide', 'wide', 'tight'];
     const type = types[Math.floor(Math.random() * types.length)];
-    const lane = type === 'tight' ? rand(0.5, 1.1) : rand(1.5, 3.2);
+    const [l0, l1] = MAP.lane, mid = (l0 + l1) / 2;
+    const lane = type === 'tight' ? rand(l0, Math.min(l0 + 0.6, mid)) : rand(mid, l1);
     const speed = type === 'tight' ? rand(2.6, 4.0) : rand(5.2, MOVE.run);
-    const xE = crossX(x => visiblePoint(PL.x, PL.z, x, lane) !== null);
-    const xS = crossX(x => visiblePoint(x, lane, PL.x, PL.z) !== null);
-    const x0 = Math.min(xE, xS) - rand(1.0, 1.6);
+    const xE = crossX(x => !!gSees(PL.x, PL.z, x, lane));
+    const xS = crossX(x => !!gSees(x, lane, PL.x, PL.z));
+    const x0 = Math.max(Math.min(xE, xS) - rand(1.0, 1.6), MAP.peek.x[0] - 2);
     const xs = type === 'tight' ? Math.max(xE, xS) + rand(0.35, 0.7) : Math.max(xE, xS) + rand(1.0, 1.8);
     const k = [{ t: 0, x: x0 }];
     let commit = 0;
@@ -1629,15 +1782,24 @@ function newRound() {
     G.timer = 1100;
   } else {
     // 봇 = 홀더(사이퍼): 벽 라인에서 떨어진 거리를 바꿔 가며 잡는다
-    PL.x = -rand(2.4, 3.8); PL.z = rand(0.7, 2.0);
-    const dw = cfg.botSpot || rand(1.5, 11), kx = rand(0.25, 0.6);
-    const bx = Math.max(0.8, kx * dw + 0.3), bz = -dw;
-    const bot = { kind: 'holder', x: bx, z: bz, dw, startT: 0, commit: 0, endT: 0 };
+    PL.x = rand(MAP.peek.x[0], MAP.peek.x[1]); PL.z = rand(MAP.peek.z[0], MAP.peek.z[1]);
+    // 봇 = 홀더(사이퍼): 고른 자리, 또는 랜덤(맵의 자리 중 하나 + 약간의 흔들림)
+    let spot = MAP.holds[cfg.botSpot - 1], bx, bz;
+    if (spot) { bx = spot.x; bz = spot.z; }
+    else {
+      spot = MAP.holds[Math.floor(Math.random() * MAP.holds.length)];
+      for (let i = 0; i < 12; i++) {
+        bx = spot.x + rand(-0.6, 0.6); bz = spot.z + rand(-0.8, 0.8);
+        if (bz < -0.8 && bx > 0.6 && !BOXES.some(b => bx > b.x0 - 0.4 && bx < b.x1 + 0.4 && bz > b.z0 - 0.4 && bz < b.z1 + 0.4)) break;
+        bx = spot.x; bz = spot.z;
+      }
+    }
+    const bot = { kind: 'holder', x: bx, z: bz, dw: -bz, spotName: spot.name, startT: 0, commit: 0, endT: 0 };
     const [ay, ap] = yawPitchTo(bx, EYE, bz, 0.05, EYE, 0.05);
     const pe = deg(lv.pre), pa = Math.random() * Math.PI * 2;
     Object.assign(bot, { aimYaw: ay + pe * Math.cos(pa), aimPitch: ap + pe * Math.sin(pa) * 0.5 });
     RD.bot = bot;
-    [PL.yaw, PL.pitch] = yawPitchTo(PL.x, EYE, PL.z, 3, EYE, -5);
+    [PL.yaw, PL.pitch] = yawPitchTo(PL.x, EYE, PL.z, 6, EYE, -1.5);   // 통로 출구 쪽을 보며 시작
     G.timer = 900;
   }
   Object.assign(RD.bot, { hp: VANDAL.hp, sh: VANDAL.shield, alive: true, seeT: null, flickStart: 0, fireAt: Infinity, nextShot: 0,
@@ -1727,6 +1889,7 @@ function toast(title, sub, good) {
 }
 function showSummary() {
   G.running = false; G.phase = 'idle'; keys.clear();
+  $('mapSel').disabled = false;
   ui.vig.classList.remove('dead');
   if (document.pointerLockElement === gCanvas) document.exitPointerLock();
   const rs = G.results;
@@ -1788,7 +1951,7 @@ function playerShoot(t) {
   RD.shots++;
   if (RD.firstShot === null && RD.firstP !== null) RD.firstShot = { t, speed: spd, err, ok };
   G.flashT = 45; PL.kick = 1;
-  const wall = ray.intersectObjects(gEnv.walls, false)[0];
+  const wall = ray.intersectObjects(gWalls, false)[0];
   const b = RD.bot;
   let hit = null;
   if (b.alive) { RD.model.root.updateMatrixWorld(true); hit = ray.intersectObjects(RD.model.hitboxes, false)[0]; }
@@ -1796,7 +1959,7 @@ function playerShoot(t) {
     const part = hit.object.userData.part;
     applyDamage(b, VANDAL[part]);
     spawnImpact(hit.point, ACCENT);
-    ui.gx.classList.add('hit'); setTimeout(() => ui.gx.classList.remove('hit'), 110);
+    G.hitT = 110;
     if (b.hp <= 0) { b.alive = false; endRound('win', t, part); }
   } else if (wall) spawnImpact(wall.point, 0xcfd3da);
   if (PL.ammo === 0) startReload();
@@ -1843,7 +2006,14 @@ function updatePlayer(dt) {
 }
 
 /* ---- 입력 ---- */
-function updateInfo() { ui.info.innerHTML = `핑 ${cfg.ping}ms · 상대 ${BOT_LV[cfg.lv].name}<br>감도 ${cfg.sens} · 시야 103°`; }
+function updateInfo() { ui.info.innerHTML = `${MAP.name}${cfg.map === 'range' ? '' : ' · ' + MAP.sub}<br>핑 ${cfg.ping}ms · 상대 ${BOT_LV[cfg.lv].name} · 감도 ${cfg.sens}`; }
+function updateStartText() {
+  ui.startTitle.textContent = cfg.mode === 'peek' ? '피킹 연습' : '홀드 연습';
+  $('gMapLine').textContent = `${MAP.name}${cfg.map === 'range' ? '' : ' · ' + MAP.sub} — ${MAP.desc}`;
+  ui.startDesc.innerHTML = cfg.mode === 'peek'
+    ? '너는 벽 뒤의 피커(제트). 사이퍼가 사이트 어딘가를 잡고 있다. <b>넓게, 빠르게 나와서 반대 키로 멈추고</b> 쏘자. 이동 중에 쏘면 탄이 퍼진다.'
+    : '너는 홀더(사이퍼). 제트가 모서리에서 튀어나온다. 조준점을 <b>머리 높이·모서리 끝</b>에 걸고 기다리자. 움직여서 벽에서 더 떨어져 잡아도 된다.';
+}
 function setMode(mode) {
   if (G.running) return;
   if (mode === 'peek' && isTouch) { toast('피킹 연습은 키보드·마우스가 필요하다', '', false); return; }
@@ -1851,39 +2021,38 @@ function setMode(mode) {
   document.querySelectorAll('.tabs button').forEach(b => { const on = b.dataset.mode === mode; b.classList.toggle('on', on); b.setAttribute('aria-selected', on); });
   vmSleeve.color.setHex(mode === 'peek' ? PALETTE.jett.coat : PALETTE.cypher.coat);
   vmGlove.color.setHex(mode === 'peek' ? PALETTE.jett.glove : PALETTE.cypher.glove);
-  ui.startTitle.textContent = mode === 'peek' ? '피킹 연습' : '홀드 연습';
-  ui.startDesc.innerHTML = mode === 'peek'
-    ? '너는 벽 뒤의 피커(제트). 사이퍼가 벽에서 떨어진 어딘가를 잡고 있다. <b>넓게, 빠르게 나와서 반대 키로 멈추고</b> 쏘자. 이동 중에 쏘면 탄이 퍼진다.'
-    : '너는 홀더(사이퍼). 제트가 벽 끝에서 튀어나온다. 조준점을 <b>머리 높이·벽 끝</b>에 걸고 기다리자. 움직여서 벽에서 더 떨어져 잡아도 된다.';
+  updateStartText();
   G.results = []; renderRoundDots(); renderStats(); idleView();
 }
 document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
-document.querySelectorAll('.chips').forEach(box => box.addEventListener('click', e => {
+document.querySelectorAll('.cfgbar .chips[data-k]').forEach(box => box.addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
   box.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
   const v = b.dataset.v; cfg[box.dataset.k] = isNaN(+v) ? v : +v;
   updateInfo();
   if (!G.running) idleView();
 }));
-$('sens').addEventListener('input', e => { const v = parseFloat(e.target.value); if (v > 0) { cfg.sens = v; updateInfo(); } });
+$('sens').addEventListener('input', e => { const v = parseFloat(e.target.value); if (v > 0) { cfg.sens = v; store.set('sens', v); updateInfo(); } });
 $('guide').addEventListener('change', e => { cfg.guide = e.target.checked; });
 $('bait').addEventListener('change', e => { cfg.bait = e.target.checked; });
 
 function idleView() {
   for (const m of Object.values(botModels)) m.root.visible = false;
   if (cfg.mode === 'hold') {
-    const H = holderAtWall(cfg.mySpot); PL.x = H.x; PL.z = H.z;
-    const xE = crossX(x => visiblePoint(PL.x, PL.z, x, 1.5) !== null);
-    [PL.yaw, PL.pitch] = yawPitchTo(PL.x, EYE, PL.z, xE, EYE, 1.5);
+    const H = MAP.holds[cfg.mySpot] || MAP.holds[0]; PL.x = H.x; PL.z = H.z;
+    const ln = (MAP.lane[0] + MAP.lane[1]) / 2;
+    const xE = crossX(x => !!gSees(PL.x, PL.z, x, ln));
+    [PL.yaw, PL.pitch] = yawPitchTo(PL.x, EYE, PL.z, xE, EYE, ln);
   } else {
-    PL.x = -3; PL.z = 1.2;
-    [PL.yaw, PL.pitch] = yawPitchTo(PL.x, EYE, PL.z, 3, EYE, -5);
+    PL.x = (MAP.peek.x[0] + MAP.peek.x[1]) / 2; PL.z = (MAP.peek.z[0] + MAP.peek.z[1]) / 2;
+    [PL.yaw, PL.pitch] = yawPitchTo(PL.x, EYE, PL.z, 6, EYE, -1.5);
   }
   PL.y = 0; PL.crouch = 0;
   ui.result.innerHTML = '라운드가 끝나면 누가 몇 ms 먼저 봤는지, 네트워크와 앵글이 각각 얼마였는지, 첫 발이 정확한 상태였는지 여기에 나온다.';
 }
 function startDrill(mode) {
   if (!gCanvas) return;
+  $('mapSel').disabled = true;
   G.running = true; G.paused = false; G.results = []; G.roundNo = 0;
   ui.start.classList.add('hidden'); ui.summary.classList.add('hidden'); ui.pause.classList.add('hidden');
   renderRoundDots(); renderStats();
@@ -1972,6 +2141,227 @@ if (gCanvas) {
   });
 }
 
+/* ---- 맵·자리 선택 ---- */
+const mapSel = $('mapSel');
+mapSel.innerHTML = Object.entries(MAPS).map(([k, m]) => `<option value="${k}">${m.name}${k === 'range' ? '' : ' · ' + m.sub}</option>`).join('');
+const spotLabel = h => `${h.name} ${fmt1(Math.abs(h.z))}m`;
+function renderSpotChips() {
+  $('chipsMy').innerHTML = MAP.holds.map((h, i) => `<button data-v="${i}" class="${i === cfg.mySpot ? 'on' : ''}" title="벽 라인에서 ${fmt1(Math.abs(h.z))}m">${spotLabel(h)}</button>`).join('');
+  $('chipsBot').innerHTML = `<button data-v="0" class="${cfg.botSpot === 0 ? 'on' : ''}">랜덤</button>`
+    + MAP.holds.map((h, i) => `<button data-v="${i + 1}" class="${cfg.botSpot === i + 1 ? 'on' : ''}" title="벽 라인에서 ${fmt1(Math.abs(h.z))}m">${spotLabel(h)}</button>`).join('');
+}
+function selectMap(id) {
+  if (G.running) return;
+  cfg.map = MAPS[id] ? id : 'range'; mapSel.value = cfg.map; store.set('map', cfg.map);
+  buildMap(cfg.map);
+  cfg.mySpot = Math.min(cfg.mySpot, MAP.holds.length - 1);
+  if (cfg.botSpot > MAP.holds.length) cfg.botSpot = 0;
+  renderSpotChips(); updateInfo(); updateStartText(); idleView(); xhSig = ''; drawXhPreview();
+}
+mapSel.addEventListener('change', () => selectMap(mapSel.value));
+
+/* ---- 조준점 (발로란트 방식: 색·외곽선·중앙 점·안쪽/바깥쪽 선·이동/사격 오차, 코드 호환) ---- */
+const XH_COLORS = ['#ffffff', '#00ff00', '#7fff00', '#dfff00', '#ffff00', '#00ffff', '#ff00ff', '#ff0000'];
+const XH_COLOR_NAMES = ['흰색', '초록', '연두', '황록', '노랑', '청록', '분홍', '빨강'];
+const XH_DEF = { c: 0, u: 'FFFFFFFF', h: 1, t: 1, o: 0.5, d: 0, z: 2, a: 1,
+  in: { b: 1, t: 2, l: 6, v: 6, g: 0, o: 3, a: 0.8, m: 0, s: 1, f: 1, e: 1 },
+  out: { b: 1, t: 2, l: 2, v: 2, g: 0, o: 10, a: 0.35, m: 1, s: 1, f: 1, e: 1 } };
+const XH_P = ['c', 'u', 'h', 't', 'o', 'd', 'z', 'a'];
+const XH_L = ['b', 't', 'l', 'v', 'g', 'o', 'a', 'm', 's', 'f', 'e'];
+const XH_RANGE = { c: [0, 8], h: [0, 1], t: [1, 6], o: [0, 1], d: [0, 1], z: [1, 6], a: [0, 1],
+  L: { b: [0, 1], t: [0, 10], l: [0, 20], v: [0, 20], g: [0, 1], o: [0, 20], a: [0, 1], m: [0, 1], s: [0, 3], f: [0, 1], e: [0, 3] } };
+const cloneXh = x => JSON.parse(JSON.stringify(x));
+function normXh(x) {
+  const n = cloneXh(XH_DEF);
+  for (const k of XH_P) if (k !== 'u' && isFinite(x[k])) n[k] = clamp(+x[k], ...XH_RANGE[k]);
+  if (typeof x.u === 'string' && /^[0-9a-fA-F]{6,8}$/.test(x.u)) n.u = x.u.toUpperCase().padEnd(8, 'F');
+  for (const L of ['in', 'out']) for (const k of XH_L) if (x[L] && isFinite(x[L][k])) n[L][k] = clamp(+x[L][k], ...XH_RANGE.L[k]);
+  n.c = Math.round(n.c);
+  return n;
+}
+let XH = normXh(store.get('xh', XH_DEF)), xhVer = 0, xhSig = '';
+function parseXhCode(code) {               // 커뮤니티가 해석한 발로란트 코드 형식: 0;P;키;값;… (P = 기본 조준점)
+  const tk = String(code).trim().split(';').map(x => x.trim()).filter(x => x !== '');
+  if (!tk.length || !/^\d+$/.test(tk[0])) throw new Error('발로란트 조준점 코드 형식이 아니다 (숫자;P;… 로 시작).');
+  const x = cloneXh(XH_DEF);
+  let sec = null;
+  for (let i = 1; i < tk.length; i++) {
+    const k = tk[i];
+    if (k === 'P' || k === 'A' || k === 'S') { sec = k; continue; }
+    const v = tk[++i];
+    if (v === undefined) break;
+    if (sec !== 'P') continue;                // 조준(ADS)·저격 조준점은 무시
+    if (/^[01][a-z]$/.test(k)) { if (XH_L.includes(k[1])) x[k[0] === '0' ? 'in' : 'out'][k[1]] = parseFloat(v); }
+    else if (k === 'u') x.u = v;
+    else if (XH_P.includes(k)) x[k] = parseFloat(v);
+  }
+  return normXh(x);
+}
+const numStr = v => String(Math.round(v * 1000) / 1000);
+function xhToCode(x) {
+  const out = ['0', 'P'];
+  for (const k of XH_P) {
+    if (k === 'u') { if (x.c === 8) out.push('u', x.u); continue; }
+    if (x[k] !== XH_DEF[k]) out.push(k, numStr(x[k]));
+  }
+  for (const [pre, L] of [['0', 'in'], ['1', 'out']]) for (const k of XH_L) if (x[L][k] !== XH_DEF[L][k]) out.push(pre + k, numStr(x[L][k]));
+  return out.length === 2 ? '0' : out.join(';');
+}
+const xhColor = () => (XH.c === 8 ? '#' + XH.u.slice(0, 6) : XH_COLORS[XH.c] || '#ffffff');
+// 오차(°)를 화면 픽셀로: 실제 탄퍼짐과 같은 각도만큼 선이 벌어진다
+const errPx = (degV, cssH, vfov) => Math.tan(deg(degV)) / Math.tan(deg(vfov) / 2) * cssH / 2;
+function drawXh(ctx, cssW, cssH, dpr, unit, movePx, firePx) {
+  const cx = Math.round(cssW / 2 * dpr), cy = Math.round(cssH / 2 * dpr), u = unit * dpr;
+  const col = xhColor(), ot = XH.h ? Math.max(1, Math.round(XH.t * u)) : 0;
+  const rect = (x, y, w, h, a) => {
+    x = Math.round(x); y = Math.round(y); w = Math.max(1, Math.round(w)); h = Math.max(1, Math.round(h));
+    if (ot) { ctx.globalAlpha = XH.o; ctx.fillStyle = '#000'; ctx.fillRect(x - ot, y - ot, w + ot * 2, h + ot * 2); }
+    ctx.globalAlpha = a; ctx.fillStyle = col; ctx.fillRect(x, y, w, h);
+    ctx.globalAlpha = 1;
+  };
+  for (const L of [XH.out, XH.in]) {
+    if (!L.b || L.a <= 0 || L.t <= 0) continue;
+    const t = Math.max(1, Math.round(L.t * u)), len = L.l * u, vlen = (L.g ? L.v : L.l) * u;
+    const off = Math.round(L.o * u + ((L.m ? movePx * L.s : 0) + (L.f ? firePx * L.e : 0)) * dpr);
+    const half = Math.floor(t / 2);
+    if (len > 0) { rect(cx + off, cy - half, len, t, L.a); rect(cx - off - len, cy - half, len, t, L.a); }
+    if (vlen > 0) { rect(cx - half, cy + off, t, vlen, L.a); rect(cx - half, cy - off - vlen, t, vlen, L.a); }
+  }
+  if (XH.d && XH.a > 0) { const z = Math.max(1, Math.round(XH.z * u)); rect(cx - Math.floor(z / 2), cy - Math.floor(z / 2), z, z, XH.a); }
+}
+function fireError() {                       // 연사 직후 벌어졌다가 회복되는 사격 오차(°)
+  const dt = G.t - PL.lastShot;
+  if (G.phase !== 'live' || dt < 0 || dt > VANDAL.recover) return 0;
+  return (VANDAL.stand + Math.min(PL.sprayN, 8) * 0.32) * (1 - dt / VANDAL.recover);
+}
+const xhCanvas = $('gXh'), xhCtx = xhCanvas.getContext('2d');
+function drawGameXh() {
+  const w = gView.clientWidth, h = gView.clientHeight, dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const W2 = Math.round(w * dpr), H2 = Math.round(h * dpr);
+  if (xhCanvas.width !== W2 || xhCanvas.height !== H2) { xhCanvas.width = W2; xhCanvas.height = H2; xhSig = ''; }
+  const mv = errPx(moveError(), h, gCam.fov), fe = errPx(fireError(), h, gCam.fov);
+  const sig = `${W2}|${H2}|${mv.toFixed(1)}|${fe.toFixed(1)}|${xhVer}`;
+  if (sig === xhSig) return;
+  xhSig = sig;
+  xhCtx.setTransform(1, 0, 0, 1, 0, 0); xhCtx.clearRect(0, 0, W2, H2);
+  drawXh(xhCtx, w, h, dpr, h / 1080, mv, fe);        // 1080p 픽셀 기준을 화면 높이에 맞춰 환산
+}
+let xhBg = 'dark';
+function drawXhPreview() {
+  for (const [cv, zoom, bgk] of [[$('xhPrev'), 2, xhBg], [$('xhMini'), 1, 'dark']]) {
+    const w = cv.clientWidth || 300, h = cv.clientHeight || 220, dpr = Math.min(window.devicePixelRatio || 1, 2);
+    cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+    const ctx = cv.getContext('2d');
+    if (bgk === 'map') {
+      const th = MAP.theme, gr = ctx.createLinearGradient(0, 0, 0, cv.height);
+      gr.addColorStop(0, '#' + new THREE.Color(th.sky).getHexString()); gr.addColorStop(0.5, '#' + new THREE.Color(th.wall).getHexString());
+      gr.addColorStop(1, '#' + new THREE.Color(th.floor).getHexString());
+      ctx.fillStyle = gr;
+    } else ctx.fillStyle = bgk === 'light' ? '#d9dee4' : '#1b1f27';
+    ctx.fillRect(0, 0, cv.width, cv.height);
+    const mv = cv.id === 'xhPrev' && $('xhErr').checked ? errPx(VANDAL.walkErr, 1080, vfovFor(16 / 9)) * zoom : 0;
+    drawXh(ctx, w, h, dpr, zoom, mv, 0);
+  }
+}
+const XH_LINE_UI = [
+  { k: 'b', label: '표시', type: 'tg' },
+  { k: 'a', label: '불투명도', min: 0, max: 1, step: 0.05, dep: 'b' },
+  { k: 'l', label: '길이', min: 0, max: 20, step: 1, dep: 'b' },
+  { k: 'g', label: '세로 길이 따로', type: 'tg', dep: 'b' },
+  { k: 'v', label: '세로 길이', min: 0, max: 20, step: 1, dep: 'g' },
+  { k: 't', label: '두께', min: 0, max: 10, step: 1, dep: 'b' },
+  { k: 'o', label: '간격(오프셋)', min: 0, max: 20, step: 1, dep: 'b' },
+  { k: 'm', label: '이동 오차', type: 'tg', dep: 'b' },
+  { k: 's', label: '이동 오차 배수', min: 0, max: 3, step: 0.1, dep: 'm' },
+  { k: 'f', label: '사격 오차', type: 'tg', dep: 'b' },
+  { k: 'e', label: '사격 오차 배수', min: 0, max: 3, step: 0.1, dep: 'f' },
+];
+const XH_UI = [
+  { title: '기본', path: '', items: [
+    { k: 'c', type: 'color' },
+    { k: 'h', label: '외곽선', type: 'tg' },
+    { k: 'o', label: '외곽선 불투명도', min: 0, max: 1, step: 0.05, dep: 'h' },
+    { k: 't', label: '외곽선 두께', min: 1, max: 6, step: 1, dep: 'h' },
+    { k: 'd', label: '중앙 점', type: 'tg' },
+    { k: 'a', label: '중앙 점 불투명도', min: 0, max: 1, step: 0.05, dep: 'd' },
+    { k: 'z', label: '중앙 점 두께', min: 1, max: 6, step: 1, dep: 'd' }] },
+  { title: '안쪽 선', path: 'in', items: XH_LINE_UI },
+  { title: '바깥쪽 선', path: 'out', items: XH_LINE_UI },
+];
+const xhGet = (p, k) => (p ? XH[p][k] : XH[k]);
+function buildXhUI() {
+  $('xhGrid').innerHTML = XH_UI.map(g => `<div class="xh-col"><h4>${g.title}</h4>` + g.items.map(it => {
+    const da = `data-p="${g.path}" data-k="${it.k}"${it.dep ? ` data-dep="${it.dep}"` : ''}`;
+    if (it.type === 'color') return `<div class="xh-colors" ${da}>` + XH_COLORS.map((c, i) => `<button type="button" data-ci="${i}" title="${XH_COLOR_NAMES[i]}" style="background:${c}"></button>`).join('')
+      + `<input type="color" data-ci="8" title="사용자 지정 색" aria-label="사용자 지정 색"></div>`;
+    if (it.type === 'tg') return `<label class="xh-item tg" ${da}><span>${it.label}</span><input type="checkbox" ${da}></label>`;
+    return `<label class="xh-item" ${da}><span>${it.label}</span><output></output><input type="range" min="${it.min}" max="${it.max}" step="${it.step}" ${da}></label>`;
+  }).join('') + '</div>').join('');
+  $('xhPresets').innerHTML = XH_PRESETS.map((p, i) => `<button class="mini" data-i="${i}">${p.name}</button>`).join('');
+}
+function syncXhUI() {
+  document.querySelectorAll('#xhGrid input[type=checkbox]').forEach(el => { el.checked = !!xhGet(el.dataset.p, el.dataset.k); });
+  document.querySelectorAll('#xhGrid input[type=range]').forEach(el => { const v = xhGet(el.dataset.p, el.dataset.k); el.value = v; el.previousElementSibling.textContent = numStr(v); });
+  document.querySelectorAll('#xhGrid [data-dep]').forEach(el => {
+    if (el.tagName === 'INPUT') return;
+    const p = el.dataset.p, dep = el.dataset.dep;
+    const on = !!xhGet(p, dep) && (dep === 'g' || dep === 'm' || dep === 'f' ? !!xhGet(p, 'b') : true);
+    el.classList.toggle('off', !on);
+  });
+  document.querySelectorAll('.xh-colors button').forEach(b => b.classList.toggle('on', +b.dataset.ci === XH.c));
+  const cp = document.querySelector('.xh-colors input[type=color]'); cp.value = '#' + XH.u.slice(0, 6).toLowerCase();
+  cp.classList.toggle('on', XH.c === 8);
+  $('xhCode').value = xhToCode(XH);
+}
+function onXhChange(msg) {
+  XH = normXh(XH); xhVer++; xhSig = '';
+  store.set('xh', XH);
+  syncXhUI(); drawXhPreview();
+  $('xhMsg').textContent = msg || ''; $('xhMsg').classList.remove('err');
+}
+const XH_PRESETS = [
+  { name: '기본', code: '0' },
+  { name: '작은 십자 1-4-2-2', code: '0;P;c;5;h;0;0l;4;0o;2;0a;1;0f;0;1b;0' },
+  { name: '점', code: '0;P;c;1;d;1;z;3;0b;0;1b;0' },
+  { name: '큰 십자', code: '0;P;c;1;0l;8;0o;4;0a;1;0f;0;1b;0' },
+  { name: '이동 오차 연습용', code: '0;P;0l;4;0o;2;0a;1;0m;1;1b;0' },
+];
+buildXhUI();
+$('xhGrid').addEventListener('input', e => {
+  const el = e.target, p = el.dataset.p, k = el.dataset.k;
+  if (el.type === 'color') { XH.c = 8; XH.u = el.value.slice(1).toUpperCase() + 'FF'; return onXhChange(); }
+  if (!k) return;
+  const v = el.type === 'checkbox' ? (el.checked ? 1 : 0) : parseFloat(el.value);
+  if (p) XH[p][k] = v; else XH[k] = v;
+  onXhChange();
+});
+$('xhGrid').addEventListener('click', e => {
+  const b = e.target.closest('.xh-colors button'); if (!b) return;
+  XH.c = +b.dataset.ci; onXhChange();
+});
+$('xhPresets').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  XH = parseXhCode(XH_PRESETS[+b.dataset.i].code); onXhChange(`‘${XH_PRESETS[+b.dataset.i].name}’ 적용`);
+});
+$('xhApply').addEventListener('click', () => {
+  try { XH = parseXhCode($('xhCode').value); onXhChange('코드를 적용했다.'); }
+  catch (err) { $('xhMsg').textContent = err.message; $('xhMsg').classList.add('err'); }
+});
+$('xhCode').addEventListener('keydown', e => { if (e.key === 'Enter') $('xhApply').click(); });
+$('xhCopy').addEventListener('click', async () => {
+  const code = xhToCode(XH);
+  try { await navigator.clipboard.writeText(code); $('xhMsg').textContent = '복사했다. 발로란트 조준점 설정의 ‘가져오기’에 붙여 넣으면 된다.'; }
+  catch (err) { $('xhCode').select(); $('xhMsg').textContent = '자동 복사가 막혀 있다. 선택된 코드를 Ctrl+C로 복사하자.'; }
+});
+$('xhBg').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  $('xhBg').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+  xhBg = b.dataset.v; drawXhPreview();
+});
+$('xhErr').addEventListener('change', drawXhPreview);
+$('xhCard').addEventListener('toggle', drawXhPreview);
+new ResizeObserver(drawXhPreview).observe($('xhPrev'));
+
 /* ---- 매 프레임 ---- */
 function updateHud() {
   ui.hp.textContent = Math.max(0, Math.ceil(PL.hp)); ui.sh.textContent = Math.max(0, Math.ceil(PL.sh));
@@ -1997,6 +2387,7 @@ function tickDrill(dt) {
   gCam.position.set(PL.x, eyeY() - PL.fall * 0.9, PL.z);
   gCam.rotation.set(PL.pitch, PL.yaw, PL.fall * 0.5);
   updateHud();
+  drawGameXh();
   G.lastFrame = performance.now();
   if (!G.running || G.paused) return;
   const sdt = dt / 1000;
@@ -2015,9 +2406,9 @@ function tickDrill(dt) {
     const s = placeBot(G.t);
     const a = botPosAt(G.t);
     // 내가 상대 몸을 처음 본 순간 (화면 기준 / 지연 없는 기하 기준). 프레임 사이를 보간해 ms 단위로
-    const seesAt = (tt, shown) => { const me = playerAt(tt), o = shown ? botShownAt(tt) : botPosAt(tt); return !!visiblePoint(me.x, me.z, o.x, o.z); };
-    if (RD.firstP0 === null && visiblePoint(PL.x, PL.z, a.x, a.z)) RD.firstP0 = refine(tt => seesAt(tt, false), tPrev, G.t);
-    if (RD.firstP === null && visiblePoint(PL.x, PL.z, s.x, s.z)) {
+    const seesAt = (tt, shown) => { const me = playerAt(tt), o = shown ? botShownAt(tt) : botPosAt(tt); return !!gSees(me.x, me.z, o.x, o.z); };
+    if (RD.firstP0 === null && gSees(PL.x, PL.z, a.x, a.z)) RD.firstP0 = refine(tt => seesAt(tt, false), tPrev, G.t);
+    if (RD.firstP === null && gSees(PL.x, PL.z, s.x, s.z)) {
       RD.firstP = refine(tt => seesAt(tt, true), tPrev, G.t);
       RD.contact = { me: wallDist(PL.x, PL.z), bot: wallDist(s.x, s.z) };
       if (cfg.mode === 'hold') {
@@ -2045,12 +2436,17 @@ function tickDrill(dt) {
   if (showGuide && (!G.guideAt || Math.hypot(G.guideAt.x - PL.x, G.guideAt.z - PL.z) > 0.05)) {
     G.guideAt = { x: PL.x, z: PL.z };
     const lane = RD.guideLane;
-    guide.position.set(crossX(x => visiblePoint(PL.x, PL.z, x, lane) !== null), EYE, lane);
+    guide.position.set(crossX(x => !!gSees(PL.x, PL.z, x, lane)), EYE, lane);
   }
   guide.visible = !!showGuide;
 }
 function renderDrill() { if (gRenderer) gRenderer.render(gScene, gCam); }
-updateInfo(); setMode('hold');
+cfg.sens = store.get('sens', cfg.sens); $('sens').value = cfg.sens;
+cfg.map = store.get('map', 'range');
+buildMap(MAPS[cfg.map] ? cfg.map : 'range');
+mapSel.value = MAPS[cfg.map] ? cfg.map : 'range';
+renderSpotChips(); updateInfo(); setMode('hold');
+syncXhUI(); drawXhPreview();
 
 /* ================= 루프 ================= */
 const visible = { stage: true, drill: false };        // 화면에 보이는 쪽만 그린다
