@@ -471,9 +471,19 @@
       if ((r.classes || []).length) foot.append(el("span", "badge", (r.classes || []).join("·") + " 반"));
       const chk = state.refcheck && state.refcheck[r.youtube ? "yt:" + r.youtube : "url:" + r.url];
       if (chk) {
-        const okLink = chk.status >= 200 && chk.status < 400;
-        if (!okLink) { const b = el("span", "badge warn", "링크 확인 안 됨"); b.title = (chk.error || "HTTP " + chk.status) + " · " + (chk.checked || "").slice(0, 10); foot.append(b); }
-        else if (chk.latest_upload) foot.append(el("span", "badge", "최근 업로드 " + chk.latest_upload.slice(5).replace("-", "/")));
+        const st = chk.status || 0;
+        const when = " · " + (chk.checked || "").slice(0, 10) + " 점검";
+        if (st >= 200 && st < 400) {
+          if (chk.latest_upload) {
+            const stale = Date.now() - new Date(chk.latest_upload).getTime() > 180 * 86400000;
+            const b = el("span", "badge" + (stale ? " warn" : ""), stale ? "업로드 멈춤 " + chk.latest_upload.slice(0, 7) : "최근 업로드 " + chk.latest_upload.slice(5).replace("-", "/"));
+            b.title = (chk.latest_title || "") + when; foot.append(b);
+          }
+        } else if ([401, 403, 429].includes(st)) {
+          const b = el("span", "badge", "자동 확인 불가"); b.title = "사이트가 자동 점검을 막음(HTTP " + st + "). 브라우저로는 열림" + when; foot.append(b);
+        } else {
+          const b = el("span", "badge warn", "링크 확인 안 됨"); b.title = (chk.error || "HTTP " + st) + when; foot.append(b);
+        }
       }
       const sp = [...(r.agents || []), ...(r.maps || [])].filter((x) => x !== "전체").slice(0, 5);
       sp.forEach((x) => foot.append(el("span", "tag", x)));

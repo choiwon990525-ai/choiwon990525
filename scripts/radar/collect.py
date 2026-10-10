@@ -54,6 +54,7 @@ TAG_RULES = {
         ("교육", r"education|교육|tutor|강의|학생|teacher|교사|coaching|코칭|학습법"),
     ],
 }
+SPAM = re.compile(r"파워볼|토토|카지노|바카라|먹튀|슬롯사이트|배당선|casino|betting odds", re.I)
 PICK_TAGS = {"valorant": {"코칭", "메타", "라인업", "패치"}, "ai": {"Claude", "AI×게임", "교육", "에이전트"}}
 
 
@@ -65,19 +66,20 @@ def iso(d):
     return d.astimezone(dt.timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
-def parse_date(text):
+def parse_date(text, naive_tz=dt.timezone.utc):
+    """시간대가 없는 날짜는 naive_tz로 본다 (예: 국내 언론 RSS는 KST)."""
     if not text:
         return None
     text = text.strip()
     try:
         d = email.utils.parsedate_to_datetime(text)
         if d is not None:
-            return d if d.tzinfo else d.replace(tzinfo=dt.timezone.utc)
+            return d if d.tzinfo else d.replace(tzinfo=naive_tz)
     except (TypeError, ValueError, IndexError):
         pass
     try:
         d = dt.datetime.fromisoformat(text.replace("Z", "+00:00"))
-        return d if d.tzinfo else d.replace(tzinfo=dt.timezone.utc)
+        return d if d.tzinfo else d.replace(tzinfo=naive_tz)
     except ValueError:
         return None
 
@@ -149,6 +151,7 @@ def parse_feed(body):
             thumb = e.find("media:group/media:thumbnail", NS)
             if thumb is not None:
                 img = thumb.get("url", "")
+            cat = e.find("atom:category", NS)
             entries.append({
                 "title": first(e, ["atom:title"]),
                 "link": link,
@@ -156,6 +159,7 @@ def parse_feed(body):
                 "summary": first(e, ["atom:summary", "media:group/media:description", "atom:content"]),
                 "img": img,
                 "publisher": "",
+                "category": (cat.get("label") or cat.get("term") or "") if cat is not None else "",
             })
         return entries
     items = root.findall("channel/item") or root.findall("rss1:item", NS) or root.findall("item")
@@ -198,6 +202,8 @@ def collect_source(src, fetched_at, yt_cache):
     body = fetch(src["url"])
     entries = parse_feed(body)
     include = re.compile(src["include"]) if src.get("include") else None
+    exclude = re.compile(src["exclude"]) if src.get("exclude") else None
+    naive_tz = KST if src.get("tz") == "KST" else dt.timezone.utc
     out = []
     for e in entries:
         title = clean_text(e["title"], 200)
@@ -205,6 +211,8 @@ def collect_source(src, fetched_at, yt_cache):
         if not title or not link:
             continue
         publisher = e.get("publisher") or ""
+        if src.get("publisher_from_category") and e.get("category"):
+            publisher = e["category"] if e["category"].startswith("r/") else "r/" + e["category"]
         if publisher and src["url"].startswith("https://news.google.com/"):
             suffix = " - " + publisher
             if title.endswith(suffix):
@@ -214,7 +222,11 @@ def collect_source(src, fetched_at, yt_cache):
             summary = ""  # 구글 뉴스 요약은 제목 반복이라 버린다
         if include and not include.search(title + " " + summary):
             continue
-        published = parse_date(e["date"]) or fetched_at
+        if SPAM.search(title) or (exclude and exclude.search(title + " " + summary)):
+            continue
+        published = parse_date(e["date"], naive_tz) or fetched_at
+        if published > fetched_at + dt.timedelta(minutes=10):  # 미래 날짜는 시간대 오류로 보고 수집 시각으로
+            published = fetched_at
         out.append({
             "id": hashlib.sha1(link.encode("utf-8")).hexdigest()[:16],
             "t": title,
