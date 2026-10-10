@@ -130,6 +130,7 @@
   .badge{font-size:11.5px;border-radius:6px;padding:1px 7px;border:1px solid var(--line);color:var(--muted)}
   .badge.go{color:var(--mint);border-color:color-mix(in srgb,var(--mint) 45%,var(--line))}
   .badge.cat{color:var(--text)}
+  .badge.warn{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 45%,var(--line))}
 
   footer.foot-info{margin-top:36px;padding-top:16px;border-top:1px solid var(--line);font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:10px}
   details summary{cursor:pointer;color:var(--text)}
@@ -213,6 +214,7 @@
     limit: PAGE,
     data: null,
     refs: null,
+    refcheck: null,
     prevSeen: store.get(STORE.seen, null),
     read: new Set(store.get(STORE.read, [])),
     saved: store.get(STORE.saved, {}),
@@ -257,6 +259,10 @@
       const res = await fetch("references.json" + q, { cache: bust ? "no-store" : "no-cache" });
       if (res.ok) state.refs = await res.json();
     } catch (e) { /* 레퍼런스 없음 */ }
+    try {
+      const res = await fetch("refcheck.json" + q, { cache: bust ? "no-store" : "no-cache" });
+      if (res.ok) state.refcheck = (await res.json()).results || null;
+    } catch (e) { /* 점검 결과 없음 */ }
   }
 
   const items = () => (state.data && Array.isArray(state.data.items) ? state.data.items : []);
@@ -463,6 +469,12 @@
       [r.format, r.lang, r.price].filter(Boolean).forEach((b) => foot.append(el("span", "badge", b)));
       if (r.use_level) foot.append(el("span", "badge" + (r.use_level === "바로 씀" ? " go" : ""), r.use_level));
       if ((r.classes || []).length) foot.append(el("span", "badge", (r.classes || []).join("·") + " 반"));
+      const chk = state.refcheck && state.refcheck[r.youtube ? "yt:" + r.youtube : "url:" + r.url];
+      if (chk) {
+        const okLink = chk.status >= 200 && chk.status < 400;
+        if (!okLink) { const b = el("span", "badge warn", "링크 확인 안 됨"); b.title = (chk.error || "HTTP " + chk.status) + " · " + (chk.checked || "").slice(0, 10); foot.append(b); }
+        else if (chk.latest_upload) foot.append(el("span", "badge", "최근 업로드 " + chk.latest_upload.slice(5).replace("-", "/")));
+      }
       const sp = [...(r.agents || []), ...(r.maps || [])].filter((x) => x !== "전체").slice(0, 5);
       sp.forEach((x) => foot.append(el("span", "tag", x)));
       card.append(foot);

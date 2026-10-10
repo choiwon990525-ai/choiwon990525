@@ -30,10 +30,11 @@ jobs:
       - name: 지난 데이터 가져오기
         run: |
           mkdir -p _prev
+          echo '{}' > _prev/data.json
+          echo '{}' > _prev/refcheck.json
           if git fetch --depth=1 origin gh-pages 2>/dev/null; then
             git show FETCH_HEAD:data.json > _prev/data.json 2>/dev/null || echo '{}' > _prev/data.json
-          else
-            echo '{}' > _prev/data.json
+            git show FETCH_HEAD:refcheck.json > _prev/refcheck.json 2>/dev/null || echo '{}' > _prev/refcheck.json
           fi
 
       - name: 브리핑용 SDK (키가 있을 때만)
@@ -42,6 +43,12 @@ jobs:
 
       - name: 수집
         run: python3 scripts/radar/collect.py --sources scripts/radar/sources.json --prev _prev/data.json --out _site/data.json
+
+      - name: 레퍼런스 링크 점검 (같은 링크는 7일에 한 번)
+        run: >
+          python3 scripts/radar/check_refs.py
+          --inputs scripts/radar/ref_candidates.json radar/references.json
+          --prev _prev/refcheck.json --yt-cache _site/data.json --out _site/refcheck.json
 
       - name: 사이트 만들기
         run: |

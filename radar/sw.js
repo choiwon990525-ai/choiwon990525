@@ -1,5 +1,5 @@
 // WON 레이더 서비스 워커: 화면은 캐시 우선, 데이터(data.json·references.json)는 네트워크 우선.
-const SHELL = "radar-shell-v1";
+const SHELL = "radar-shell-v2";
 const DATA = "radar-data-v1";
 const SHELL_FILES = ["./", "index.html", "manifest.webmanifest", "icon.svg", "icon-192.png", "icon-512.png", "icon-180.png"];
 
@@ -18,7 +18,7 @@ self.addEventListener("activate", (e) => {
 self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== "GET" || url.origin !== location.origin) return;
-  const isData = /\/(data|references)\.json$/.test(url.pathname);
+  const isData = /\/(data|references|refcheck)\.json$/.test(url.pathname);
   if (isData) {
     e.respondWith(
       fetch(e.request)

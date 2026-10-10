@@ -15,6 +15,9 @@ import json
 import os
 import re
 import sys
+import time
+import urllib.error
+import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
 
@@ -96,10 +99,30 @@ def safe_url(url):
     return url if re.match(r"^https?://", url, re.I) else ""
 
 
-def fetch(url):
+def fetch(url, retries=1):
     req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept": "application/rss+xml, application/atom+xml, application/xml, text/xml, */*"})
-    with urllib.request.urlopen(req, timeout=25) as resp:
-        return resp.read(MAX_BYTES)
+    try:
+        with urllib.request.urlopen(req, timeout=25) as resp:
+            return resp.read(MAX_BYTES)
+    except urllib.error.HTTPError as e:
+        if e.code in (429, 503) and retries > 0:  # 요청 한도: 잠시 쉬고 한 번만 다시
+            time.sleep(8)
+            return fetch(url, retries - 1)
+        raise
+
+
+def resolve_youtube(handle, cache):
+    """'@핸들'을 채널 ID(UC…)로 바꾼다. 한 번 찾은 ID는 data.json에 저장해 다시 찾지 않는다."""
+    if handle in cache:
+        return cache[handle]
+    page = fetch("https://www.youtube.com/" + urllib.parse.quote(handle)).decode("utf-8", "replace")
+    m = (re.search(r'<link rel="canonical" href="https://www\.youtube\.com/channel/(UC[\w-]{22})"', page)
+         or re.search(r'"externalId":"(UC[\w-]{22})"', page)
+         or re.search(r'"channelId":"(UC[\w-]{22})"', page))
+    if not m:
+        raise ValueError("채널 ID를 찾지 못함: " + handle)
+    cache[handle] = m.group(1)
+    return cache[handle]
 
 
 def first(el, paths):
@@ -169,7 +192,9 @@ def title_key(title):
     return t[:48]
 
 
-def collect_source(src, fetched_at):
+def collect_source(src, fetched_at, yt_cache):
+    if src.get("youtube"):
+        src["url"] = "https://www.youtube.com/feeds/videos.xml?channel_id=" + resolve_youtube(src["youtube"], yt_cache)
     body = fetch(src["url"])
     entries = parse_feed(body)
     include = re.compile(src["include"]) if src.get("include") else None
@@ -324,19 +349,34 @@ def main():
 
     fetched_at = now_utc()
     sources = config["sources"]
+    yt_cache = dict(previous.get("yt_ids") or {})
+
+    def run_host(group):
+        # 같은 사이트는 한 줄로 천천히: 레딧처럼 동시 요청을 막는 곳 대비
+        results = []
+        for i, s in enumerate(group):
+            if i:
+                time.sleep(2)
+            try:
+                results.append((s, collect_source(s, fetched_at, yt_cache), None))
+            except Exception as e:  # 한 소스가 죽어도 나머지는 계속
+                results.append((s, [], f"{type(e).__name__}: {e}"[:160]))
+        return results
+
+    by_host = {}
+    for s in sources:
+        host = "www.youtube.com" if s.get("youtube") else urllib.parse.urlsplit(s["url"]).netloc
+        by_host.setdefault(host, []).append(s)
     fresh, status = [], []
     with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
-        futures = {pool.submit(collect_source, s, fetched_at): s for s in sources}
-        for fut in concurrent.futures.as_completed(futures):
-            s = futures[fut]
-            try:
-                got = fut.result()
+        for results in pool.map(run_host, by_host.values()):
+            for s, got, err in results:
                 fresh.extend(got)
-                status.append({"id": s["id"], "name": s["name"], "cat": s["cat"], "ok": True, "count": len(got)})
-            except Exception as e:  # 한 소스가 죽어도 나머지는 계속
-                msg = f"{type(e).__name__}: {e}"[:160]
-                status.append({"id": s["id"], "name": s["name"], "cat": s["cat"], "ok": False, "count": 0, "error": msg})
-                print(f"[실패] {s['id']}: {msg}", file=sys.stderr)
+                row = {"id": s["id"], "name": s["name"], "cat": s["cat"], "ok": err is None, "count": len(got)}
+                if err:
+                    row["error"] = err
+                    print(f"[실패] {s['id']}: {err}", file=sys.stderr)
+                status.append(row)
     order = {s["id"]: i for i, s in enumerate(sources)}
     status.sort(key=lambda x: order[x["id"]])
 
@@ -350,6 +390,7 @@ def main():
         "next_hours": 3,
         "sources": status,
         "briefing": make_briefing(items, previous.get("briefing"), fetched_at),
+        "yt_ids": yt_cache,
         "items": items,
     }
     os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
