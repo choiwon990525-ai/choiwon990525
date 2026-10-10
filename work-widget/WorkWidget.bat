@@ -54,6 +54,21 @@ public static class WonWin {
   [DllImport("user32.dll")] public static extern bool MoveWindow(IntPtr h, int x, int y, int w, int hh, bool r);
   [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int cmd);
   [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
+  [DllImport("user32.dll")] static extern bool BringWindowToTop(IntPtr h);
+  [DllImport("user32.dll")] static extern bool SetWindowPos(IntPtr h, IntPtr after, int x, int y, int cx, int cy, uint flags);
+  [DllImport("user32.dll")] static extern IntPtr GetForegroundWindow();
+  [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr h, IntPtr pid);
+  [DllImport("kernel32.dll")] static extern uint GetCurrentThreadId();
+  [DllImport("user32.dll")] static extern bool AttachThreadInput(uint a, uint b, bool attach);
+  // 숨겨진 실행 파일이 연 창은 윈도우가 앞으로 못 오게 막는다 → 잠깐 맨 위(topmost)로 올렸다 내리고, 입력을 붙여서 앞으로 가져온다
+  public static void Front(IntPtr h) {
+    SetWindowPos(h, new IntPtr(-1), 0, 0, 0, 0, 0x0043);   // HWND_TOPMOST, NOSIZE|NOMOVE|SHOWWINDOW
+    SetWindowPos(h, new IntPtr(-2), 0, 0, 0, 0, 0x0043);   // HWND_NOTOPMOST: 다른 창 위에 남되 늘 맨 위는 아님
+    uint me = GetCurrentThreadId(), fg = GetWindowThreadProcessId(GetForegroundWindow(), IntPtr.Zero);
+    if (fg != 0 && fg != me) AttachThreadInput(me, fg, true);
+    BringWindowToTop(h); SetForegroundWindow(h);
+    if (fg != 0 && fg != me) AttachThreadInput(me, fg, false);
+  }
   public static IntPtr Find(string part) {
     IntPtr found = IntPtr.Zero;
     EnumWindows(delegate (IntPtr h, IntPtr p) {
@@ -81,7 +96,7 @@ if ($h -ne [IntPtr]::Zero) {
   $wa = [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea
   [WonWin]::ShowWindow($h, 9) | Out-Null          # 최소화돼 있으면 되살림
   [WonWin]::MoveWindow($h, $wa.Right - $width, $wa.Top, $width, $wa.Height, $true) | Out-Null
-  [WonWin]::SetForegroundWindow($h) | Out-Null
+  [WonWin]::Front($h)
 }
 '@
     $ps1 = Join-Path $dir 'open-widget.ps1'
