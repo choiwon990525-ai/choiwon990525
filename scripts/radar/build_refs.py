@@ -65,7 +65,7 @@ def main():
         if key in seen:
             continue
         seen.add(key)
-        freshness = "매 패치·실시간"
+        freshness = c.get("freshness") or ("가끔" if c.get("format") == "문서·가이드" else "매 패치·실시간")
         memo = c.get("memo", "")
         if c.get("youtube") and chk.get("latest_upload"):
             days = (dt.date.today() - dt.date.fromisoformat(chk["latest_upload"])).days
