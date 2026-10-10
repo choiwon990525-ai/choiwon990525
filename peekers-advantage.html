@@ -182,6 +182,8 @@
   .lbl.p{color:#fff;background:var(--accent);border-color:var(--accent);}
   .lbl.g{color:var(--accent);border:1px dashed rgba(255,70,85,.8);}
   .lbl.m{font-weight:500;font-size:10.5px;color:var(--muted);background:rgba(10,11,14,.55);border:none;}
+  .lbl.dim{font:700 12px 'Rajdhani','Noto Sans KR',sans-serif;background:rgba(10,11,14,.85);border-color:rgba(255,255,255,.3);}
+  .lbl.dim.p{color:var(--accent);border-color:rgba(255,70,85,.7);background:rgba(10,11,14,.85);}
 
   /* explain */
   .explain{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;margin-top:14px;}
@@ -208,6 +210,49 @@
     font:700 15px 'Rajdhani',sans-serif;}
   .cfg.chk{cursor:pointer;} .cfg.chk input{accent-color:var(--accent);width:15px;height:15px;margin:0;}
   .game-view{aspect-ratio:16/9;}
+  .game-view:fullscreen{aspect-ratio:auto;width:100vw;height:100vh;border-radius:0;border:none;}
+  .tabs{display:flex;gap:4px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:4px;}
+  .tabs button{border:none;background:transparent;color:var(--muted);font:700 13.5px 'Noto Sans KR',sans-serif;padding:8px 16px;border-radius:9px;cursor:pointer;}
+  .tabs button.on{background:var(--accent);color:#fff;}
+  .drill[data-mode="hold"] .peek-only,.drill[data-mode="peek"] .hold-only{display:none;}
+  .g-fs{position:absolute;z-index:5;right:12px;bottom:12px;border:1px solid var(--line);background:rgba(10,11,14,.7);color:var(--muted);
+    font:500 11.5px 'Noto Sans KR',sans-serif;padding:5px 10px;border-radius:999px;cursor:pointer;}
+  .g-fs:hover{color:var(--text);}
+  .game-view.locked .g-fs{display:none;}
+  .g-hud.bl{left:16px;bottom:14px;display:flex;flex-direction:column;gap:2px;}
+  .g-hud.bl span,.g-hud.br span{font-size:11px;color:var(--muted);}
+  .hp{display:flex;align-items:center;gap:8px;}
+  .hp > b{font:700 34px 'Rajdhani',sans-serif;line-height:1;}
+  .hp .sh{font-style:normal;display:inline-grid;place-items:center;min-width:34px;height:22px;padding:0 6px;border-radius:5px;
+    background:rgba(238,240,243,.14);border:1px solid rgba(238,240,243,.35);}
+  .hp .sh b{font:700 15px 'Rajdhani',sans-serif;}
+  .g-hud.br{right:16px;bottom:42px;text-align:right;display:flex;flex-direction:column;align-items:flex-end;}
+  .g-hud.br b{font:700 34px 'Rajdhani',sans-serif;line-height:1;}
+  .g-hud.bc{left:50%;bottom:16px;transform:translateX(-50%);display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);white-space:nowrap;}
+  .g-hud.bc .sep{color:var(--dim);}
+  .spd{position:relative;width:120px;height:6px;border-radius:3px;background:rgba(238,240,243,.16);overflow:visible;}
+  .spd i{position:absolute;left:0;top:0;bottom:0;border-radius:3px;background:var(--text);width:0;}
+  .spd s{position:absolute;left:25%;top:-4px;width:2px;height:14px;background:var(--accent);}
+  #gSpdTxt.bad{color:var(--accent);font-weight:700;} #gSpdTxt.ok{color:var(--text);}
+  .g-hit{position:absolute;inset:0;z-index:2;pointer-events:none;box-shadow:inset 0 0 0 0 rgba(255,70,85,0);transition:box-shadow .25s;}
+  .g-hit.on{box-shadow:inset 0 0 70px 18px rgba(255,70,85,.45);transition:none;}
+  .keys{font-size:12.5px;color:var(--muted);line-height:2.1;max-width:560px;}
+  .keys kbd{display:inline-block;font:700 11.5px 'Rajdhani','Noto Sans KR',sans-serif;color:var(--text);background:var(--surface2);border:1px solid var(--line);
+    border-bottom-width:2px;border-radius:6px;padding:1px 7px;margin:0 3px 0 10px;}
+  .g-overlay .tiny{font-size:11.5px;color:var(--dim);}
+  .g-overlay{overflow:auto;}
+  .touch-only{display:none;}
+  @media (pointer:coarse){
+    .keys,.pc-only{display:none;}
+    .touch-only{display:block;}
+    .tabs button[data-mode="peek"]{opacity:.45;}
+    .g-fs{display:none;}
+    .g-hud.bc{display:none;}
+  }
+  .g-result{margin-top:12px;padding:14px 18px;font-size:13px;color:var(--muted);line-height:1.7;}
+  .g-result b{color:var(--text);font-weight:700;} .g-result b.pos{color:var(--accent);}
+  .g-result .rtag{display:inline-block;font-weight:900;font-size:14px;padding:1px 10px;border-radius:6px;margin-right:8px;background:var(--surface2);color:var(--text);}
+  .g-result .rtag.win{background:var(--accent);color:#fff;}
   .game-view canvas{touch-action:none;}
   .game-view.locked{cursor:none;}
   .gx{position:absolute;z-index:3;left:50%;top:50%;width:20px;height:20px;transform:translate(-50%,-50%);pointer-events:none;}
@@ -258,8 +303,8 @@
   .g-rounds i{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:7px;background:var(--surface);border:1px solid var(--line);
     font:700 12px 'Rajdhani',sans-serif;font-style:normal;color:var(--dim);}
   .g-rounds i.head{background:var(--accent);border-color:var(--accent);color:#fff;}
-  .g-rounds i.kill{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);}
-  .g-rounds i.dead{background:var(--surface2);border-color:#3a3f4a;color:var(--muted);text-decoration:line-through;}
+  .g-rounds i.win{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);}
+  .g-rounds i.lose,.g-rounds i.draw{background:var(--surface2);border-color:#3a3f4a;color:var(--muted);text-decoration:line-through;}
 
   .nogl{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:20px;color:var(--muted);font-size:13px;z-index:7;background:#07080A;}
   footer.legal{margin-top:36px;font-size:11px;color:var(--dim);line-height:1.6;border-top:1px solid var(--line);padding-top:14px;}
@@ -286,8 +331,16 @@
     .clock{margin-left:auto;width:auto;}
     .legend{max-width:calc(100% - 170px);gap:2px 10px;font-size:10.5px;}
     .game-view{aspect-ratio:4/3;}
+    .g-hud.bc{bottom:56px;}
+    .spd{width:80px;}
+    .hp > b,.g-hud.br b{font-size:24px;}
+    .g-hud.br{bottom:14px;}
+    .g-hud.bl span,.g-hud.br span{display:none;}
     .sum-grid{grid-template-columns:1fr 1fr;}
-    .g-overlay h3{font-size:20px;}
+    .g-overlay h3{font-size:18px;}
+    .g-overlay{gap:8px;padding:12px;}
+    .g-overlay p{font-size:12.5px;}
+    .btn{padding:10px 22px;font-size:14px;}
   }
   @media (max-width:420px){
     .big{font-size:112px;}
@@ -305,7 +358,7 @@
       <h1>먼저 튀어나온 사람이 <em>먼저 본다</em><span class="h1-sub">앵글이 뒤집지 않는다면</span></h1>
     </div>
     <div class="head-right">
-      <p class="lede">피커는 네트워크 지연만큼 먼저 보고, 모서리에서 먼 쪽은 앵글만큼 상대 어깨를 먼저 본다.</p>
+      <p class="lede">피커는 네트워크 지연만큼 먼저 보고, 벽에서 더 먼 쪽은 앵글만큼 상대 어깨를 먼저 본다.</p>
       <a class="jump" href="#drill"><b>▶</b> 프리에임 연습 바로가기</a>
     </div>
   </header>
@@ -335,15 +388,15 @@
         </div>
         <div class="ctl-sep">ANGLE · 앵글</div>
         <div class="ctl">
-          <div class="ctl-head"><label class="ctl-name" for="lane">피커 스윙 폭<i>벽에서 떨어진 거리</i></label><div class="ctl-val num"><b id="laneVal">1.3</b><span>m</span></div></div>
-          <input class="slider" type="range" id="lane" min="0.4" max="4" step="0.1" value="1.3">
-          <div class="ctl-scale"><span>0.4 · 벽에 붙어서</span><span>4 · 넓게</span></div>
+          <div class="ctl-head"><label class="ctl-name" for="lane">피커–벽 거리<i>스윙 폭</i></label><div class="ctl-val num"><b id="laneVal">1.3</b><span>m</span></div></div>
+          <input class="slider" type="range" id="lane" min="0.4" max="8" step="0.1" value="1.3">
+          <div class="ctl-scale"><span>0.4 · 벽에 붙어서</span><span>8 · 넓게</span></div>
         </div>
         <div class="ctl">
-          <div class="ctl-head"><label class="ctl-name" for="hdist">홀더 거리<i>모서리에서</i></label><div class="ctl-val num"><b id="hdistVal">8</b><span>m</span></div></div>
-          <input class="slider" type="range" id="hdist" min="3" max="14" step="0.5" value="8">
-          <div class="ctl-scale"><span>3 · 모서리 가까이</span><span>14 · 멀리</span></div>
-          <p class="ctl-note">속도는 <b>네트워크 차이</b>는 그대로 두고 <b>앵글 손해</b>를 줄인다. 빠를수록 어깨가 먼저 노출되는 시간이 짧다.</p>
+          <div class="ctl-head"><label class="ctl-name" for="hwall">홀더–벽 거리<i>벽 라인까지</i></label><div class="ctl-val num"><b id="hwallVal">7</b><span>m</span></div></div>
+          <input class="slider" type="range" id="hwall" min="0.6" max="12" step="0.2" value="7">
+          <div class="ctl-scale"><span>0.6 · 벽에 붙어서</span><span>12 · 멀리</span></div>
+          <p class="ctl-note"><b>벽에서 더 먼 쪽</b>이 상대 어깨를 먼저 본다. 거리가 같으면 앵글 차이 0. 속도는 앵글로 생기는 ms만 줄이거나 늘린다.</p>
         </div>
       </div>
       <div class="card breakdown">
@@ -370,7 +423,7 @@
             <span><i class="lg-ghost"></i>홀더 화면 속 피커</span>
             <span><i class="lg-line"></i>피커의 시야</span>
             <span><i class="lg-line w"></i>홀더의 시야</span>
-            <span><i class="lg-dash"></i>홀더 시선이 모서리를 스치는 선</span>
+            <span><i class="lg-dash"></i>벽 라인 연장 (거리 기준선)</span>
           </div>
         <div class="inset-frame" id="insetFrame"><span class="cap">확대 · 위에서 수직으로</span></div>
         <div class="inset-tag" id="insetTag">+25cm</div>
@@ -424,33 +477,44 @@
       <article class="card"><span class="step num">03</span><h3>빠르게, 넓게 나와야 하는 이유</h3>
         <p>앵글 손해는 ‘어깨가 먼저 보이는 거리 ÷ 내 속도’다. 같은 위치라도 <b>빠르게 스윙하면</b> 손해 시간이 줄고, <b>벽에서 떨어져 넓게 돌면</b> 손해 거리 자체가 줄어든다.</p></article>
     </div>
-    <article class="card angle-card"><span class="step num">04</span><h3>앵글: 모서리에서 먼 사람이 먼저 본다</h3>
-      <p>시선은 모서리를 지렛대처럼 스친다. 모서리에서 <b>먼 사람</b>은 반대편 모서리 근처를 넓은 각도로 보기 때문에, 모서리에 <b>붙어 있는 사람</b>의 어깨가 먼저 보인다. 붙어 있는 사람은 상대 어깨를 보려면 훨씬 더 나와야 한다.</p>
-      <svg viewBox="0 0 360 220" role="img" aria-label="앵글 어드밴티지 그림: 모서리 근처의 피커와 멀리 있는 홀더">
-        <defs><pattern id="hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="8" height="8" fill="#20242c"/><line x1="0" y1="0" x2="0" y2="8" stroke="#2b3039" stroke-width="3"/></pattern></defs>
-        <rect x="0" y="0" width="170" height="104" fill="url(#hatch)"/>
-        <path d="M0 104 H170 V0" fill="none" stroke="#59606e" stroke-width="1.5"/>
-        <circle cx="170" cy="104" r="3" fill="#EEF0F3"/>
-        <text x="176" y="122" fill="#8C92A0" font-size="10" font-family="Noto Sans KR">모서리</text>
-        <!-- 홀더 시선: 모서리를 스쳐 피커 어깨에 닿음 -->
-        <line x1="236" y1="20" x2="133" y2="151" stroke="#EEF0F3" stroke-width="2.5"/>
-        <!-- 피커 시선: 모서리에 막혀 홀더에 못 닿음 -->
-        <line x1="127" y1="146" x2="170" y2="104" stroke="#FF4655" stroke-width="2.5"/>
-        <line x1="170" y1="104" x2="268" y2="8" stroke="#FF4655" stroke-width="2" stroke-dasharray="5 4" opacity=".55"/>
-        <circle cx="236" cy="20" r="11" fill="#EEF0F3"/>
-        <text x="252" y="24" fill="#EEF0F3" font-size="11" font-weight="700" font-family="Noto Sans KR">홀더 (멀리)</text>
-        <circle cx="127" cy="146" r="11" fill="#FF4655"/>
-        <text x="20" y="178" fill="#FF4655" font-size="11" font-weight="700" font-family="Noto Sans KR">피커 (벽에 붙어 나옴)</text>
-        <text x="152" y="170" fill="#EEF0F3" font-size="10.5" font-family="Noto Sans KR">홀더: 어깨 보임</text>
-        <text x="222" y="70" fill="#FF4655" font-size="10.5" font-family="Noto Sans KR" opacity=".9">피커: 아직 벽 (홀더를 비껴감)</text>
-        <defs><marker id="arr" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L8 4 L0 8 z" fill="#FF4655"/></marker></defs>
-        <path d="M100 196 h60" stroke="#FF4655" stroke-width="1.5" marker-end="url(#arr)"/>
-        <text x="166" y="200" fill="#8C92A0" font-size="10" font-family="Noto Sans KR">피커 이동 방향</text>
+    <article class="card angle-card"><span class="step num">04</span><h3>앵글: 벽에서 먼 사람이 먼저 본다</h3>
+      <p>두 사람의 시선은 벽 끝을 지렛대처럼 스친다. 그래서 <b>벽 라인(벽면과 그 연장선)까지의 거리</b>가 먼 쪽은 같은 몸 폭을 더 일찍 잡고, 벽에 붙어 있는 쪽은 자기 어깨가 먼저 보인다. 두 사람의 벽 거리가 같으면 앵글 차이는 없다.</p>
+      <svg viewBox="0 0 360 250" role="img" aria-label="앵글 어드밴티지 그림: 벽에 가까운 피커와 벽에서 먼 홀더">
+        <defs>
+          <pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="7" fill="#262a33"/><line x1="0" y1="0" x2="0" y2="7" stroke="#353b46" stroke-width="3"/></pattern>
+          <marker id="arr" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L8 4 L0 8 z" fill="#FF4655"/></marker>
+          <marker id="tk" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M4 0 V8" stroke="#8C92A0" stroke-width="1.6"/></marker>
+        </defs>
+        <rect x="175" y="0" width="10" height="110" fill="url(#hatch)" stroke="#59606e"/>
+        <line x1="180" y1="110" x2="180" y2="250" stroke="#8C92A0" stroke-width="1.2" stroke-dasharray="4 4"/>
+        <text x="174" y="244" text-anchor="end" fill="#8C92A0" font-size="10" font-family="Noto Sans KR">벽 라인 연장</text>
+        <text x="190" y="16" fill="#8C92A0" font-size="10" font-family="Noto Sans KR">벽</text>
+        <!-- 홀더 시선: 벽 끝을 스쳐 피커 어깨에 닿음 -->
+        <line x1="290" y1="170" x2="146.3" y2="95" stroke="#EEF0F3" stroke-width="2.5"/>
+        <!-- 피커 시선: 벽 끝을 지나 홀더 옆으로 비껴감 -->
+        <line x1="150" y1="88" x2="175" y2="110" stroke="#FF4655" stroke-width="2.5"/>
+        <line x1="175" y1="110" x2="311" y2="230" stroke="#FF4655" stroke-width="2" stroke-dasharray="5 4" opacity=".55"/>
+        <circle cx="150" cy="88" r="11" fill="#FF4655"/>
+        <circle cx="290" cy="170" r="11" fill="#EEF0F3"/>
+        <!-- 벽까지 거리 -->
+        <line x1="150" y1="40" x2="175" y2="40" stroke="#FF4655" stroke-width="1.5" marker-start="url(#tk)" marker-end="url(#tk)"/>
+        <text x="96" y="36" fill="#FF4655" font-size="10.5" font-weight="700" font-family="Noto Sans KR">피커–벽 1m</text>
+        <line x1="185" y1="200" x2="290" y2="200" stroke="#EEF0F3" stroke-width="1.5" marker-start="url(#tk)" marker-end="url(#tk)"/>
+        <text x="205" y="194" fill="#EEF0F3" font-size="10.5" font-weight="700" font-family="Noto Sans KR">홀더–벽 4m</text>
+        <line x1="150" y1="40" x2="150" y2="77" stroke="#FF4655" stroke-width="1" stroke-dasharray="2 3" opacity=".6"/>
+        <line x1="290" y1="181" x2="290" y2="200" stroke="#EEF0F3" stroke-width="1" stroke-dasharray="2 3" opacity=".6"/>
+        <path d="M128 66 v34" stroke="#FF4655" stroke-width="1.5" marker-end="url(#arr)"/>
+        <text x="20" y="92" fill="#FF4655" font-size="11" font-weight="700" font-family="Noto Sans KR">피커</text>
+        <text x="20" y="106" fill="#8C92A0" font-size="10" font-family="Noto Sans KR">벽에 붙어 나옴</text>
+        <text x="306" y="166" fill="#EEF0F3" font-size="11" font-weight="700" font-family="Noto Sans KR">홀더</text>
+        <text x="306" y="180" fill="#8C92A0" font-size="10" font-family="Noto Sans KR">벽에서 멂</text>
+        <text x="56" y="132" fill="#EEF0F3" font-size="10.5" font-family="Noto Sans KR">홀더 → 피커 어깨 보임</text>
+        <text x="250" y="244" fill="#FF4655" font-size="10.5" font-family="Noto Sans KR" opacity=".9">피커 → 아직 못 봄</text>
       </svg>
       <ul>
-        <li>피커: 벽에 붙어 나오면 손해. <b>스윙 폭을 넓혀</b> 홀더보다 모서리에서 멀어지면 앵글도 내 편이 된다.</li>
-        <li>홀더: 모서리에 붙어 잡으면 손해. <b>뒤로 물러나 잡을수록</b> 피커 어깨를 먼저 본다.</li>
-        <li>위 슬라이더로 피커 스윙 폭과 홀더 거리를 바꾸면 앵글 ms가 바로 바뀐다.</li>
+        <li>피커: 벽에 붙어 나오면 손해. <b>벽에서 떨어져 넓게</b> 나올수록 손해가 줄고, 홀더보다 벽에서 멀면 앵글이 내 편이 된다.</li>
+        <li>홀더: 벽에 붙어 잡으면 손해. <b>벽 라인에서 멀리 떨어져</b> 잡을수록 피커 어깨를 먼저 본다.</li>
+        <li>위 슬라이더로 피커–벽, 홀더–벽 거리를 바꿔 보자. 같게 맞추면 앵글 ms가 0이 된다.</li>
       </ul>
     </article>
     <p class="fine foot">단순화: ‘본다’는 상대 몸(어깨 폭 약 48cm)의 일부가 눈에서 가리는 것 없이 보이는 순간이다. 총구, 패킷 손실, 랙 보정은 넣지 않았다. 128틱 서버·1틱 보간은 가정치이며 실제 수치는 게임과 설정마다 다르다. 화면 갱신 지연은 두 사람에게 똑같이 걸리므로 차이 계산에서 뺐다.</p>
@@ -459,30 +523,45 @@
   <section class="drill" id="drill">
     <div class="drill-head">
       <div>
-        <div class="eyebrow">PRE-AIM DRILL</div>
-        <h2 class="h2big">프리에임 연습 — <em>튀어나오는 제트를 먼저 잡아라</em></h2>
+        <div class="eyebrow">PEEK · HOLD PRACTICE</div>
+        <h2 class="h2big">피킹·홀드 연습 — <em>실전처럼 움직이고 쏴라</em></h2>
       </div>
-      <p class="lede">당신은 홀더(사이퍼). 조준점을 미리 <b style="color:var(--text);font-weight:500">머리 높이·모서리 끝</b>에 걸어 두고, 보이는 순간 클릭. 상대가 쏘기 전에 잡아야 한다.</p>
+      <p class="lede">발로란트 조작과 수치(달리기 6.75m/s, 정지까지 약 0.16초, 속도 25% 이하에서만 정확, 밴달 데미지·연사·이동 탄퍼짐, 시야 103°, 감도 × 0.07°)로 1대1 피크를 연습한다. 상대 봇도 같은 핑 지연과 앵글로 너를 본다.</p>
     </div>
     <div class="card cfgbar">
+      <div class="tabs" role="tablist" aria-label="연습 종류">
+        <button role="tab" data-mode="hold" class="on" aria-selected="true">홀드 연습</button>
+        <button role="tab" data-mode="peek" aria-selected="false" title="키보드·마우스 필요">피킹 연습</button>
+      </div>
       <div class="cfg"><span>핑</span><div class="chips" data-k="ping"><button data-v="0">0</button><button data-v="35" class="on">35</button><button data-v="80">80</button><button data-v="130">130</button></div></div>
-      <div class="cfg"><span>상대 반응</span><div class="chips" data-k="react"><button data-v="160">프로</button><button data-v="220" class="on">상급</button><button data-v="300">보통</button><button data-v="380">입문</button></div></div>
-      <div class="cfg"><span>내 위치</span><div class="chips" data-k="pos"><button data-v="4">가까이 4m</button><button data-v="8" class="on">기본 8m</button><button data-v="12">멀리 12m</button></div></div>
+      <div class="cfg"><span>상대</span><div class="chips" data-k="lv"><button data-v="pro">프로</button><button data-v="high" class="on">상급</button><button data-v="mid">보통</button><button data-v="low">입문</button></div></div>
+      <div class="cfg hold-only"><span>내 시작 위치</span><div class="chips" data-k="mySpot"><button data-v="2">벽에서 2m</button><button data-v="6" class="on">6m</button><button data-v="10">10m</button></div></div>
+      <div class="cfg peek-only"><span>상대 위치</span><div class="chips" data-k="botSpot"><button data-v="0" class="on">랜덤</button><button data-v="2">벽에서 2m</button><button data-v="6">6m</button><button data-v="10">10m</button></div></div>
       <label class="cfg"><span>감도</span><input type="number" id="sens" min="0.05" max="5" step="0.01" value="0.35"><small>발로란트 감도</small></label>
-      <label class="cfg chk"><input type="checkbox" id="guide" checked>정답 조준점 표시</label>
-      <label class="cfg chk"><input type="checkbox" id="bait">어깨 미끼 섞기</label>
+      <label class="cfg chk hold-only"><input type="checkbox" id="guide" checked>정답 조준점</label>
+      <label class="cfg chk hold-only"><input type="checkbox" id="bait">어깨 미끼 섞기</label>
     </div>
     <div class="view game-view" id="gameView">
       <div class="gx" id="gx"><i></i><i></i><i></i><i></i><i></i></div>
       <div class="g-vig" id="gVig"></div>
+      <div class="g-hit" id="gHit"></div>
       <div class="g-hud tl"><b id="gRound">0 / 10</b><span id="gPhase">대기</span></div>
       <div class="g-hud tr" id="gInfo"></div>
+      <button class="g-fs" id="gFs" title="전체 화면 (Ctrl 앉기 사용 가능)">전체 화면</button>
+      <div class="g-hud bl"><div class="hp"><b id="gHp">100</b><i class="sh"><b id="gSh">50</b></i></div><span>체력 · 보호막</span></div>
+      <div class="g-hud br"><b id="gAmmo">25</b><span>/ 25 · 밴달</span></div>
+      <div class="g-hud bc">
+        <div class="spd"><i id="gSpd"></i><s></s></div>
+        <span id="gSpdTxt">정지 · 정확</span><span class="sep">|</span><span id="gWall">벽까지 —</span>
+      </div>
       <div class="g-toast" id="gToast"><b></b><small></small></div>
       <div class="g-overlay" id="gStart">
-        <h3>클릭해서 시작</h3>
-        <p>마우스로 조준, 클릭으로 사격. 라운드마다 조준점이 흐트러지니 <b>먼저 모서리에 다시 걸고</b> 기다리자. 10라운드 · ESC로 일시정지.</p>
+        <h3 id="gStartTitle">홀드 연습</h3>
+        <p id="gStartDesc"></p>
+        <div class="keys"><kbd>W A S D</kbd> 이동 <kbd>Shift</kbd> 걷기 <kbd>C</kbd> 앉기 <kbd>Space</kbd> 점프 <kbd>클릭</kbd> 사격(누르면 연사) <kbd>R</kbd> 재장전 <kbd>Esc</kbd> 일시정지</div>
         <button class="btn" id="gStartBtn">시작하기</button>
-        <p style="font-size:12px">모바일·터치: 드래그로 조준, 탭으로 사격 · 마우스 가속은 끄는 게 좋다</p>
+        <p class="tiny pc-only" id="gStartNote">Ctrl은 브라우저 단축키(Ctrl+W 탭 닫기)와 겹쳐서 기본은 C로 앉는다. ‘전체 화면’에서는 Ctrl도 쓸 수 있다.</p>
+        <p class="tiny touch-only">터치: 드래그로 조준, 탭으로 사격. 이동과 피킹 연습은 PC(키보드·마우스)에서.</p>
       </div>
       <div class="g-overlay hidden" id="gPause">
         <h3>일시정지</h3>
@@ -491,13 +570,15 @@
       </div>
       <div class="g-overlay hidden" id="gSummary"></div>
     </div>
+    <div class="g-result card" id="gResult">라운드가 끝나면 누가 몇 ms 먼저 봤는지, 네트워크와 앵글이 각각 얼마였는지, 첫 발이 정확한 상태였는지 여기에 나온다.</div>
     <div class="g-stats">
-      <div class="card gs"><span>반응 속도</span><b id="sReact">—</b><small>ms · 보이고 첫 사격까지</small></div>
-      <div class="card gs"><span>조준점 오차</span><b id="sAim">—</b><small>° · 나타난 순간 머리까지</small></div>
-      <div class="card gs"><span>허용 시간</span><b id="sWin">—</b><small>ms · 보이고 상대가 쏘기까지</small></div>
-      <div class="card gs"><span>킬 · 헤드샷</span><b id="sKill" class="hl">—</b><small id="sKillSub">이번 세트</small></div>
+      <div class="card gs"><span>전적</span><b id="sWL" class="hl">—</b><small id="sWLsub">이번 세트 승 · 패</small></div>
+      <div class="card gs"><span>먼저 본 시간</span><b id="sFirst">—</b><small>ms · + 는 내가 먼저 (평균)</small></div>
+      <div class="card gs"><span>반응 속도</span><b id="sReact">—</b><small>ms · 보이고 첫 발까지 (평균)</small></div>
+      <div class="card gs"><span id="sLastLbl">조준점 오차</span><b id="sLast">—</b><small id="sLastSub">° · 상대가 나타난 순간 (평균)</small></div>
     </div>
     <div class="g-rounds" id="gRounds"></div>
+    <p class="fine">수치: 달리기 6.75m/s · 걷기 약 4.05m/s · 앉아 걷기 약 3m/s · 정지 약 0.16초(카운터 스트레이핑이 조금 더 빠름) · 속도 25% 이하 정확 · 밴달 머리 160 / 몸 40 / 다리 34, 초당 9.75발, 첫 발 탄퍼짐 0.25°, 걷기 3° · 달리기 6° · 연사 시 탄이 위로 튀고 퍼짐 · 체력 100 + 보호막 50. 가속도·점프·앉기·연사 반동은 공개 수치가 없어 근사했다. 마우스 가속은 끄고, 감도는 브라우저가 지원하면 가속 없는 원시 입력으로 받는다.</p>
   </section>
 
   <footer class="legal">이 페이지는 Riot Games의 승인을 받지 않은 팬 제작 학습 자료이며, Riot Games 또는 VALORANT 제작·관리에 공식적으로 관여한 사람의 견해를 반영하지 않습니다. VALORANT와 Riot Games는 Riot Games, Inc.의 상표 또는 등록 상표입니다. 캐릭터는 전부 코드로 만든 단순화 모델입니다.</footer>
@@ -533,18 +614,26 @@ const BG_TOP = 0x07080a, BG_POV = 0x0b0d10;
 const EYE = 1.68;                 // 눈 높이 (머리 중심)
 const R_BODY = 0.24;              // 위에서 본 몸 반폭 (어깨)
 const TICK_WAIT = 3.9, INTERP = 7.8, FRAME_144 = 1000 / 144;
-// 모서리(원점) → 홀더 방향. 홀더 거리만 바꾸고 방향은 고정
-const DIR_H = (() => { const l = Math.hypot(2.6, 7.5); return { x: 2.6 / l, z: -7.5 / l }; })();
-const holderPos = d => ({ x: DIR_H.x * d, z: DIR_H.z * d });
-const WALL_MAIN = { x0: -10, x1: 0, z0: -12, z1: 0, h: 3.2 };   // 모서리를 만드는 벽
+// 얇은 벽 하나. 벽 끝(모서리)이 원점, 피커는 남쪽(z>0), 홀더는 북쪽(z<-T_WALL)
+const T_WALL = 0.15;
+const WALL_MAIN = { x0: -10, x1: 0, z0: -T_WALL, z1: 0, h: 3.2 };
 const LOS_WALLS = [WALL_MAIN];
-const BACKDROPS = [                                               // 시점 화면의 배경 벽
-  { x0: -12, x1: 12, z0: -18, z1: -17, h: 4.5 },
-  { x0: -12, x1: 12, z0: 7.5, z1: 8.5, h: 4.5 },
+const ARENA = [                                                   // 바깥 경계벽
+  { x0: -11, x1: -10, z0: -18, z1: 9.5, h: 4.5 },
+  { x0: -11, x1: 12, z0: -19, z1: -18, h: 4.5 },
+  { x0: -11, x1: 12, z0: 8.5, z1: 9.5, h: 4.5 },
+  { x0: 11, x1: 12, z0: -19, z1: 9.5, h: 4.5 },
 ];
+const CRATE = { x0: 7.4, x1: 8.5, z0: -12.6, z1: -11.5, h: 1.1 };   // 장식용 상자 (시야와 무관)
+// 앵글은 '벽 라인까지의 수직 거리'로 정해진다. 두 사람의 시선이 함께 스치는 피커 쪽 벽면(z=0)과
+// 그 연장선을 벽 라인으로 잡는다. 홀더는 고정된 방향에서 벽 거리만 바꾼다
+const H_SLOPE = 2.6 / 7.5;
+const holderAtWall = dw => ({ x: H_SLOPE * dw, z: -dw });
+const wallDist = (x, z) => Math.abs(z);
 const $ = id => document.getElementById(id);
 const clamp = THREE.MathUtils.clamp;
 const fmt1 = v => (Math.round(v * 10) / 10).toFixed(1);
+const fmtM = v => (v % 1 ? v.toFixed(1) : String(v));
 const rand = (a, b) => a + Math.random() * (b - a);
 
 /* ================= 시야 판정 ================= */
@@ -720,7 +809,7 @@ function addBlock(scene, w, layers, mats = wallMats) {
   scene.add(grp);
   return { grp, mesh };
 }
-function buildEnv(scene, backdropLayers, bright = false) {
+function buildEnv(scene, arenaLayers, bright = false) {
   const mats = bright ? drillWallMats : wallMats;
   scene.add(new THREE.HemisphereLight(0xc4cad8, 0x0a0b0e, 1.1));
   const sun = new THREE.DirectionalLight(0xffffff, 1.6); sun.position.set(8, 14, 7); scene.add(sun);
@@ -729,21 +818,16 @@ function buildEnv(scene, backdropLayers, bright = false) {
   floor.rotation.x = -Math.PI / 2; scene.add(floor);
   const grid = new THREE.GridHelper(90, 90, 0x2c323d, 0x2c323d); grid.position.y = 0.003; scene.add(grid);
   const walls = [addBlock(scene, WALL_MAIN, null, mats).mesh];
-  BACKDROPS.forEach(w => walls.push(addBlock(scene, w, backdropLayers, mats).mesh));
-  const crate = addBlock(scene, { x0: -0.55, x1: 0.55, z0: -0.55, z1: 0.55, h: 1.1 }, null, mats);
-  walls.push(crate.mesh);
-  return { crate: crate.grp, walls };
-}
-// 홀더 왼쪽(모서리 반대쪽)에 상자를 둔다. 시야와는 무관
-function placeCrate(crate, H) {
-  crate.position.set(H.x + 0.945 * 1.0 + DIR_H.x * 0.2, 0.55, H.z + 0.327 * 1.0 + DIR_H.z * 0.2);
+  ARENA.forEach(w => walls.push(addBlock(scene, w, arenaLayers, mats).mesh));
+  walls.push(addBlock(scene, CRATE, arenaLayers, mats).mesh);
+  return { walls };
 }
 
 /* ================= 1부: 설명 장면 ================= */
-const state = { ping: 35, speed: 5.4, lane: 1.3, hdist: 8, t: 0, playing: false, mode: 'slow', freeze: 0, fromStart: true };
+const state = { ping: 35, speed: 5.4, lane: 1.3, hwall: 7, t: 0, playing: false, mode: 'slow', freeze: 0, fromStart: true };
 let D = {};
 function derive() {
-  const H = holderPos(state.hdist), lane = state.lane, v = state.speed;
+  const H = holderAtWall(state.hwall), lane = state.lane, v = state.speed;
   const xP = crossX(x => visiblePoint(x, lane, H.x, H.z) !== null);   // 피커가 홀더 몸을 처음 보는 위치
   const xG = crossX(x => visiblePoint(H.x, H.z, x, lane) !== null);   // 홀더가 (지연 없이라면) 피커 몸을 처음 보는 위치
   const X0 = Math.min(xP, xG) - 1.25, XS = Math.max(xP, xG) + 1.3;
@@ -839,7 +923,9 @@ function dynLine(color, opacity, dashed) {
   };
 }
 const setPath = dynLine(ACCENT, 0.45, true);
-const setBound = dynLine(WHITE, 0.32, true);
+const setWallExt = dynLine(WHITE, 0.4, true);       // 벽 라인 연장선 (거리 기준선)
+const setDimP = dynLine(ACCENT, 0.95, false);       // 피커 ↔ 벽 수직 거리
+const setDimH = dynLine(WHITE, 0.85, false);        // 홀더 ↔ 벽 수직 거리
 const arrow = (() => {
   const s = new THREE.Shape(); s.moveTo(0.28, 0); s.lineTo(-0.05, 0.16); s.lineTo(-0.05, -0.16); s.closePath();
   const m = new THREE.Mesh(new THREE.ShapeGeometry(s).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: ACCENT, transparent: true, opacity: 0.6 }));
@@ -867,14 +953,16 @@ function makeLabel(text, cls) {
 const lblHolder = makeLabel('홀더 · 사이퍼'); lblHolder.position.set(0, 2.3, 0); holder.root.add(lblHolder);
 const lblPeeker = makeLabel('피커 · 제트', 'p'); lblPeeker.position.set(0, 2.3, 0); peeker.root.add(lblPeeker);
 const lblGhost = makeLabel('홀더 화면 속 피커', 'g'); lblGhost.position.set(0, 2.3, 0); ghost.root.add(lblGhost);
-const lblCorner = makeLabel('모서리', 'm'); lblCorner.position.set(0.05, 3.55, 0.05); scene.add(lblCorner);
-const topLabels = [lblHolder, lblPeeker, lblGhost, lblCorner];
+const lblCorner = makeLabel('벽 끝', 'm'); lblCorner.position.set(0.05, 3.55, -0.07); scene.add(lblCorner);
+const lblDimP = makeLabel('피커–벽', 'dim p'); scene.add(lblDimP);
+const lblDimH = makeLabel('홀더–벽', 'dim'); scene.add(lblDimH);
+const topLabels = [lblHolder, lblPeeker, lblGhost, lblCorner, lblDimP, lblDimH];
 
 /* ---- 카메라 & 렌더러 ---- */
 const topCam = new THREE.PerspectiveCamera(32, 2, 0.1, 200);
 topCam.layers.enable(1);
 // 홀더 ↔ 모서리 축이 화면 가로가 되도록 동쪽 위에서 내려다본다 (홀더 오른쪽, 피커 왼쪽)
-const TOP_DIR = new THREE.Vector3(-DIR_H.z, 0, DIR_H.x);             // 타깃 → 카메라 (수평)
+const TOP_DIR = new THREE.Vector3(1, 0, H_SLOPE).normalize();       // 타깃 → 카메라 (수평)
 const SCR_R = new THREE.Vector3(TOP_DIR.z, 0, -TOP_DIR.x);           // 화면 오른쪽 (바닥 기준)
 const TOP_ELEV = THREE.MathUtils.degToRad(57);
 const topTarget = new THREE.Vector3();
@@ -980,7 +1068,7 @@ function placeInsetCam() {
 /* ---- 숫자·장면 갱신 ---- */
 const el = {
   gapMs: $('gapMs'), bigWrap: $('bigWrap'), bigCap: $('bigCap'), netMs: $('netMs'), angMs: $('angMs'), angCap: $('angCap'), gapCm: $('gapCm'),
-  ping: $('ping'), speed: $('speed'), lane: $('lane'), hdist: $('hdist'),
+  ping: $('ping'), speed: $('speed'), lane: $('lane'), hwall: $('hwall'),
   clock: $('clock'), scrub: $('scrub'), tlFill: $('tlFill'), tlGap: $('tlGap'), tlGapLabel: $('tlGapLabel'),
   tlP: $('tlP'), tlH: $('tlH'), tlHead: $('tlHead'), tlEnd: $('tlEnd'),
   statusP: $('statusP'), statusH: $('statusH'), viewP: $('viewPeeker'), viewH: $('viewHolder'),
@@ -996,13 +1084,18 @@ function applyWorld() {
   holder.root.position.set(H.x, 0, H.z);
   face(holder.root, D.xG, D.lane);
   holderFan.position.set(H.x, 0.006, H.z); face(holderFan, D.xG, D.lane);
-  placeCrate(env.crate, H);
   holderCam.position.set(H.x, EYE, H.z);
   holderCam.lookAt(D.xG, EYE - 0.12, D.lane);
   setPath(D.X0, D.lane, D.XS + 0.25, D.lane);
   arrow.position.set(D.XS + 0.3, 0.02, D.lane);
-  const s = (D.lane + 1.2 - H.z) / (0 - H.z);
-  setBound(H.x, H.z, H.x + (0 - H.x) * s, H.z + (0 - H.z) * s);
+  setWallExt(0, 0, Math.max(H.x, D.XS) + 1.6, 0);
+  const dpx = Math.min(D.xP, D.xG) - 0.55;              // 피커 거리 표시는 처음 보이기 직전 자리에
+  setDimP(dpx, 0, dpx, D.lane);
+  setDimH(H.x, 0, H.x, H.z);
+  lblDimP.position.set(dpx, 0.05, D.lane / 2);
+  lblDimP.element.textContent = `피커–벽 ${state.lane.toFixed(1)}m`;
+  lblDimH.position.set(H.x, 0.05, H.z / 2);
+  lblDimH.element.textContent = `홀더–벽 ${fmtM(state.hwall)}m`;
   const a = D.xG, b = D.xG + D.lead, bz = D.lane + 0.62;
   brBand.position.set((a + b) / 2, 0, bz); brBand.scale.x = Math.max(b - a, 0.01);
   brTickA.position.set(a, 0, bz); brTickB.position.set(b, 0, bz);
@@ -1024,7 +1117,7 @@ function updateNumbers() {
   $('pingVal').textContent = state.ping;
   $('speedVal').textContent = state.speed.toFixed(1);
   $('laneVal').textContent = state.lane.toFixed(1);
-  $('hdistVal').textContent = state.hdist % 1 ? state.hdist.toFixed(1) : state.hdist;
+  $('hwallVal').textContent = fmtM(state.hwall);
   el.holderLag.textContent = Math.round(D.net);
   el.tlGapLabel.textContent = ag + 'ms';
   el.tlGap.classList.toggle('neg', g < 0);
@@ -1035,8 +1128,8 @@ function updateNumbers() {
   el.bdAng.className = a >= 0 ? 'pos' : 'neg';
   const far = D.angle > 0 ? '홀더' : '피커', near = D.angle > 0 ? '피커' : '홀더';
   el.bdAngTxt.innerHTML = Math.abs(D.angle) < 1
-    ? `피커는 벽에서 <b>${state.lane.toFixed(1)}m</b>, 홀더는 모서리에서 <b>${state.hdist}m</b>. 두 사람의 각도 차이가 거의 없다.`
-    : `피커는 벽에서 <b>${state.lane.toFixed(1)}m</b>, 홀더는 모서리에서 <b>${state.hdist}m</b>. 모서리 기준으로 더 멀리 있는 <b>${far}</b>가 ${near}의 어깨를 ${fmt1(Math.abs(D.angle))}ms 먼저 본다 (속도 ${state.speed.toFixed(1)}m/s).`;
+    ? `피커는 벽에서 <b>${state.lane.toFixed(1)}m</b>, 홀더는 벽에서 <b>${fmtM(state.hwall)}m</b>. 벽 거리가 거의 같아서 앵글 차이가 없다.`
+    : `피커는 벽에서 <b>${state.lane.toFixed(1)}m</b>, 홀더는 벽에서 <b>${fmtM(state.hwall)}m</b>. 벽에서 더 먼 <b>${far}</b>가 ${near}의 어깨를 ${fmt1(Math.abs(D.angle))}ms 먼저 본다 (속도 ${state.speed.toFixed(1)}m/s).`;
   el.bdTotal.textContent = ag === 0 ? '동시' : `${signed(g)}ms ${g > 0 ? '피커' : '홀더'} 먼저`;
   el.bdTotal.className = g >= 0 ? 'pos' : 'neg';
   const half = state.ping / 2;
@@ -1045,7 +1138,7 @@ function updateNumbers() {
     el.bar[i].style.flex = `${p} 1 0`;
     el.bar[i].style.display = p > 0 ? '' : 'none';
   });
-  for (const s of [el.ping, el.speed, el.lane, el.hdist]) s.style.setProperty('--p', ((s.value - s.min) / (s.max - s.min) * 100) + '%');
+  for (const s of [el.ping, el.speed, el.lane, el.hwall]) s.style.setProperty('--p', ((s.value - s.min) / (s.max - s.min) * 100) + '%');
 }
 
 const _v = new THREE.Vector3(), _w = new THREE.Vector3();
@@ -1213,7 +1306,7 @@ function onParam() {
   state.ping = +el.ping.value;
   state.speed = +el.speed.value;
   state.lane = +el.lane.value;
-  state.hdist = +el.hdist.value;
+  state.hwall = +el.hwall.value;
   derive(); applyWorld();
   pause();
   state.t = showcaseT();
@@ -1221,7 +1314,7 @@ function onParam() {
   hideFlash();
   updateNumbers(); updatePlayBtn();
 }
-for (const s of [el.ping, el.speed, el.lane, el.hdist]) s.addEventListener('input', onParam);
+for (const s of [el.ping, el.speed, el.lane, el.hwall]) s.addEventListener('input', onParam);
 
 derive(); applyWorld();
 state.t = showcaseT();
@@ -1254,32 +1347,68 @@ function renderExplainer() {
   if (views.holder) views.holder.r.render(scene, holderCam);
 }
 
-/* ================= 2부: 프리에임 미니게임 ================= */
+/* ================= 2부: 피킹·홀드 연습 ================= */
 const ROUNDS = 10;
-const VANDAL = { head: 160, body: 40, legs: 34, hp: 150, rpm: 9.75 };
-const cfg = { ping: 35, react: 220, pos: 8, sens: 0.35, guide: true, bait: false };
-const G = { running: false, paused: false, phase: 'idle', timer: 0, tau: 0, lastTick: 0, roundNo: 0, results: [], r: null,
-  yaw: 0, pitch: 0, mode: 'lock', lastShot: 0, recoil: 0, flashT: 0, enemyFlashT: 0, hp: 150, dead: false, fall: 0 };
+// 발로란트 수치. 달리기·정지 시간·정확 속도·밴달 데미지/연사/탄퍼짐은 공개 자료 기준, 가속·점프·앉기·반동은 근사
+const MOVE = { run: 6.75, walk: 4.05, crouch: 2.97, accel: 40, friction: 42, counter: 48, jumpV: 4.6, gravity: 13.5,
+  radius: 0.3, eyeStand: 1.68, eyeCrouch: 1.28 };
+const VANDAL = { head: 160, body: 40, legs: 34, hp: 100, shield: 50, rate: 9.75, mag: 25, reload: 2500,
+  stand: 0.25, walkErr: 3.0, runErr: 6.0, airErr: 10, recover: 375 };
+const BOT_LV = {
+  pro:  { name: '프로', react: [140, 180], flick: [45, 4],  pre: 0.4, head: 0.8,  hit1: 0.95, hitN: 0.6 },
+  high: { name: '상급', react: [190, 250], flick: [65, 6],  pre: 1.0, head: 0.6,  hit1: 0.9,  hitN: 0.5 },
+  mid:  { name: '보통', react: [260, 340], flick: [95, 9],  pre: 2.0, head: 0.4,  hit1: 0.8,  hitN: 0.38 },
+  low:  { name: '입문', react: [330, 430], flick: [140, 12], pre: 3.5, head: 0.25, hit1: 0.65, hitN: 0.25 },
+};
+const cfg = { mode: 'hold', ping: 35, lv: 'high', mySpot: 6, botSpot: 0, sens: 0.35, guide: true, bait: false };
+const isTouch = matchMedia('(pointer:coarse)').matches;
+const drillEl = $('drill');
+drillEl.dataset.mode = cfg.mode;
+const deg = THREE.MathUtils.degToRad, toDeg = THREE.MathUtils.radToDeg;
+const netDelay = () => cfg.ping + TICK_WAIT + INTERP;
+
 const gView = $('gameView');
 const gScene = new THREE.Scene();
 gScene.background = new THREE.Color(BG_POV);
 gScene.fog = new THREE.Fog(BG_POV, 18, 60);
 const gEnv = buildEnv(gScene, null, true);
+const BOXES = [WALL_MAIN, ...ARENA, CRATE];
 const gCam = new THREE.PerspectiveCamera(70, 16 / 9, 0.02, 200);
 gCam.rotation.order = 'YXZ';
 gScene.add(gCam);
-const enemy = makeAgent('jett', { hitboxes: true });
-{ // 발로란트식 적 하이라이트: 뒷면만 그린 살짝 큰 복제본으로 빨간 외곽선
+
+const flashTex = canvasTex((x, s) => {
+  const gr = x.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
+  gr.addColorStop(0, 'rgba(255,250,220,1)'); gr.addColorStop(0.35, 'rgba(255,190,90,.85)'); gr.addColorStop(1, 'rgba(255,120,40,0)');
+  x.fillStyle = gr; x.fillRect(0, 0, s, s);
+});
+const dotTex = canvasTex((x, s) => {
+  const gr = x.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
+  gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+  x.fillStyle = gr; x.fillRect(0, 0, s, s);
+});
+const flashSprite = scale => {
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: flashTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+  sp.scale.setScalar(scale); sp.visible = false; return sp;
+};
+// 적 요원: 발로란트식 빨간 외곽선 + 총구 화염
+function enemyAgent(kind) {
+  const ag = makeAgent(kind, { hitboxes: true });
   const outline = new THREE.MeshBasicMaterial({ color: ACCENT, side: THREE.BackSide });
   const src = [];
-  enemy.body.traverse(o => { if (o.isMesh && o.material.visible !== false && o.geometry.type !== 'PlaneGeometry') src.push(o); });
+  ag.body.traverse(o => { if (o.isMesh && o.material.visible !== false && o.geometry.type !== 'PlaneGeometry') src.push(o); });
   for (const m of src) {
     const c = new THREE.Mesh(m.geometry, outline);
     c.position.copy(m.position); c.quaternion.copy(m.quaternion); c.scale.copy(m.scale).multiplyScalar(1.14);
     m.parent.add(c);
   }
+  ag.flash = flashSprite(0.5); ag.flash.position.copy(ag.muzzle); ag.body.add(ag.flash);
+  ag.root.visible = false;
+  gScene.add(ag.root);
+  return ag;
 }
-gScene.add(enemy.root);
+const botModels = { peeker: enemyAgent('jett'), holder: enemyAgent('cypher') };
+
 let gRenderer = null, gW = 1, gH = 1;
 try {
   gRenderer = new THREE.WebGLRenderer({ antialias: true });
@@ -1287,65 +1416,97 @@ try {
   gView.prepend(gRenderer.domElement);
 } catch (e) { gRenderer = null; }
 const gCanvas = gRenderer ? gRenderer.domElement : null;
-// 발로란트 기본 시야(가로 103°)에 맞춘 세로 시야각
-const vfovFor = a => THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(103) / 2) / a));
+// 발로란트 시야(가로 103° 고정)에 맞춘 세로 시야각
+const vfovFor = a => toDeg(2 * Math.atan(Math.tan(deg(103) / 2) / a));
 if (gRenderer) new ResizeObserver(() => {
   gW = Math.max(1, gView.clientWidth); gH = Math.max(1, gView.clientHeight);
   gRenderer.setSize(gW, gH);
   gCam.aspect = gW / gH; gCam.fov = vfovFor(gCam.aspect); gCam.updateProjectionMatrix();
 }).observe(gView);
 
-// 1인칭 총(뷰모델)
+// 1인칭 총(뷰모델). 소매 색은 내 요원에 맞춘다
+const vmSleeve = new THREE.MeshStandardMaterial({ color: PALETTE.cypher.coat, roughness: 0.62, flatShading: true });
+const vmGlove = new THREE.MeshStandardMaterial({ color: PALETTE.cypher.glove, roughness: 0.62, flatShading: true });
 const vm = new THREE.Group();
 {
   const rifle = makeRifle(); rifle.position.set(-0.3, -1.44, 0); vm.add(rifle);
-  const sleeve = M(PALETTE.cypher.coat), glove = M(PALETTE.cypher.glove);
-  vm.add(limb(V3(-0.5, -0.24, 0.16), V3(-0.13, -0.08, 0.0), 0.055, 0.045, sleeve));
-  vm.add(limb(V3(-0.2, -0.3, -0.24), V3(0.2, -0.03, -0.01), 0.055, 0.045, sleeve));
-  for (const p of [V3(-0.13, -0.08, 0.0), V3(0.2, -0.03, -0.01)]) { const g = new THREE.Mesh(new THREE.SphereGeometry(0.042, 8, 6), glove); g.position.copy(p); vm.add(g); }
+  vm.add(limb(V3(-0.5, -0.24, 0.16), V3(-0.13, -0.08, 0.0), 0.055, 0.045, vmSleeve));
+  vm.add(limb(V3(-0.2, -0.3, -0.24), V3(0.2, -0.03, -0.01), 0.055, 0.045, vmSleeve));
+  for (const p of [V3(-0.13, -0.08, 0.0), V3(0.2, -0.03, -0.01)]) { const g = new THREE.Mesh(new THREE.SphereGeometry(0.042, 8, 6), vmGlove); g.position.copy(p); vm.add(g); }
 }
 vm.rotation.set(0.02, Math.PI / 2 + 0.05, 0);
 vm.scale.setScalar(0.62);
 vm.position.set(0.15, -0.15, -0.16);
 gCam.add(vm);
-const flashTex = canvasTex((x, s) => {
-  const gr = x.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
-  gr.addColorStop(0, 'rgba(255,250,220,1)'); gr.addColorStop(0.35, 'rgba(255,190,90,.85)'); gr.addColorStop(1, 'rgba(255,120,40,0)');
-  x.fillStyle = gr; x.fillRect(0, 0, s, s);
+const myFlash = flashSprite(0.16); myFlash.position.set(0.58, 0.005, 0); vm.add(myFlash);
+const impacts = Array.from({ length: 16 }, () => {
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: dotTex, transparent: true, depthWrite: false }));
+  sp.scale.setScalar(0.09); sp.visible = false; sp.userData.life = 0; gScene.add(sp); return sp;
 });
-const myFlash = new THREE.Sprite(new THREE.SpriteMaterial({ map: flashTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
-myFlash.scale.setScalar(0.16); myFlash.position.set(0.58, 0.005, 0); myFlash.visible = false; vm.add(myFlash);
-const enemyFlash = new THREE.Sprite(new THREE.SpriteMaterial({ map: flashTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
-enemyFlash.scale.setScalar(0.5); enemyFlash.position.copy(enemy.muzzle); enemyFlash.visible = false; enemy.body.add(enemyFlash);
+let impIdx = 0;
+function spawnImpact(pt, color) {
+  const sp = impacts[impIdx++ % impacts.length];
+  sp.position.copy(pt); sp.material.color.setHex(color); sp.visible = true; sp.userData.life = 260;
+}
 const guideTex = canvasTex((x, s) => {
   x.strokeStyle = 'rgba(255,70,85,.95)'; x.lineWidth = s * 0.07; x.setLineDash([s * 0.12, s * 0.08]);
   x.beginPath(); x.arc(s / 2, s / 2, s * 0.4, 0, Math.PI * 2); x.stroke();
 });
 const guide = new THREE.Sprite(new THREE.SpriteMaterial({ map: guideTex, transparent: true, depthTest: false, depthWrite: false, sizeAttenuation: false }));
-guide.scale.setScalar(0.045); guide.renderOrder = 30; guide.visible = false; gScene.add(guide);
-
+guide.scale.setScalar(0.05); guide.renderOrder = 30; guide.visible = false; gScene.add(guide);
 const ray = new THREE.Raycaster();
-const ui = {
-  round: $('gRound'), phase: $('gPhase'), info: $('gInfo'), toast: $('gToast'), vig: $('gVig'), gx: $('gx'),
-  start: $('gStart'), pause: $('gPause'), summary: $('gSummary'), rounds: $('gRounds'),
-  sReact: $('sReact'), sAim: $('sAim'), sWin: $('sWin'), sKill: $('sKill'), sKillSub: $('sKillSub'),
-};
-const drillActive = () => G.running && !G.paused;
-const netDelay = () => cfg.ping + TICK_WAIT + INTERP;
-function updateInfo() { ui.info.innerHTML = `핑 ${cfg.ping}ms · 상대 반응 ${cfg.react}ms<br>내 위치 ${cfg.pos}m · 감도 ${cfg.sens}`; }
-updateInfo();
-document.querySelectorAll('.chips').forEach(box => box.addEventListener('click', e => {
-  const b = e.target.closest('button'); if (!b) return;
-  box.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
-  cfg[box.dataset.k] = +b.dataset.v;
-  updateInfo();
-  if (!G.running) idleView();
-}));
-$('sens').addEventListener('input', e => { const v = parseFloat(e.target.value); if (v > 0) { cfg.sens = v; updateInfo(); } });
-$('guide').addEventListener('change', e => { cfg.guide = e.target.checked; });
-$('bait').addEventListener('change', e => { cfg.bait = e.target.checked; });
 
-// 키프레임으로 정의한 적의 실제 이동 (τ: 피크 시작 후 ms)
+const ui = {
+  round: $('gRound'), phase: $('gPhase'), info: $('gInfo'), toast: $('gToast'), vig: $('gVig'), hit: $('gHit'), gx: $('gx'),
+  hp: $('gHp'), sh: $('gSh'), ammo: $('gAmmo'), spd: $('gSpd'), spdTxt: $('gSpdTxt'), wall: $('gWall'),
+  start: $('gStart'), startTitle: $('gStartTitle'), startDesc: $('gStartDesc'), pause: $('gPause'), pauseMsg: $('gPauseMsg'),
+  summary: $('gSummary'), rounds: $('gRounds'), result: $('gResult'),
+  sWL: $('sWL'), sFirst: $('sFirst'), sReact: $('sReact'), sLast: $('sLast'), sLastLbl: $('sLastLbl'), sLastSub: $('sLastSub'),
+};
+
+/* ---- 상태 ---- */
+const PL = { x: 0, z: 0, vx: 0, vz: 0, y: 0, vy: 0, crouch: 0, yaw: 0, pitch: 0, hp: 100, sh: 50, ammo: 25, reloadT: 0,
+  lastShot: -1e9, sprayN: 0, alive: true, firing: false, jumpHeld: false, kick: 0, fall: 0 };
+const G = { running: false, paused: false, phase: 'idle', timer: 0, t: 0, roundNo: 0, results: [], mode: 'lock',
+  everLocked: false, kbLock: false, lastFrame: performance.now(), guideAt: null };
+let RD = null;
+const keys = new Set();
+const hist = [];
+const drillActive = () => G.running && !G.paused;
+const eyeY = (y = PL.y, c = PL.crouch) => y + MOVE.eyeStand - (MOVE.eyeStand - MOVE.eyeCrouch) * c;
+const speedOf = () => Math.hypot(PL.vx, PL.vz);
+
+function applyDamage(o, dmg) {           // 보호막이 먼저 깎인다 (1:1)
+  const s = Math.min(o.sh, dmg); o.sh -= s; o.hp -= dmg - s;
+}
+function moveError() {                    // 이동 속도에 따른 탄퍼짐(°)
+  const s = speedOf() / MOVE.run;
+  let e = 0;
+  if (s > 0.25) e = s <= 0.61 ? (s - 0.25) / 0.36 * VANDAL.walkErr : VANDAL.walkErr + (s - 0.61) / 0.39 * (VANDAL.runErr - VANDAL.walkErr);
+  if (PL.y > 0.02) e = Math.max(e, VANDAL.airErr);
+  return e;
+}
+const accurateNow = () => speedOf() <= 0.25 * MOVE.run && PL.y < 0.02;
+
+/* ---- 플레이어 기록 (봇은 네트워크 지연만큼 과거의 나를 본다) ---- */
+function recordHist(t) {
+  hist.push({ t, x: PL.x, z: PL.z, crouch: PL.crouch, y: PL.y });
+  while (hist.length > 2 && hist[1].t < t - 700) hist.shift();
+}
+function playerAt(t) {
+  if (!hist.length) return null;
+  if (t <= hist[0].t) return hist[0];
+  for (let i = hist.length - 1; i > 0; i--) {
+    const a = hist[i - 1], b = hist[i];
+    if (t >= a.t) {
+      const k = clamp((t - a.t) / (b.t - a.t || 1), 0, 1);
+      return { x: a.x + (b.x - a.x) * k, z: a.z + (b.z - a.z) * k, crouch: a.crouch + (b.crouch - a.crouch) * k, y: a.y + (b.y - a.y) * k };
+    }
+  }
+  return hist[hist.length - 1];
+}
+
+/* ---- 봇 ---- */
 function xAt(keys, tau) {
   if (tau <= keys[0].t) return keys[0].x;
   for (let i = 1; i < keys.length; i++) {
@@ -1358,197 +1519,241 @@ function movingAt(keys, tau) {
   for (let i = 1; i < keys.length; i++) if (tau > keys[i - 1].t && tau < keys[i].t) return keys[i].x !== keys[i - 1].x;
   return false;
 }
-function firstReach(keys, X, after = 0) {   // after 이후 x가 처음 X 이상이 되는 시각
-  for (let i = 1; i < keys.length; i++) {
-    const a = keys[i - 1], b = keys[i];
-    if (b.t <= after || b.x <= a.x) continue;
-    const t0 = Math.max(a.t, after), x0 = xAt(keys, t0);
-    if (x0 >= X) return t0;
-    if (b.x >= X) return a.t + (X - a.x) / (b.x - a.x) * (b.t - a.t);
+function botPosAt(t) {
+  const b = RD.bot;
+  if (b.kind === 'holder') return { x: b.x, z: b.z, moving: false };
+  const tau = t - b.startT;
+  return { x: xAt(b.keys, tau), z: b.lane, moving: movingAt(b.keys, tau) };
+}
+const botShownAt = t => botPosAt(t - RD.delay);    // 내 화면 속 봇 (네트워크 지연)
+function yawPitchTo(fx, fy, fz, tx, ty, tz) {
+  const dx = tx - fx, dy = ty - fy, dz = tz - fz;
+  return [Math.atan2(-dx, -dz), Math.atan2(dy, Math.hypot(dx, dz))];
+}
+function botLook(t, delay = RD.delay) {             // 봇 눈에 보이는 나 (지연된 위치 기준)
+  const p = playerAt(t - delay); if (!p) return null;
+  const e = botPosAt(t);
+  if (!visiblePoint(e.x, e.z, p.x, p.z)) return null;
+  return { e, p, head: visiblePoint(e.x, e.z, p.x, p.z, 0.12) !== null, hy: eyeY(p.y, p.crouch) };
+}
+// 프레임 사이에서 처음 참이 되는 시각을 이분 탐색 (프레임 간격에 상관없이 ms 단위로 정확하게)
+function refine(test, t0, t1) {
+  if (!(t1 > t0)) return t1;
+  let lo = t0, hi = t1;
+  for (let i = 0; i < 14; i++) { const m = (lo + hi) / 2; if (test(m)) hi = m; else lo = m; }
+  return hi;
+}
+const botReady = t => RD.bot.kind === 'holder' || (t - RD.bot.startT >= RD.bot.commit && !botPosAt(t).moving);
+function botUpdate(t) {
+  const b = RD.bot, lv = BOT_LV[cfg.lv];
+  if (!b.alive || !PL.alive || G.phase !== 'live') return;
+  const t0 = Math.min(b.lastT === null ? t : b.lastT, t);
+  b.lastT = t;
+  if (RD.firstB0 === null && botLook(t, 0)) RD.firstB0 = refine(x => !!botLook(x, 0), t0, t);
+  const look = botLook(t);
+  if (look) {
+    b.lostT = null;
+    const [ty, tp] = yawPitchTo(look.e.x, EYE, look.e.z, look.p.x, look.hy, look.p.z);
+    if (b.seeT === null) {
+      const ts = refine(x => !!botLook(x), t0, t);
+      if (RD.firstB === null) RD.firstB = ts;
+      b.seeT = ts;
+      let ey = ty - b.aimYaw; ey = Math.atan2(Math.sin(ey), Math.cos(ey));
+      const ang = toDeg(Math.hypot(ey, tp - b.aimPitch));
+      b.flickStart = ts + rand(lv.react[0], lv.react[1]) * (b.alerted ? 0.6 : 1);
+      b.fireAt = b.flickStart + lv.flick[0] + lv.flick[1] * ang;
+    }
+    if (t >= b.flickStart) {                         // 반응 후 조준을 끌고 온다
+      const k = clamp((t - b.flickStart) / Math.max(1, b.fireAt - b.flickStart), 0, 1);
+      let ey = ty - b.aimYaw; ey = Math.atan2(Math.sin(ey), Math.cos(ey));
+      b.aimYaw += ey * k; b.aimPitch += (tp - b.aimPitch) * k;
+    }
+    // 예정된 발사 시각 그대로 쏜다 (평가 프레임에 묶이지 않게)
+    for (let n = 0; n < 4; n++) {
+      const st = Math.max(b.fireAt, b.nextShot, t0);
+      if (st > t || !botReady(st)) break;
+      const lk = botLook(st) || look;
+      b.nextShot = st + 1000 / VANDAL.rate; b.shots++; b.flashT = 60;
+      const part = lk.head && Math.random() < lv.head ? 'head' : 'body';
+      if (Math.random() < (b.shots === 1 ? lv.hit1 : lv.hitN)) {
+        applyDamage(PL, VANDAL[part]);
+        ui.hit.classList.add('on'); setTimeout(() => ui.hit.classList.remove('on'), 90);
+        if (PL.hp <= 0) { PL.alive = false; endRound('lose', st, part); return; }
+      }
+    }
+  } else if (b.seeT !== null) {
+    if (b.lostT === null) b.lostT = t;
+    if (t - b.lostT > 250) { b.seeT = null; b.alerted = true; }
   }
-  return Infinity;
 }
-function makeRound() {
-  const P = holderPos(cfg.pos);
-  const types = cfg.bait ? ['wide', 'wide', 'tight', 'bait'] : ['wide', 'wide', 'tight'];
-  const type = types[Math.floor(Math.random() * types.length)];
-  const lane = type === 'tight' ? rand(0.5, 1.1) : rand(1.5, 3.0);
-  const speed = type === 'tight' ? rand(2.6, 4.0) : rand(5.0, 6.75);
-  const xE = crossX(x => visiblePoint(P.x, P.z, x, lane) !== null);     // 내가 적 몸을 처음 볼 수 있는 위치
-  const xS = crossX(x => visiblePoint(x, lane, P.x, P.z) !== null);     // 적이 내 몸을 처음 보는 위치
-  const x0 = Math.min(xE, xS) - rand(1.0, 1.6);
-  const xs = type === 'tight' ? Math.max(xE, xS) + rand(0.35, 0.7) : Math.max(xE, xS) + rand(1.0, 1.8);
-  const keys = [{ t: 0, x: x0 }];
-  let commit = 0;
-  if (type === 'bait') {                                                 // 어깨만 내밀었다 들어간 뒤 진짜 스윙
-    const out = xE + 0.28, bs = 3.6;
-    keys.push({ t: (out - x0) / bs * 1000, x: out });
-    keys.push({ t: keys[1].t + (out - x0 - 0.2) / bs * 1000, x: x0 + 0.2 });
-    commit = keys[2].t + rand(350, 800);
-    keys.push({ t: commit, x: x0 + 0.2 });
-    keys.push({ t: commit + (xs - x0 - 0.2) / speed * 1000, x: xs });
-  } else {
-    keys.push({ t: (xs - x0) / speed * 1000, x: xs });
-  }
-  const tStop = keys[keys.length - 1].t;
-  const d = netDelay();
-  const seeE = firstReach(keys, xS, commit);
-  return {
-    type, lane, speed, keys, xE, P, delay: d,
-    tSeeFirst: firstReach(keys, xE) + d,          // 내 화면에 처음 보이는 시각 (미끼 포함)
-    tSee: firstReach(keys, xE, commit) + d,        // 진짜 스윙이 내 화면에 보이는 시각
-    tFire: Math.max(seeE + cfg.react, tStop + 60), // 적이 쏘는 시각 (실제 시간)
-    shots: 0, early: 0, firstShot: null, killT: null, result: null, aim: null,
-  };
-}
-function setAimDir(dx, dy, dz) { G.yaw = Math.atan2(-dx, -dz); G.pitch = Math.atan2(dy, Math.hypot(dx, dz)); }
-function headPoint(r) { return V3(r.xE, EYE, r.lane); }
-function idleView() {
-  const P = holderPos(cfg.pos);
-  placeCrate(gEnv.crate, P);
-  gCam.position.set(P.x, EYE, P.z);
-  const xE = crossX(x => visiblePoint(P.x, P.z, x, 1.5) !== null);
-  setAimDir(xE - P.x, 0, 1.5 - P.z);
-  enemy.root.position.set(-6, 0, 2); enemy.root.visible = false;
-}
-idleView();
 
-function toast(title, sub, good) {
-  const b = ui.toast.querySelector('b');
-  b.textContent = title; b.className = good ? 'good' : '';
-  ui.toast.querySelector('small').textContent = sub || '';
-  ui.toast.classList.add('show');
-  clearTimeout(toast.t); toast.t = setTimeout(() => ui.toast.classList.remove('show'), 1300);
-}
-function startDrill(mode) {
-  G.running = true; G.paused = false; G.results = []; G.roundNo = 0;
-  ui.start.classList.add('hidden'); ui.summary.classList.add('hidden'); ui.pause.classList.add('hidden');
-  renderRoundDots();
-  G.mode = mode || (matchMedia('(pointer:coarse)').matches || !gCanvas.requestPointerLock ? 'drag' : 'lock');
-  if (G.mode === 'lock') lockPointer();
-  nextRound();
-}
-// 처음 잠금이 안 되면 드래그 모드로. 한 번 잠갔던 뒤의 실패(ESC 직후 재잠금 제한 등)는 일시정지 화면을 다시 띄운다
-function lockFailed() {
-  if (G.everLocked) { G.paused = false; pauseDrill(); $('gPauseMsg').textContent = '잠깐 뒤에 다시 눌러 주세요 (브라우저가 바로 다시 잠그지 못했다).'; }
-  else G.mode = 'drag';
-}
-function lockPointer() {
-  try {
-    const p = gCanvas.requestPointerLock();
-    if (p && p.catch) p.catch(lockFailed);
-  } catch (e) { lockFailed(); }
-}
-function nextRound() {
-  if (G.roundNo >= ROUNDS) return showSummary();
+/* ---- 라운드 ---- */
+function newRound() {
   G.roundNo++;
-  G.r = makeRound();
-  G.hp = VANDAL.hp; G.dead = false; G.fall = 0;
-  enemy.root.rotation.set(0, 0, 0); enemy.body.rotation.set(0, 0, 0); enemy.root.position.y = 0; enemy.root.visible = true;
-  placeCrate(gEnv.crate, G.r.P);
-  gCam.position.set(G.r.P.x, EYE, G.r.P.z);
-  // 라운드마다 조준점을 정답에서 살짝 흐트러뜨린다 → 직접 다시 걸어야 함
-  const h = headPoint(G.r);
-  setAimDir(h.x - G.r.P.x, h.y - EYE, h.z - G.r.P.z);
+  Object.assign(PL, { vx: 0, vz: 0, y: 0, vy: 0, crouch: 0, hp: VANDAL.hp, sh: VANDAL.shield, ammo: VANDAL.mag, reloadT: 0,
+    lastShot: -1e9, sprayN: 0, alive: true, firing: false, kick: 0, fall: 0 });
+  hist.length = 0;
+  RD = { mode: cfg.mode, delay: netDelay(), firstP: null, firstP0: null, firstB: null, firstB0: null, contact: null,
+    firstShot: null, shots: 0, aim: null, result: null, endT: null, part: null };
+  const lv = BOT_LV[cfg.lv];
   const sgn = () => (Math.random() < 0.5 ? -1 : 1);
-  G.yaw += sgn() * THREE.MathUtils.degToRad(rand(6, 14));
-  G.pitch += sgn() * THREE.MathUtils.degToRad(rand(2, 6));
-  G.phase = 'ready'; G.timer = 1100; G.tau = 0;
+  if (cfg.mode === 'hold') {
+    const H = holderAtWall(cfg.mySpot); PL.x = H.x; PL.z = H.z;
+    // 봇 = 피커(제트): 와이드 / 타이트 / 어깨 미끼
+    const types = cfg.bait ? ['wide', 'wide', 'tight', 'bait'] : ['wide', 'wide', 'tight'];
+    const type = types[Math.floor(Math.random() * types.length)];
+    const lane = type === 'tight' ? rand(0.5, 1.1) : rand(1.5, 3.2);
+    const speed = type === 'tight' ? rand(2.6, 4.0) : rand(5.2, MOVE.run);
+    const xE = crossX(x => visiblePoint(PL.x, PL.z, x, lane) !== null);
+    const xS = crossX(x => visiblePoint(x, lane, PL.x, PL.z) !== null);
+    const x0 = Math.min(xE, xS) - rand(1.0, 1.6);
+    const xs = type === 'tight' ? Math.max(xE, xS) + rand(0.35, 0.7) : Math.max(xE, xS) + rand(1.0, 1.8);
+    const k = [{ t: 0, x: x0 }];
+    let commit = 0;
+    if (type === 'bait') {
+      const out = xE + 0.28, bs = 3.6;
+      k.push({ t: (out - x0) / bs * 1000, x: out });
+      k.push({ t: k[1].t + (out - x0 - 0.2) / bs * 1000, x: x0 + 0.2 });
+      commit = k[2].t + rand(350, 800);
+      k.push({ t: commit, x: x0 + 0.2 });
+      k.push({ t: commit + (xs - x0 - 0.2) / speed * 1000, x: xs });
+    } else k.push({ t: (xs - x0) / speed * 1000, x: xs });
+    const startT = rand(500, 2200);
+    const bot = { kind: 'peeker', type, lane, keys: k, commit, startT, endT: startT + k[k.length - 1].t };
+    const [ay, ap] = yawPitchTo(x0, EYE, lane, PL.x, EYE, PL.z);
+    RD.bot = bot; RD.guideLane = lane;
+    Object.assign(bot, { aimYaw: ay + deg(sgn() * lv.pre), aimPitch: ap });
+    // 조준점은 정답(처음 보일 머리 위치)에서 살짝 흐트러뜨려 시작
+    const [gy, gp] = yawPitchTo(PL.x, EYE, PL.z, xE, EYE, lane);
+    PL.yaw = gy + sgn() * deg(rand(6, 14)); PL.pitch = gp + sgn() * deg(rand(2, 6));
+    G.timer = 1100;
+  } else {
+    // 봇 = 홀더(사이퍼): 벽 라인에서 떨어진 거리를 바꿔 가며 잡는다
+    PL.x = -rand(2.4, 3.8); PL.z = rand(0.7, 2.0);
+    const dw = cfg.botSpot || rand(1.5, 11), kx = rand(0.25, 0.6);
+    const bx = Math.max(0.8, kx * dw + 0.3), bz = -dw;
+    const bot = { kind: 'holder', x: bx, z: bz, dw, startT: 0, commit: 0, endT: 0 };
+    const [ay, ap] = yawPitchTo(bx, EYE, bz, 0.05, EYE, 0.05);
+    const pe = deg(lv.pre), pa = Math.random() * Math.PI * 2;
+    Object.assign(bot, { aimYaw: ay + pe * Math.cos(pa), aimPitch: ap + pe * Math.sin(pa) * 0.5 });
+    RD.bot = bot;
+    [PL.yaw, PL.pitch] = yawPitchTo(PL.x, EYE, PL.z, 3, EYE, -5);
+    G.timer = 900;
+  }
+  Object.assign(RD.bot, { hp: VANDAL.hp, sh: VANDAL.shield, alive: true, seeT: null, flickStart: 0, fireAt: Infinity, nextShot: 0,
+    lostT: null, alerted: false, shots: 0, flashT: 0, fall: 0, lastT: null });
+  for (const [k, m] of Object.entries(botModels)) {
+    m.root.visible = k === RD.bot.kind;
+    m.body.rotation.set(0, 0, 0); m.flash.visible = false;
+  }
+  RD.model = botModels[RD.bot.kind];
+  G.phase = 'ready'; G.t = 0; G.guideAt = null;
   ui.vig.classList.remove('dead');
   ui.round.textContent = `${G.roundNo} / ${ROUNDS}`;
+  placeBot(0);
 }
-function tauNow() { return G.phase === 'peek' ? G.tau + (performance.now() - G.lastTick) : -1; }
-function fire() {
-  if (!drillActive() || !['ready', 'wait', 'peek'].includes(G.phase)) return;
-  const now = performance.now();
-  if (now - G.lastShot < 1000 / VANDAL.rpm) return;
-  G.lastShot = now; G.flashT = 45; G.recoil = 1;
-  const r = G.r, tau = tauNow();
-  r.shots++;
-  if (G.phase === 'peek' && tau >= r.tFire) return;          // 상대 총알이 먼저 도착 → 다음 프레임에 사망 처리
-  gCam.rotation.set(G.pitch, G.yaw, 0);                     // 가장 최근 조준 방향으로 쏜다
-  gCam.updateMatrixWorld(true); enemy.root.updateMatrixWorld(true);
-  ray.setFromCamera({ x: 0, y: 0 }, gCam);
-  const wall = ray.intersectObjects(gEnv.walls, false)[0];
-  const hit = G.phase === 'peek' && !G.dead ? ray.intersectObjects(enemy.hitboxes, false)[0] : null;
-  if (hit && (!wall || hit.distance < wall.distance)) {
-    if (r.firstShot === null) r.firstShot = tau;
-    const part = hit.object.userData.part;
-    G.hp -= VANDAL[part];
-    ui.gx.classList.add('hit'); setTimeout(() => ui.gx.classList.remove('hit'), 120);
-    if (G.hp <= 0) {
-      G.dead = true; r.killT = tau; r.result = part === 'head' ? 'head' : 'kill';
-      endRound();
-    } else {
-      toast(part === 'head' ? '헤드' : (part === 'body' ? '몸샷' : '다리샷'), `남은 체력 ${G.hp}`, false);
-    }
-    return;
+function placeBot(t) {
+  const b = RD.bot, m = RD.model;
+  const s = G.phase === 'ready' ? botPosAt(-1e9) : botShownAt(t);
+  if (b.alive) {
+    m.root.position.set(s.x, 0, s.z);
+    m.root.rotation.y = b.aimYaw + Math.PI / 2;
+    m.pose(s.x / STRIDE * Math.PI, s.moving ? 1 : 0);
   }
-  if (G.phase !== 'peek' || tau < r.tSeeFirst) r.early++;
-  else if (r.firstShot === null && tau >= r.tSee) r.firstShot = tau;
+  return s;
 }
-function endRound() {
-  const r = G.r;
-  G.phase = 'result'; G.timer = 1500;
-  const react = r.firstShot !== null ? r.firstShot - r.tSee : null;
-  const win = r.tFire - r.tSee;
-  if (r.result === 'head') toast('헤드샷 처치', `보이고 ${Math.round(r.killT - r.tSee)}ms · 허용 ${Math.round(win)}ms`, true);
-  else if (r.result === 'kill') toast('처치', `몸샷 포함 ${r.shots}발 · ${Math.round(r.killT - r.tSee)}ms`, true);
-  else {
-    r.result = 'dead';
-    ui.vig.classList.add('dead');
-    G.enemyFlashT = 140;
-    toast('사망 — 상대가 먼저 쐈다', win <= 0 ? `허용 시간 ${Math.round(win)}ms · 이 각도·핑으로는 이길 수 없는 피크` : `허용 시간 ${Math.round(win)}ms · 피커 어드밴티지 ${Math.round(r.delay)}ms`, false);
+function endRound(result, t, part) {
+  if (G.phase !== 'live') return;
+  RD.result = result; RD.endT = t; RD.part = part || null;
+  G.phase = 'result'; G.timer = 2000; PL.firing = false;
+  const r = RD;
+  r.react = r.firstShot && r.firstP !== null ? r.firstShot.t - r.firstP : null;
+  if (r.firstP !== null && r.firstB !== null) {
+    r.diff = r.firstB - r.firstP;                                    // + 이면 내가 먼저
+    r.angle = r.firstP0 !== null && r.firstB0 !== null ? r.firstB0 - r.firstP0 : null;
+    r.net = r.angle !== null ? r.diff - r.angle : null;
   }
-  r.react = react; r.window = win;
+  if (result === 'win') toast(part === 'head' ? '헤드샷 처치' : '처치', r.firstP !== null ? `보이고 ${Math.round(t - r.firstP)}ms` : '', true);
+  else if (result === 'lose') { ui.vig.classList.add('dead'); toast('사망', r.diff !== undefined && r.diff < 0 ? `상대가 ${Math.round(-r.diff)}ms 먼저 봤다` : '상대가 먼저 맞혔다', false); }
+  else toast('시간 초과', '', false);
   G.results.push(r);
-  renderRoundDots(); renderStats(r);
+  renderResult(r); renderStats(); renderRoundDots();
+}
+function signedMs(v) { return (v >= 0 ? '+' : '−') + Math.abs(Math.round(v)); }
+function renderResult(r) {
+  const tag = r.result === 'win' ? `<span class="rtag win">승리${r.part === 'head' ? ' · 헤드샷' : ''}</span>` : r.result === 'lose' ? '<span class="rtag">패배</span>' : '<span class="rtag">시간 초과</span>';
+  const parts = [];
+  if (r.diff !== undefined) {
+    const who = r.diff >= 0 ? `<b class="pos">내가 ${Math.round(r.diff)}ms 먼저</b>` : `<b>상대가 ${Math.round(-r.diff)}ms 먼저</b>`;
+    parts.push(`본 순서: ${who}` + (r.net !== null ? ` (네트워크 ${signedMs(r.net)} · 앵글 ${signedMs(r.angle)})` : ''));
+  } else if (r.firstP !== null && r.firstB === null) parts.push('본 순서: <b class="pos">상대는 나를 보지도 못했다</b>');
+  else if (r.firstP === null && r.firstB !== null) parts.push('본 순서: <b>나는 상대를 보지도 못했다</b>');
+  if (r.contact) parts.push(`벽 거리: 나 <b>${fmt1(r.contact.me)}m</b> · 상대 <b>${fmt1(r.contact.bot)}m</b>`);
+  if (r.firstShot) parts.push(`첫 발: ${r.firstShot.ok ? '<b>정지 상태(정확)</b>' : `<b>이동 중 ${fmt1(r.firstShot.speed)}m/s · 탄퍼짐 ${fmt1(r.firstShot.err)}°</b>`}`);
+  if (r.react !== null) parts.push(`반응 <b>${Math.round(r.react)}ms</b>`);
+  if (r.aim) parts.push(`조준점 오차 <b>${fmt1(r.aim.total)}°</b>`);
+  ui.result.innerHTML = tag + parts.join(' · ');
+}
+function avg(arr) { const a = arr.filter(v => v !== null && v !== undefined && isFinite(v)); return a.length ? a.reduce((s, v) => s + v, 0) / a.length : null; }
+function renderStats() {
+  const rs = G.results;
+  const w = rs.filter(x => x.result === 'win').length, l = rs.length - w;
+  ui.sWL.textContent = `${w} · ${l}`;
+  const f = avg(rs.map(x => x.diff)); ui.sFirst.textContent = f === null ? '—' : signedMs(f);
+  const re = avg(rs.map(x => x.react)); ui.sReact.textContent = re === null ? '—' : Math.round(re);
+  if (cfg.mode === 'hold') {
+    const a = avg(rs.map(x => x.aim && x.aim.total));
+    ui.sLastLbl.textContent = '조준점 오차'; ui.sLast.textContent = a === null ? '—' : fmt1(a); ui.sLastSub.textContent = '° · 상대가 나타난 순간 (평균)';
+  } else {
+    const fs = rs.filter(x => x.firstShot);
+    ui.sLastLbl.textContent = '정지 후 첫 발'; ui.sLast.textContent = fs.length ? Math.round(fs.filter(x => x.firstShot.ok).length / fs.length * 100) + '%' : '—';
+    ui.sLastSub.textContent = '속도 25% 이하에서 쏜 첫 발 비율';
+  }
 }
 function renderRoundDots() {
   let h = '<span style="margin-right:4px">라운드</span>';
   for (let i = 0; i < ROUNDS; i++) {
     const r = G.results[i];
-    h += `<i class="${r ? r.result : ''}">${i + 1}</i>`;
+    h += `<i class="${r ? (r.result === 'win' && r.part === 'head' ? 'head' : r.result) : ''}">${i + 1}</i>`;
   }
   ui.rounds.innerHTML = h;
 }
-function avg(arr) { const a = arr.filter(v => v !== null && isFinite(v)); return a.length ? a.reduce((s, v) => s + v, 0) / a.length : null; }
-function renderStats(r) {
-  ui.sReact.textContent = r.react !== null ? Math.round(r.react) : '—';
-  ui.sAim.textContent = r.aim ? fmt1(r.aim.total) : '—';
-  ui.sWin.textContent = Math.round(r.window);
-  const kills = G.results.filter(x => x.result !== 'dead').length, heads = G.results.filter(x => x.result === 'head').length;
-  ui.sKill.textContent = `${kills} · ${heads}`;
-  ui.sKillSub.textContent = `${G.results.length}라운드 중 킬 · 헤드샷`;
+function toast(title, sub, good) {
+  const b = ui.toast.querySelector('b');
+  b.textContent = title; b.className = good ? 'good' : '';
+  ui.toast.querySelector('small').textContent = sub || '';
+  ui.toast.classList.add('show');
+  clearTimeout(toast.t); toast.t = setTimeout(() => ui.toast.classList.remove('show'), 1500);
 }
 function showSummary() {
-  G.running = false; G.phase = 'idle';
+  G.running = false; G.phase = 'idle'; keys.clear();
   ui.vig.classList.remove('dead');
   if (document.pointerLockElement === gCanvas) document.exitPointerLock();
   const rs = G.results;
-  const kills = rs.filter(x => x.result !== 'dead').length, heads = rs.filter(x => x.result === 'head').length;
-  const react = avg(rs.map(x => x.react)), aim = avg(rs.map(x => x.aim && x.aim.total));
-  const pitch = avg(rs.map(x => x.aim && x.aim.pitch)), yawAbs = avg(rs.map(x => x.aim && Math.abs(x.aim.yaw)));
-  const win = avg(rs.map(x => x.window)), early = rs.reduce((s, x) => s + x.early, 0);
+  const wins = rs.filter(x => x.result === 'win').length, heads = rs.filter(x => x.result === 'win' && x.part === 'head').length;
+  const diff = avg(rs.map(x => x.diff)), react = avg(rs.map(x => x.react));
+  const meW = avg(rs.map(x => x.contact && x.contact.me)), botW = avg(rs.map(x => x.contact && x.contact.bot));
   const tips = [];
-  if (pitch !== null && pitch > 0.8) tips.push(`조준점이 머리보다 평균 ${fmt1(pitch)}° 낮다. 머리 높이에 먼저 고정하자.`);
-  else if (pitch !== null && pitch < -0.8) tips.push(`조준점이 머리보다 평균 ${fmt1(-pitch)}° 높다. 조금 내려서 머리선에 맞추자.`);
-  if (yawAbs !== null && yawAbs > 2.5) tips.push(`나타나는 지점에서 옆으로 평균 ${fmt1(yawAbs)}° 떨어져 있었다. 조준점을 모서리 끝에 붙이자.`);
-  if (react !== null && win !== null && react > win) tips.push(`평균 반응(${Math.round(react)}ms)이 허용 시간(${Math.round(win)}ms)보다 길다. 더 뒤로 물러나 잡거나(앵글 이득) 핑이 낮은 환경이 유리하다.`);
-  if (early) tips.push(`보이기 전에 ${early}발을 쐈다. 실전에선 위치가 드러난다.`);
-  const missDeaths = rs.filter(x => x.result === 'dead' && x.firstShot !== null).length;
-  if (missDeaths >= 2) tips.push(`쏘고도 죽은 라운드가 ${missDeaths}번. 첫 발이 머리선을 벗어났거나 늦었다.`);
-  const silentDeaths = rs.filter(x => x.result === 'dead' && x.firstShot === null).length;
-  if (silentDeaths >= 2) tips.push(`쏘지도 못하고 죽은 라운드가 ${silentDeaths}번. 허용 시간(평균 ${win !== null ? Math.round(win) : '—'}ms) 안에 첫 발이 나가야 한다.`);
-  if (!tips.length && kills >= ROUNDS * 0.8) tips.push('조준점 위치와 반응 모두 좋다. 상대 반응을 한 단계 올려 보자.');
-  if (!tips.length) tips.push(cfg.guide ? `${ROUNDS}라운드 중 ${kills}킬. 죽은 라운드의 허용 시간을 보고 첫 발 타이밍을 당겨 보자.` : `${ROUNDS}라운드 중 ${kills}킬. 정답 조준점 표시를 켜고 위치부터 익히자.`);
+  if (meW !== null && botW !== null && meW + 0.3 < botW)
+    tips.push(cfg.mode === 'peek' ? `처음 마주친 순간 벽 거리: 나 ${fmt1(meW)}m, 상대 ${fmt1(botW)}m. 벽에서 더 떨어져 넓게 스윙하면 앵글 손해가 준다.` : `처음 마주친 순간 벽 거리: 나 ${fmt1(meW)}m, 상대 ${fmt1(botW)}m. 벽 라인에서 더 물러나 잡으면 앵글 이득을 본다.`);
+  if (cfg.mode === 'peek') {
+    const fs = rs.filter(x => x.firstShot), moving = fs.filter(x => !x.firstShot.ok).length;
+    if (moving) tips.push(`첫 발 ${fs.length}번 중 ${moving}번이 이동 중이었다. 반대 방향 키로 멈춘 뒤(속도 25% 이하) 쏴야 탄이 모인다.`);
+  } else {
+    const pitch = avg(rs.map(x => x.aim && x.aim.pitch)), yawAbs = avg(rs.map(x => x.aim && Math.abs(x.aim.yaw)));
+    if (pitch !== null && pitch > 0.8) tips.push(`조준점이 머리보다 평균 ${fmt1(pitch)}° 낮다. 머리 높이에 먼저 고정하자.`);
+    else if (pitch !== null && pitch < -0.8) tips.push(`조준점이 머리보다 평균 ${fmt1(-pitch)}° 높다.`);
+    if (yawAbs !== null && yawAbs > 2.5) tips.push(`나타나는 지점에서 옆으로 평균 ${fmt1(yawAbs)}° 떨어져 있었다. 조준점을 벽 끝에 붙이자.`);
+  }
+  if (diff !== null && diff < -15) tips.push(`상대가 평균 ${Math.round(-diff)}ms 먼저 봤다. ${cfg.mode === 'peek' ? '빠르게, 넓게 나와 피커 이점을 살리자.' : '홀더는 네트워크로 불리하니 앵글(벽 거리)로 되찾아야 한다.'}`);
+  if (!tips.length) tips.push(wins >= ROUNDS * 0.8 ? '움직임과 조준 모두 좋다. 상대 수준을 한 단계 올려 보자.' : '라운드별 결과 줄을 보며 먼저 본 쪽과 첫 발 상태를 확인하자.');
   ui.summary.innerHTML = `
-    <h3>세트 결과</h3>
+    <h3>세트 결과 · ${cfg.mode === 'peek' ? '피킹' : '홀드'} 연습</h3>
     <div class="sum-grid">
-      <div><b class="hl">${kills}<small style="font-size:.45em;color:var(--muted)">/${ROUNDS}</small></b><span>킬</span></div>
-      <div><b>${rs.length ? Math.round(heads / rs.length * 100) : 0}%</b><span>헤드샷 킬</span></div>
+      <div><b class="hl">${wins}<small style="font-size:.45em;color:var(--muted)">/${ROUNDS}</small></b><span>승리</span></div>
+      <div><b>${rs.length ? Math.round(heads / rs.length * 100) : 0}%</b><span>헤드샷 처치</span></div>
+      <div><b>${diff !== null ? signedMs(diff) : '—'}</b><span>먼저 본 시간 ms</span></div>
       <div><b>${react !== null ? Math.round(react) : '—'}</b><span>평균 반응 ms</span></div>
-      <div><b>${aim !== null ? fmt1(aim) : '—'}°</b><span>평균 조준점 오차</span></div>
     </div>
     <ul class="sum-tips">${tips.slice(0, 3).map(t => `<li>${t}</li>`).join('')}</ul>
     <div style="display:flex;gap:10px;margin-top:6px"><button class="btn" id="gAgain">다시 하기</button><button class="btn ghost" id="gToExplain">설명으로</button></div>`;
@@ -1557,35 +1762,196 @@ function showSummary() {
   $('gToExplain').onclick = () => document.querySelector('.layout').scrollIntoView({ behavior: 'smooth' });
   ui.phase.textContent = '세트 종료';
 }
+
+/* ---- 사격 ---- */
+function tNow() { return G.phase === 'live' ? G.t + Math.min(50, performance.now() - G.lastFrame) : G.t; }
+function startReload() { if (PL.reloadT <= 0 && PL.ammo < VANDAL.mag) PL.reloadT = VANDAL.reload; }
+const _dir = new THREE.Vector3(), _eye = new THREE.Vector3();
+function playerShoot(t) {
+  if (!drillActive() || G.phase !== 'live' || !PL.alive) return;
+  if (PL.reloadT > 0) return;
+  if (PL.ammo <= 0) { startReload(); return; }
+  if (t - PL.lastShot < 1000 / VANDAL.rate - 0.5) return;
+  botUpdate(t);                                             // 같은 시각까지 상대 사격을 먼저 처리
+  if (!PL.alive || G.phase !== 'live') return;
+  PL.ammo--;
+  PL.sprayN = t - PL.lastShot < VANDAL.recover ? PL.sprayN + 1 : 0;
+  PL.lastShot = t;
+  const spd = speedOf(), ok = accurateNow();
+  const err = (VANDAL.stand + moveError() + Math.min(PL.sprayN, 8) * 0.32) * (PL.crouch > 0.5 ? 0.9 : 1);
+  const climb = Math.min(PL.sprayN, 6) * 0.42;                // 연사하면 탄이 위로 튄다 (근사)
+  const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * err;
+  const yaw = PL.yaw + deg(Math.cos(a) * r), pitch = PL.pitch + deg(Math.sin(a) * r + climb);
+  _dir.set(-Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), -Math.cos(yaw) * Math.cos(pitch));
+  _eye.set(PL.x, eyeY(), PL.z);
+  ray.set(_eye, _dir); ray.far = 120;
+  RD.shots++;
+  if (RD.firstShot === null && RD.firstP !== null) RD.firstShot = { t, speed: spd, err, ok };
+  G.flashT = 45; PL.kick = 1;
+  const wall = ray.intersectObjects(gEnv.walls, false)[0];
+  const b = RD.bot;
+  let hit = null;
+  if (b.alive) { RD.model.root.updateMatrixWorld(true); hit = ray.intersectObjects(RD.model.hitboxes, false)[0]; }
+  if (hit && (!wall || hit.distance < wall.distance)) {
+    const part = hit.object.userData.part;
+    applyDamage(b, VANDAL[part]);
+    spawnImpact(hit.point, ACCENT);
+    ui.gx.classList.add('hit'); setTimeout(() => ui.gx.classList.remove('hit'), 110);
+    if (b.hp <= 0) { b.alive = false; endRound('win', t, part); }
+  } else if (wall) spawnImpact(wall.point, 0xcfd3da);
+  if (PL.ammo === 0) startReload();
+}
+
+/* ---- 이동 ---- */
+function collide() {
+  for (let it = 0; it < 2; it++) for (const w of BOXES) {
+    const cx = clamp(PL.x, w.x0, w.x1), cz = clamp(PL.z, w.z0, w.z1);
+    const dx = PL.x - cx, dz = PL.z - cz, d = Math.hypot(dx, dz);
+    if (d >= MOVE.radius) continue;
+    if (d > 1e-6) {
+      const nx = dx / d, nz = dz / d;
+      PL.x = cx + nx * MOVE.radius; PL.z = cz + nz * MOVE.radius;
+      const vn = PL.vx * nx + PL.vz * nz; if (vn < 0) { PL.vx -= vn * nx; PL.vz -= vn * nz; }
+    } else {
+      const o = [[w.x0 - MOVE.radius - PL.x, 0], [w.x1 + MOVE.radius - PL.x, 0], [0, w.z0 - MOVE.radius - PL.z], [0, w.z1 + MOVE.radius - PL.z]];
+      o.sort((p, q) => Math.hypot(p[0], p[1]) - Math.hypot(q[0], q[1]));
+      PL.x += o[0][0]; PL.z += o[0][1];
+    }
+  }
+}
+function updatePlayer(dt) {
+  const f = (keys.has('KeyW') ? 1 : 0) - (keys.has('KeyS') ? 1 : 0);
+  const sd = (keys.has('KeyD') ? 1 : 0) - (keys.has('KeyA') ? 1 : 0);
+  let wx = -Math.sin(PL.yaw) * f + Math.cos(PL.yaw) * sd, wz = -Math.cos(PL.yaw) * f - Math.sin(PL.yaw) * sd;
+  const wl = Math.hypot(wx, wz); if (wl > 0) { wx /= wl; wz /= wl; }
+  const crouching = keys.has('KeyC') || (G.kbLock && (keys.has('ControlLeft') || keys.has('ControlRight')));
+  PL.crouch = clamp(PL.crouch + (crouching ? 1 : -1) * dt / 0.12, 0, 1);
+  const maxV = crouching ? MOVE.crouch : (keys.has('ShiftLeft') || keys.has('ShiftRight')) ? MOVE.walk : MOVE.run;
+  const air = PL.y > 0.001 || PL.vy > 0;
+  if (!air) {
+    const tx = wx * maxV, tz = wz * maxV;
+    let rate = wl === 0 ? MOVE.friction : (PL.vx * tx + PL.vz * tz < 0 ? MOVE.counter : MOVE.accel);
+    if (wl > 0 && speedOf() > maxV + 0.01) rate = MOVE.friction;
+    const dx = tx - PL.vx, dz = tz - PL.vz, dl = Math.hypot(dx, dz), stepV = rate * dt;
+    if (dl <= stepV) { PL.vx = tx; PL.vz = tz; } else { PL.vx += dx / dl * stepV; PL.vz += dz / dl * stepV; }
+    if (keys.has('Space') && !PL.jumpHeld && !crouching) { PL.vy = MOVE.jumpV; PL.jumpHeld = true; }
+  }
+  if (!keys.has('Space')) PL.jumpHeld = false;
+  if (air || PL.vy > 0) { PL.vy -= MOVE.gravity * dt; PL.y = Math.max(0, PL.y + PL.vy * dt); if (PL.y === 0 && PL.vy < 0) PL.vy = 0; }
+  PL.x += PL.vx * dt; PL.z += PL.vz * dt;
+  collide();
+}
+
+/* ---- 입력 ---- */
+function updateInfo() { ui.info.innerHTML = `핑 ${cfg.ping}ms · 상대 ${BOT_LV[cfg.lv].name}<br>감도 ${cfg.sens} · 시야 103°`; }
+function setMode(mode) {
+  if (G.running) return;
+  if (mode === 'peek' && isTouch) { toast('피킹 연습은 키보드·마우스가 필요하다', '', false); return; }
+  cfg.mode = mode; drillEl.dataset.mode = mode;
+  document.querySelectorAll('.tabs button').forEach(b => { const on = b.dataset.mode === mode; b.classList.toggle('on', on); b.setAttribute('aria-selected', on); });
+  vmSleeve.color.setHex(mode === 'peek' ? PALETTE.jett.coat : PALETTE.cypher.coat);
+  vmGlove.color.setHex(mode === 'peek' ? PALETTE.jett.glove : PALETTE.cypher.glove);
+  ui.startTitle.textContent = mode === 'peek' ? '피킹 연습' : '홀드 연습';
+  ui.startDesc.innerHTML = mode === 'peek'
+    ? '너는 벽 뒤의 피커(제트). 사이퍼가 벽에서 떨어진 어딘가를 잡고 있다. <b>넓게, 빠르게 나와서 반대 키로 멈추고</b> 쏘자. 이동 중에 쏘면 탄이 퍼진다.'
+    : '너는 홀더(사이퍼). 제트가 벽 끝에서 튀어나온다. 조준점을 <b>머리 높이·벽 끝</b>에 걸고 기다리자. 움직여서 벽에서 더 떨어져 잡아도 된다.';
+  G.results = []; renderRoundDots(); renderStats(); idleView();
+}
+document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
+document.querySelectorAll('.chips').forEach(box => box.addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  box.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+  const v = b.dataset.v; cfg[box.dataset.k] = isNaN(+v) ? v : +v;
+  updateInfo();
+  if (!G.running) idleView();
+}));
+$('sens').addEventListener('input', e => { const v = parseFloat(e.target.value); if (v > 0) { cfg.sens = v; updateInfo(); } });
+$('guide').addEventListener('change', e => { cfg.guide = e.target.checked; });
+$('bait').addEventListener('change', e => { cfg.bait = e.target.checked; });
+
+function idleView() {
+  for (const m of Object.values(botModels)) m.root.visible = false;
+  if (cfg.mode === 'hold') {
+    const H = holderAtWall(cfg.mySpot); PL.x = H.x; PL.z = H.z;
+    const xE = crossX(x => visiblePoint(PL.x, PL.z, x, 1.5) !== null);
+    [PL.yaw, PL.pitch] = yawPitchTo(PL.x, EYE, PL.z, xE, EYE, 1.5);
+  } else {
+    PL.x = -3; PL.z = 1.2;
+    [PL.yaw, PL.pitch] = yawPitchTo(PL.x, EYE, PL.z, 3, EYE, -5);
+  }
+  PL.y = 0; PL.crouch = 0;
+  ui.result.innerHTML = '라운드가 끝나면 누가 몇 ms 먼저 봤는지, 네트워크와 앵글이 각각 얼마였는지, 첫 발이 정확한 상태였는지 여기에 나온다.';
+}
+function startDrill(mode) {
+  if (!gCanvas) return;
+  G.running = true; G.paused = false; G.results = []; G.roundNo = 0;
+  ui.start.classList.add('hidden'); ui.summary.classList.add('hidden'); ui.pause.classList.add('hidden');
+  renderRoundDots(); renderStats();
+  G.mode = mode || (isTouch || !gCanvas.requestPointerLock ? 'drag' : 'lock');
+  if (G.mode === 'lock') lockPointer();
+  newRound();
+}
+// 처음 잠금이 안 되면 드래그 모드로. 한 번 잠갔던 뒤의 실패(ESC 직후 재잠금 제한 등)는 일시정지 화면을 다시 띄운다
+function lockFailed() {
+  if (G.everLocked) { G.paused = false; pauseDrill(); ui.pauseMsg.textContent = '잠깐 뒤에 다시 눌러 주세요 (브라우저가 바로 다시 잠그지 못했다).'; }
+  else G.mode = 'drag';
+}
+function lockPointer() {
+  const tryLock = opts => { try { return gCanvas.requestPointerLock(opts); } catch (e) { return Promise.reject(e); } };
+  const p = tryLock({ unadjustedMovement: true });         // 가능하면 OS 가속 없는 원시 입력
+  if (p && p.catch) p.catch(() => { const q = tryLock(); if (q && q.catch) q.catch(lockFailed); });
+}
 function pauseDrill() {
   if (!G.running || G.paused) return;
-  G.paused = true; ui.pause.classList.remove('hidden');
+  G.paused = true; keys.clear(); PL.firing = false; ui.pause.classList.remove('hidden');
 }
 $('gStartBtn').addEventListener('click', () => startDrill());
 $('gResumeBtn').addEventListener('click', () => {
-  ui.pause.classList.add('hidden'); G.paused = false;
+  ui.pause.classList.add('hidden'); G.paused = false; G.lastFrame = performance.now();
   if (G.mode === 'lock') lockPointer();
 });
+$('gFs').addEventListener('click', async () => {
+  try {
+    if (document.fullscreenElement) { await document.exitFullscreen(); return; }
+    await gView.requestFullscreen();
+    if (navigator.keyboard && navigator.keyboard.lock) { await navigator.keyboard.lock(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ControlLeft', 'Space']); G.kbLock = true; }
+  } catch (e) { /* 전체 화면을 못 쓰면 그대로 진행 */ }
+});
+document.addEventListener('fullscreenchange', () => {
+  if (!document.fullscreenElement) { G.kbLock = false; if (navigator.keyboard && navigator.keyboard.unlock) navigator.keyboard.unlock(); }
+  $('gFs').textContent = document.fullscreenElement ? '전체 화면 끄기' : '전체 화면';
+});
 function look(dxDeg, dyDeg) {
-  G.yaw -= THREE.MathUtils.degToRad(dxDeg);
-  G.pitch = clamp(G.pitch - THREE.MathUtils.degToRad(dyDeg), -1.45, 1.45);
+  PL.yaw -= deg(dxDeg);
+  PL.pitch = clamp(PL.pitch - deg(dyDeg), -1.45, 1.45);
 }
+const GAME_KEYS = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space', 'ShiftLeft', 'ShiftRight', 'KeyC', 'ControlLeft', 'ControlRight', 'KeyR']);
+window.addEventListener('keydown', e => {
+  if (!drillActive() || !GAME_KEYS.has(e.code)) return;
+  e.preventDefault();
+  keys.add(e.code);
+  if (e.code === 'KeyR') startReload();
+});
+window.addEventListener('keyup', e => { keys.delete(e.code); });
+window.addEventListener('blur', () => { keys.clear(); PL.firing = false; });
 if (gCanvas) {
   document.addEventListener('pointerlockchange', () => {
     const locked = document.pointerLockElement === gCanvas;
     gView.classList.toggle('locked', locked);
-    if (locked) { G.everLocked = true; $('gPauseMsg').textContent = '클릭하면 이어서 한다.'; }
+    if (locked) { G.everLocked = true; ui.pauseMsg.textContent = '클릭하면 이어서 한다.'; }
     if (!locked && G.mode === 'lock') pauseDrill();
   });
   document.addEventListener('pointerlockerror', lockFailed);
   document.addEventListener('mousemove', e => {
     if (document.pointerLockElement !== gCanvas || !drillActive()) return;
-    const k = cfg.sens * 0.07;                               // 발로란트: 감도 × 0.07° / 마우스 카운트
+    const k = cfg.sens * 0.07;                                 // 발로란트: 감도 × 0.07° / 마우스 카운트
     look(e.movementX * k, e.movementY * k);
   });
   gCanvas.addEventListener('mousedown', e => {
-    if (e.button === 0 && document.pointerLockElement === gCanvas) fire();
+    if (e.button !== 0 || document.pointerLockElement !== gCanvas) return;
+    PL.firing = true; playerShoot(tNow());
   });
+  window.addEventListener('mouseup', e => { if (e.button === 0) PL.firing = false; });
   // 드래그 모드 (터치 또는 포인터 잠금 불가): 드래그로 조준, 짧게 탭하면 사격
   let drag = null;
   gCanvas.addEventListener('pointerdown', e => {
@@ -1601,62 +1967,90 @@ if (gCanvas) {
   });
   gCanvas.addEventListener('pointerup', e => {
     if (!drag || e.pointerId !== drag.id) return;
-    if (drag.moved < 8) fire();
+    if (drag.moved < 8) playerShoot(tNow());
     drag = null;
   });
 }
+
+/* ---- 매 프레임 ---- */
+function updateHud() {
+  ui.hp.textContent = Math.max(0, Math.ceil(PL.hp)); ui.sh.textContent = Math.max(0, Math.ceil(PL.sh));
+  ui.ammo.textContent = PL.reloadT > 0 ? '…' : PL.ammo;
+  const sp = speedOf();
+  ui.spd.style.width = clamp(sp / MOVE.run * 100, 0, 100) + '%';
+  const ok = accurateNow();
+  ui.spdTxt.textContent = PL.y > 0.02 ? '공중 · 부정확' : ok ? (sp < 0.05 ? '정지 · 정확' : `${fmt1(sp)}m/s · 정확`) : `${fmt1(sp)}m/s · 부정확`;
+  ui.spdTxt.className = ok ? 'ok' : 'bad';
+  ui.wall.textContent = `벽 라인까지 ${fmt1(wallDist(PL.x, PL.z))}m`;
+}
 function tickDrill(dt) {
+  for (const sp of impacts) if (sp.visible) { sp.userData.life -= dt; if (sp.userData.life <= 0) sp.visible = false; }
   if (G.flashT > 0) G.flashT -= dt;
-  if (G.enemyFlashT > 0) G.enemyFlashT -= dt;
   myFlash.visible = G.flashT > 0;
-  enemyFlash.visible = G.enemyFlashT > 0;
-  G.recoil *= Math.pow(0.0001, dt / 1000);
-  vm.position.z = -0.16 + G.recoil * 0.025;
-  vm.rotation.z = G.recoil * 0.05;
-  gCam.rotation.set(G.pitch + G.recoil * 0.004, G.yaw, 0);
+  PL.kick *= Math.pow(0.0001, dt / 1000);
+  vm.position.z = -0.16 + PL.kick * 0.025; vm.rotation.z = PL.kick * 0.05;
+  if (RD && RD.bot) {
+    RD.bot.flashT -= dt; RD.model.flash.visible = RD.bot.flashT > 0;
+    if (!RD.bot.alive) { RD.bot.fall = Math.min(1, RD.bot.fall + dt / 280); RD.model.body.rotation.z = RD.bot.fall * 1.45; }
+  }
+  if (!PL.alive) PL.fall = Math.min(1, PL.fall + dt / 300);
+  gCam.position.set(PL.x, eyeY() - PL.fall * 0.9, PL.z);
+  gCam.rotation.set(PL.pitch, PL.yaw, PL.fall * 0.5);
+  updateHud();
+  G.lastFrame = performance.now();
   if (!G.running || G.paused) return;
-  const r = G.r;
+  const sdt = dt / 1000;
+  if (PL.reloadT > 0) { PL.reloadT -= dt; if (PL.reloadT <= 0) { PL.reloadT = 0; PL.ammo = VANDAL.mag; } }
   if (G.phase === 'ready') {
-    ui.phase.textContent = '조준점을 모서리에 거세요'; ui.phase.className = '';
-    G.timer -= dt; if (G.timer <= 0) { G.phase = 'wait'; G.timer = rand(500, 2200); }
-  } else if (G.phase === 'wait') {
-    ui.phase.textContent = '대기…'; ui.phase.className = '';
-    G.timer -= dt; if (G.timer <= 0) { G.phase = 'peek'; G.tau = 0; }
-  } else if (G.phase === 'peek') {
-    const prev = G.tau;
-    G.tau += dt;
-    if (prev < r.tSeeFirst && G.tau >= r.tSeeFirst && !r.aim) {   // 처음 보인 순간 조준점 오차 기록
-      const h = headPoint(r);
-      const dx = h.x - gCam.position.x, dy = h.y - EYE, dz = h.z - gCam.position.z;
-      const ty = Math.atan2(-dx, -dz), tp = Math.atan2(dy, Math.hypot(dx, dz));
-      let ey = ty - G.yaw; ey = Math.atan2(Math.sin(ey), Math.cos(ey));
-      const f = new THREE.Vector3(); gCam.getWorldDirection(f);
-      const total = THREE.MathUtils.radToDeg(f.angleTo(new THREE.Vector3(dx, dy, dz).normalize()));
-      r.aim = { total, yaw: THREE.MathUtils.radToDeg(ey), pitch: THREE.MathUtils.radToDeg(tp - G.pitch) };
+    ui.phase.textContent = cfg.mode === 'hold' ? '조준점을 벽 끝에 거세요' : '준비…'; ui.phase.className = '';
+    G.timer -= dt;
+    if (G.timer <= 0) { G.phase = 'live'; G.t = 0; }
+    placeBot(0);
+  } else if (G.phase === 'live') {
+    const tPrev = G.t;
+    G.t += dt;
+    updatePlayer(sdt);
+    recordHist(G.t);
+    const b = RD.bot;
+    const s = placeBot(G.t);
+    const a = botPosAt(G.t);
+    // 내가 상대 몸을 처음 본 순간 (화면 기준 / 지연 없는 기하 기준). 프레임 사이를 보간해 ms 단위로
+    const seesAt = (tt, shown) => { const me = playerAt(tt), o = shown ? botShownAt(tt) : botPosAt(tt); return !!visiblePoint(me.x, me.z, o.x, o.z); };
+    if (RD.firstP0 === null && visiblePoint(PL.x, PL.z, a.x, a.z)) RD.firstP0 = refine(tt => seesAt(tt, false), tPrev, G.t);
+    if (RD.firstP === null && visiblePoint(PL.x, PL.z, s.x, s.z)) {
+      RD.firstP = refine(tt => seesAt(tt, true), tPrev, G.t);
+      RD.contact = { me: wallDist(PL.x, PL.z), bot: wallDist(s.x, s.z) };
+      if (cfg.mode === 'hold') {
+        const [ty, tp] = yawPitchTo(PL.x, eyeY(), PL.z, s.x, EYE, s.z);
+        let ey = ty - PL.yaw; ey = Math.atan2(Math.sin(ey), Math.cos(ey));
+        RD.aim = { total: toDeg(Math.hypot(ey, (tp - PL.pitch))), yaw: toDeg(ey), pitch: toDeg(tp - PL.pitch) };
+      }
     }
-    ui.phase.textContent = G.tau >= r.tSeeFirst ? '적 등장!' : '대기…';
-    ui.phase.className = G.tau >= r.tSeeFirst ? 'alert' : '';
-    if (!G.dead && G.tau >= r.tFire) { endRound(); }
+    botUpdate(G.t);
+    if (PL.firing) playerShoot(G.t);
+    const limit = cfg.mode === 'hold' ? b.endT + 6000 : 20000;
+    if (G.phase === 'live' && G.t > limit) endRound('draw', G.t);
+    if (G.phase === 'live') {
+      const seen = RD.firstP !== null;
+      ui.phase.textContent = seen ? '교전 중' : cfg.mode === 'hold' ? '대기…' : '피크하세요';
+      ui.phase.className = seen ? 'alert' : '';
+    }
   } else if (G.phase === 'result') {
     G.timer -= dt;
-    if (G.dead) { G.fall = Math.min(1, G.fall + dt / 280); enemy.body.rotation.z = G.fall * 1.45; }   // 뒤로 쓰러짐
-    if (G.timer <= 0) nextRound();
+    placeBot(RD.endT);
+    if (G.timer <= 0) { if (G.roundNo >= ROUNDS) showSummary(); else newRound(); }
   }
-  // 적 표시: 내 화면엔 네트워크 지연만큼 과거 위치
-  if (r) {
-    const shown = G.phase === 'peek' || G.phase === 'result' ? G.tau - r.delay : -1;
-    const x = xAt(r.keys, shown);
-    if (!G.dead) {
-      enemy.root.position.set(x, 0, r.lane);
-      face(enemy.root, gCam.position.x, gCam.position.z);
-      enemy.pose(x / STRIDE * Math.PI, movingAt(r.keys, shown) ? 1 : 0);
-    }
+  // 정답 조준점 (홀드): 지금 내 위치에서 상대 머리가 처음 보일 곳
+  const showGuide = cfg.guide && cfg.mode === 'hold' && RD && G.phase !== 'result';
+  if (showGuide && (!G.guideAt || Math.hypot(G.guideAt.x - PL.x, G.guideAt.z - PL.z) > 0.05)) {
+    G.guideAt = { x: PL.x, z: PL.z };
+    const lane = RD.guideLane;
+    guide.position.set(crossX(x => visiblePoint(PL.x, PL.z, x, lane) !== null), EYE, lane);
   }
-  guide.visible = cfg.guide && !!r && G.phase !== 'result';
-  if (r) guide.position.copy(headPoint(r));
-  G.lastTick = performance.now();
+  guide.visible = !!showGuide;
 }
 function renderDrill() { if (gRenderer) gRenderer.render(gScene, gCam); }
+updateInfo(); setMode('hold');
 
 /* ================= 루프 ================= */
 const visible = { stage: true, drill: false };        // 화면에 보이는 쪽만 그린다
@@ -1680,9 +2074,9 @@ requestAnimationFrame(loop);
 // 디버그/캡처용 훅
 window.__peek = { state, get D() { return D; }, setT(t) { pause(); state.t = t; }, play, pause,
   screen() { const v = views.top, o = {}; for (const [k, a] of Object.entries({ holder, peeker, ghost })) { const p = project(topCam, v.w, v.h, a.root.position.x, 1, a.root.position.z); o[k] = [Math.round(p.x), Math.round(p.y)]; } o.inset = inset; o.size = [v.w, v.h]; return o; } };
-window.__drill = { G, cfg, start: startDrill, fire, makeRound,
-  aimAtHead(errYawDeg = 0, errPitchDeg = 0) { const r = G.r; if (!r) return; const x = enemy.root.position.x; const dx = x - gCam.position.x, dz = r.lane - gCam.position.z; setAimDir(dx, EYE + 0.02 - EYE, dz); G.yaw += THREE.MathUtils.degToRad(errYawDeg); G.pitch += THREE.MathUtils.degToRad(errPitchDeg); },
-  aimAtGuide() { const r = G.r; if (!r) return; const h = headPoint(r); setAimDir(h.x - gCam.position.x, 0, h.z - gCam.position.z); } };
+window.__drill = { G, PL, cfg, keys, get RD() { return RD; }, start: startDrill, setMode, shoot: () => playerShoot(tNow()),
+  aimAtBot(part = 'head') { const s = botShownAt(G.t); const y = part === 'head' ? EYE + 0.01 : 1.25; [PL.yaw, PL.pitch] = yawPitchTo(PL.x, eyeY(), PL.z, s.x, y, s.z); },
+  aimAtGuide() { const p = guide.position; [PL.yaw, PL.pitch] = yawPitchTo(PL.x, eyeY(), PL.z, p.x, p.y, p.z); } };
 </script>
 </body>
 </html>
