@@ -828,7 +828,7 @@
       <div class="card gs"><span id="sLastLbl">조준점 오차</span><b id="sLast">—</b><small id="sLastSub">° · 상대가 나타난 순간 (평균)</small></div>
     </div>
     <div class="g-rounds" id="gRounds"></div>
-    <p class="fine">수치: 셰리프 들고 달리기 5.4m/s(칼 6.75의 80%) · 걷기 약 3.04m/s · 앉아 걷기 약 2.4m/s · 정지 약 0.16초(반대 키를 누르면 조금 더 빠름) · 속도 25%(1.35m/s) 이하에서만 정확 · 셰리프 머리 159 / 몸 55 / 다리 46(30m 넘으면 145 / 50 / 42), 초당 4발, 탄창 6, 재장전 2.25초, 첫 발 탄퍼짐 0.25° · 체력 100 + 보호막 50이라 머리 한 발 또는 몸 세 발이면 쓰러진다. 걷기·달리기 탄퍼짐, 연속 사격 반동, 가속·점프·앉기 속도는 공개 수치가 없어 근사했다. 마우스 가속은 끄고, 감도는 브라우저가 지원하면 가속 없는 원시 입력으로 받는다.</p>
+    <p class="fine">수치: 셰리프 들고 달리기 5.4m/s(칼 6.75의 80%) · 걷기 약 3.04m/s · 앉아 걷기 약 2.4m/s · 정지 약 0.16초(반대 키를 누르면 조금 더 빠름) · 속도 25%(1.35m/s) 이하에서만 정확 · 셰리프 머리 159 / 몸 55 / 다리 46(30m 넘으면 145 / 50 / 42), 초당 4발, 탄창 6, 재장전 2.25초, 첫 발 탄퍼짐 0.25° · 체력 100 + 보호막 50이라 머리 한 발 또는 몸 세 발이면 쓰러진다. 총 반동은 없앴다(연달아 쏴도 매 발이 첫 발처럼 정확하고 총이 튀지 않는다). 걷기·달리기 탄퍼짐, 가속·점프·앉기 속도는 공개 수치가 없어 근사했다. 마우스 가속은 끄고, 감도는 브라우저가 지원하면 가속 없는 원시 입력으로 받는다.</p>
   </section>
 
   <footer class="legal">이 페이지는 Riot Games의 승인을 받지 않은 팬 제작 학습 자료이며, Riot Games 또는 VALORANT 제작·관리에 공식적으로 관여한 사람의 견해를 반영하지 않습니다. VALORANT와 Riot Games는 Riot Games, Inc.의 상표 또는 등록 상표입니다. 캐릭터는 전부 코드로 만든 단순화 모델입니다.</footer>
@@ -1971,12 +1971,12 @@ tzResults();
 /* ================= 4부: 피킹·홀드 연습 (셰리프) ================= */
 const ROUNDS = 10;
 // 발로란트 수치 (셰리프를 든 상태). 달리기 5.4m/s(칼 6.75의 80%)·정지 약 0.16초·정확 속도 25%·셰리프 데미지/연사/탄창/재장전/첫 발 탄퍼짐은
-// 공개 자료 기준. 걷기는 달리기의 약 56%. 가속·앉기 속도·점프·이동 탄퍼짐·연속 사격 반동은 공개 수치가 없어 근사
+// 공개 자료 기준. 걷기는 달리기의 약 56%. 가속·앉기 속도·점프·이동 탄퍼짐은 공개 수치가 없어 근사. 총 반동은 없다(연습용)
 const MOVE = { run: 5.4, walk: 3.04, crouch: 2.4, accel: 36, friction: 5.4 / 0.16, counter: 39, jumpV: 4.6, gravity: 13.5,
   radius: 0.3, eyeStand: 1.68, eyeCrouch: 1.28 };
 const SHERIFF = { head: 159, body: 55, legs: 46, far: { head: 145, body: 50, legs: 42 }, farFrom: 30,
   hp: 100, shield: 50, rate: 4, mag: 6, reload: 2250,
-  stand: 0.25, walkErr: 2.5, runErr: 5.0, airErr: 10, recover: 400, spam: 0.7, climb: 0.8 };
+  stand: 0.25, walkErr: 2.5, runErr: 5.0, airErr: 10 };
 const dmgAt = (part, dist) => (dist > SHERIFF.farFrom ? SHERIFF.far : SHERIFF)[part];
 const BOT_LV = {
   pro:  { name: '프로', react: [140, 180], flick: [45, 4],  pre: 0.4, head: 0.75, hit1: 0.92, hitN: 0.55 },
@@ -2173,7 +2173,7 @@ const ui = {
 
 /* ---- 상태 ---- */
 const PL = { x: 0, z: 0, vx: 0, vz: 0, y: 0, vy: 0, crouch: 0, yaw: 0, pitch: 0, hp: 100, sh: 50, ammo: 6, reloadT: 0,
-  lastShot: -1e9, sprayN: 0, alive: true, jumpHeld: false, kick: 0, fall: 0 };
+  lastShot: -1e9, alive: true, jumpHeld: false, fall: 0 };
 const G = { running: false, paused: false, phase: 'idle', timer: 0, t: 0, roundNo: 0, results: [], mode: 'lock',
   everLocked: false, kbLock: false, lastFrame: performance.now(), guideAt: null };
 let RD = null;
@@ -2300,7 +2300,7 @@ function botUpdate(t) {
 function newRound() {
   G.roundNo++;
   Object.assign(PL, { vx: 0, vz: 0, y: 0, vy: 0, crouch: 0, hp: SHERIFF.hp, sh: SHERIFF.shield, ammo: SHERIFF.mag, reloadT: 0,
-    lastShot: -1e9, sprayN: 0, alive: true, kick: 0, fall: 0 });
+    lastShot: -1e9, alive: true, fall: 0 });
   hist.length = 0;
   RD = { mode: cfg.mode, delay: netDelay(), firstP: null, firstP0: null, firstB: null, firstB0: null, contact: null,
     firstShot: null, shots: 0, aim: null, result: null, endT: null, part: null };
@@ -2495,19 +2495,17 @@ function playerShoot(t) {
   botUpdate(t);                                             // 같은 시각까지 상대 사격을 먼저 처리
   if (!PL.alive || G.phase !== 'live') return;
   PL.ammo--;
-  PL.sprayN = t - PL.lastShot < SHERIFF.recover ? PL.sprayN + 1 : 0;
   PL.lastShot = t;
   const spd = speedOf(), ok = accurateNow();
-  const err = (SHERIFF.stand + moveError() + Math.min(PL.sprayN, 4) * SHERIFF.spam) * (PL.crouch > 0.5 ? 0.9 : 1);
-  const climb = Math.min(PL.sprayN, 4) * SHERIFF.climb;       // 빨리 연달아 쏘면 반동이 덜 돌아와 탄이 위로 뜬다 (근사)
+  const err = (SHERIFF.stand + moveError()) * (PL.crouch > 0.5 ? 0.9 : 1);   // 반동 없음: 매 발이 첫 발 탄퍼짐 + 이동 탄퍼짐만
   const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * err;
-  const yaw = PL.yaw + deg(Math.cos(a) * r), pitch = PL.pitch + deg(Math.sin(a) * r + climb);
+  const yaw = PL.yaw + deg(Math.cos(a) * r), pitch = PL.pitch + deg(Math.sin(a) * r);
   _dir.set(-Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), -Math.cos(yaw) * Math.cos(pitch));
   _eye.set(PL.x, eyeY(), PL.z);
   ray.set(_eye, _dir); ray.far = 120;
   RD.shots++;
   if (RD.firstShot === null && RD.firstP !== null) RD.firstShot = { t, speed: spd, err, ok };
-  G.flashT = 45; PL.kick = 1;
+  G.flashT = 45;
   const wall = ray.intersectObjects(gWalls, false)[0];
   const b = RD.bot;
   let hit = null;
@@ -2785,17 +2783,12 @@ function drawXh(ctx, cssW, cssH, dpr, unit, movePx, firePx) {
   }
   if (XH.d && XH.a > 0) { const z = Math.max(1, Math.round(XH.z * u)); rect(cx - Math.floor(z / 2), cy - Math.floor(z / 2), z, z, XH.a); }
 }
-function fireError() {                       // 연사 직후 벌어졌다가 회복되는 사격 오차(°)
-  const dt = G.t - PL.lastShot;
-  if (G.phase !== 'live' || dt < 0 || dt > SHERIFF.recover) return 0;
-  return (SHERIFF.stand + Math.min(PL.sprayN, 4) * SHERIFF.spam + 1.2) * (1 - dt / SHERIFF.recover);
-}
 const xhCanvas = $('gXh'), xhCtx = xhCanvas.getContext('2d');
 function drawGameXh() {
   const w = gView.clientWidth, h = gView.clientHeight, dpr = Math.min(window.devicePixelRatio || 1, 2);
   const W2 = Math.round(w * dpr), H2 = Math.round(h * dpr);
   if (xhCanvas.width !== W2 || xhCanvas.height !== H2) { xhCanvas.width = W2; xhCanvas.height = H2; xhSig = ''; }
-  const mv = errPx(moveError(), h, gCam.fov), fe = errPx(fireError(), h, gCam.fov);
+  const mv = errPx(moveError(), h, gCam.fov), fe = 0;   // 반동이 없으니 사격 오차로 벌어지지 않는다
   const sig = `${W2}|${H2}|${mv.toFixed(1)}|${fe.toFixed(1)}|${xhVer}`;
   if (sig === xhSig) return;
   xhSig = sig;
@@ -2933,8 +2926,6 @@ function tickDrill(dt) {
   for (const sp of impacts) if (sp.visible) { sp.userData.life -= dt; if (sp.userData.life <= 0) sp.visible = false; }
   if (G.flashT > 0) G.flashT -= dt;
   myFlash.visible = G.flashT > 0;
-  PL.kick *= Math.pow(0.0001, dt / 1000);
-  vm.position.set(VM_POS.x, VM_POS.y, VM_POS.z + PL.kick * 0.035); vm.rotation.x = PL.kick * 0.2;
   if (RD && RD.bot) {
     RD.bot.flashT -= dt; RD.model.flash.visible = RD.bot.flashT > 0;
     if (!RD.bot.alive) { RD.bot.fall = Math.min(1, RD.bot.fall + dt / 280); RD.model.body.rotation.z = RD.bot.fall * 1.45; }
