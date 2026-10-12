@@ -9,6 +9,7 @@ on:
     paths:
       - "radar/**"
       - "scripts/radar/**"
+      - "peekers-advantage.html"
       - ".github/workflows/radar.yml"
 
 permissions:
@@ -53,6 +54,7 @@ jobs:
       - name: 사이트 만들기
         run: |
           cp -r radar/. _site/
+          mkdir -p _site/peek && cp peekers-advantage.html _site/peek/index.html   # 피커스 어드밴티지 → /peek/
           touch _site/.nojekyll
 
       - name: gh-pages로 배포
