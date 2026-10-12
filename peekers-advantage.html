@@ -28,7 +28,7 @@
   h1 em{font-style:normal;color:var(--accent);}
   .h1-sub{font-size:.52em;font-weight:700;color:var(--muted);margin-left:12px;letter-spacing:-.01em;white-space:nowrap;}
   .lede{margin:0;max-width:460px;color:var(--muted);font-size:14px;}
-  .head-right{display:flex;flex-direction:column;align-items:flex-end;gap:8px;max-width:420px;}
+  .head-right{display:flex;flex-direction:column;align-items:flex-end;gap:8px;max-width:620px;}
   .head-right .lede{text-align:right;}
   .jump{display:inline-flex;align-items:center;gap:8px;color:var(--text);text-decoration:none;font-size:13px;font-weight:700;
     border:1px solid var(--line);background:var(--surface);padding:7px 14px;border-radius:999px;}
@@ -217,7 +217,7 @@
   .tabs button{border:none;background:transparent;color:var(--muted);font:700 13.5px 'Noto Sans KR',sans-serif;padding:8px 16px;border-radius:9px;cursor:pointer;}
   .tabs button.on{background:var(--accent);color:#fff;}
   .drill[data-mode="hold"] .peek-only,.drill[data-mode="peek"] .hold-only{display:none;}
-  .g-fs{position:absolute;z-index:5;right:12px;bottom:12px;border:1px solid var(--line);background:rgba(10,11,14,.7);color:var(--muted);
+  .g-fs{position:absolute;z-index:7;right:12px;bottom:12px;border:1px solid var(--line);background:rgba(10,11,14,.7);color:var(--muted);
     font:500 11.5px 'Noto Sans KR',sans-serif;padding:5px 10px;border-radius:999px;cursor:pointer;}
   .g-fs:hover{color:var(--text);}
   .game-view.locked .g-fs{display:none;}
@@ -326,6 +326,29 @@
     box-shadow:0 0 0 6px rgba(255,70,85,.15);}
   .btn:hover{filter:brightness(1.08);}
   .btn.ghost{background:transparent;color:var(--text);box-shadow:inset 0 0 0 1px var(--line);}
+  .btn-row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;}
+  .no-fs .fs-only{display:none;}
+  .g-overlay.clickable{cursor:pointer;}
+  /* 반응 속도 테스트 */
+  .rx-desc{margin:0;font-size:12.5px;color:var(--muted);flex:1;min-width:220px;}
+  .rx-view{aspect-ratio:16/8;cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:manipulation;}
+  .rx-view:fullscreen{aspect-ratio:auto;width:100vw;height:100vh;border-radius:0;border:none;}
+  .rx-view.wait{background:#3a0d14;} .rx-view.go{background:#14804a;} .rx-view.early{background:#1d1013;}
+  .rx-view > canvas{z-index:1;}
+  .rx-view.c-mode > canvas{display:none;}
+  .rx-xh{z-index:2;display:none;} .rx-view.p-mode .rx-xh{display:block;}
+  .rx-screen{position:absolute;inset:0;z-index:3;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;
+    padding:20px;pointer-events:none;text-shadow:0 2px 14px rgba(0,0,0,.6);}
+  #rxBig{font-size:clamp(34px,6vw,72px);font-weight:700;line-height:1;}
+  #rxBig.ms{font-size:clamp(56px,10vw,120px);color:var(--accent);}
+  .rx-sub b{color:var(--accent);font-weight:700;}
+  .rx-screen .rx-sub{font-size:14px;color:var(--text);opacity:.85;max-width:560px;}
+  .rx-screen .rx-top{font:700 12px 'Rajdhani','Noto Sans KR',sans-serif;letter-spacing:.2em;color:var(--muted);}
+  .rx-view.p-mode .rx-screen.live{justify-content:flex-start;padding-top:18px;}
+  .rx-view.p-mode .rx-screen.live #rxBig{font-size:18px;}
+  .rx-view.p-mode .rx-screen.dim{background:rgba(7,8,10,.62);}
+  .rx-fs{z-index:7;}
+
   .sum-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px;margin:6px 0 4px;}
   .sum-grid div{min-width:96px;}
   .sum-grid b{display:block;font:700 46px 'Rajdhani',sans-serif;line-height:1;}
@@ -463,6 +486,7 @@
       <nav class="navs" aria-label="바로가기">
         <a class="jump" href="#sec-angle"><b>2</b> 앵글 어드밴티지</a>
         <a class="jump" href="#sec-tzone"><b>3</b> T존 법칙</a>
+        <a class="jump" href="#react"><b>4</b> 반응 속도</a>
         <a class="jump" href="#drill"><b>▶</b> 피킹·홀드 연습</a>
       </nav>
     </div>
@@ -752,6 +776,36 @@
     </section>
   </section>
 
+  <section class="part" id="react">
+    <div class="part-head">
+      <div>
+        <div class="eyebrow">REACTION TEST</div>
+        <h2 class="h2big">반응 속도 테스트 — <em>보이면 바로 클릭</em></h2>
+      </div>
+      <p class="lede">신호가 화면에 뜬 순간부터 클릭까지 걸린 시간을 잰다. 다섯 번 재서 평균을 낸다. 1부의 피커스 어드밴티지(핑 35에서 약 47ms)와 비교해 보자.</p>
+    </div>
+    <div class="card cfgbar">
+      <div class="tabs" role="tablist" aria-label="테스트 종류" id="rxTabs">
+        <button role="tab" data-mode="color" class="on" aria-selected="true">색 신호</button>
+        <button role="tab" data-mode="peek" aria-selected="false">적 등장 (피크)</button>
+      </div>
+      <p class="rx-desc" id="rxDesc">화면이 초록색으로 바뀌는 순간 클릭. 사람 눈·손의 기본 반응 속도다.</p>
+    </div>
+    <div class="view rx-view" id="rxView" data-vis="rx">
+      <div class="xhair rx-xh" id="rxXh"><i></i><i></i><i></i><i></i></div>
+      <div class="rx-screen" id="rxScreen"><span class="rx-top" id="rxTop"></span><b class="num" id="rxBig">클릭해서 시작</b><span class="rx-sub" id="rxSub">다섯 번 잰다. 너무 일찍 누르면 그 회차는 다시 한다.</span></div>
+      <button class="g-fs rx-fs" id="rxFs" title="전체 화면">전체 화면</button>
+    </div>
+    <div class="g-stats">
+      <div class="card gs"><span>평균</span><b id="rxAvg" class="hl">—</b><small>ms · 이번 세트</small></div>
+      <div class="card gs"><span>최고</span><b id="rxBest">—</b><small>ms · 이번 세트에서 가장 빠름</small></div>
+      <div class="card gs"><span>중간값</span><b id="rxMed">—</b><small>ms · 튀는 값에 덜 흔들림</small></div>
+      <div class="card gs"><span>내 최고 기록</span><b id="rxRecord">—</b><small id="rxRecordSub">ms · 이 브라우저에 저장</small></div>
+    </div>
+    <div class="g-rounds" id="rxRounds"></div>
+    <p class="fine">잰 시간에는 모니터와 마우스의 지연(보통 10~30ms)이 함께 들어간다. 100ms보다 빠른 클릭은 예측으로 보고 다시 잰다. 같은 장비에서 잰 값끼리 비교하자. 적 등장 모드는 연습장 벽 모서리를 홀더 자리(벽 라인에서 6m)에서 잡고, 제트가 5.4m/s로 튀어나온다. 시간은 적의 몸이 처음 화면에 그려진 프레임부터 잰다.</p>
+  </section>
+
   <section class="drill" id="drill">
     <div class="drill-head">
       <div>
@@ -813,14 +867,14 @@
         <p class="map-line" id="gMapLine"></p>
         <p id="gStartDesc"></p>
         <div class="keys"><kbd>W A S D</kbd> 이동 <kbd>Shift</kbd> 걷기 <kbd>C</kbd> 앉기 <kbd>Space</kbd> 점프 <kbd>클릭</kbd> 사격(한 번에 한 발) <kbd>R</kbd> 재장전 <kbd>Esc</kbd> 일시정지</div>
-        <button class="btn" id="gStartBtn">시작하기</button>
+        <div class="btn-row"><button class="btn fs-only" id="gStartFs">전체 화면으로 시작</button><button class="btn ghost" id="gStartBtn">창에서 시작</button></div>
         <p class="tiny pc-only" id="gStartNote">Ctrl은 브라우저 단축키(Ctrl+W 탭 닫기)와 겹쳐서 기본은 C로 앉는다. ‘전체 화면’에서는 Ctrl도 쓸 수 있다.</p>
         <p class="tiny touch-only">터치: 드래그로 조준, 탭으로 사격. 이동과 피킹 연습은 PC(키보드·마우스)에서.</p>
       </div>
-      <div class="g-overlay hidden" id="gPause">
+      <div class="g-overlay hidden clickable" id="gPause">
         <h3>일시정지</h3>
         <p id="gPauseMsg">클릭하면 이어서 한다.</p>
-        <button class="btn" id="gResumeBtn">계속하기</button>
+        <div class="btn-row"><button class="btn" id="gResumeBtn">계속하기</button><button class="btn ghost fs-only" id="gPauseFs">전체 화면</button></div>
       </div>
       <div class="g-overlay hidden" id="gSummary"></div>
     </div>
@@ -2156,7 +2210,7 @@ const flashSprite = scale => {
   sp.scale.setScalar(scale); sp.visible = false; return sp;
 };
 // 적 요원: 발로란트식 빨간 외곽선 + 총구 화염
-function enemyAgent(kind) {
+function enemyAgent(kind, sc = gScene) {
   const ag = makeAgent(kind, { hitboxes: true });
   const outline = new THREE.MeshBasicMaterial({ color: ACCENT, side: THREE.BackSide });
   const src = [];
@@ -2168,7 +2222,7 @@ function enemyAgent(kind) {
   }
   ag.flash = flashSprite(0.5); ag.flash.position.copy(ag.muzzle); ag.body.add(ag.flash);
   ag.root.visible = false;
-  gScene.add(ag.root);
+  sc.add(ag.root);
   return ag;
 }
 const botModels = { peeker: enemyAgent('jett'), holder: enemyAgent('cypher') };
@@ -2674,8 +2728,10 @@ function startDrill(mode) {
 }
 // 처음 잠금이 안 되면 드래그 모드로. 한 번 잠갔던 뒤의 실패(ESC 직후 재잠금 제한 등)는 일시정지 화면을 다시 띄운다
 function lockFailed() {
-  if (G.everLocked) { G.paused = false; pauseDrill(); ui.pauseMsg.textContent = '잠깐 뒤에 다시 눌러 주세요 (브라우저가 바로 다시 잠그지 못했다).'; }
-  else G.mode = 'drag';
+  if (G.everLocked || document.fullscreenElement === gView) {   // 전체 화면 직후엔 한 번 더 클릭해야 마우스를 잠글 수 있다
+    G.paused = false; pauseDrill();
+    ui.pauseMsg.textContent = G.everLocked ? '잠깐 뒤에 다시 눌러 주세요 (브라우저가 바로 다시 잠그지 못했다).' : '화면을 한 번 클릭하면 시작한다.';
+  } else G.mode = 'drag';
 }
 function lockPointer() {
   const tryLock = opts => { try { return gCanvas.requestPointerLock(opts); } catch (e) { return Promise.reject(e); } };
@@ -2691,16 +2747,32 @@ $('gResumeBtn').addEventListener('click', () => {
   ui.pause.classList.add('hidden'); G.paused = false; G.lastFrame = performance.now();
   if (G.mode === 'lock') lockPointer();
 });
-$('gFs').addEventListener('click', async () => {
+// 전체 화면: 연습 화면(또는 반응 속도 테스트)만 화면 가득. 연습에선 W·A·S·D·Ctrl·Space를 브라우저 단축키 대신 게임이 받는다
+async function enterFs(el) {
+  if (!document.fullscreenEnabled) return false;
+  if (document.fullscreenElement === el) return true;
   try {
-    if (document.fullscreenElement) { await document.exitFullscreen(); return; }
-    await gView.requestFullscreen();
-    if (navigator.keyboard && navigator.keyboard.lock) { await navigator.keyboard.lock(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ControlLeft', 'Space']); G.kbLock = true; }
-  } catch (e) { /* 전체 화면을 못 쓰면 그대로 진행 */ }
-});
+    await el.requestFullscreen({ navigationUI: 'hide' });
+    if (el === gView && navigator.keyboard && navigator.keyboard.lock) {
+      try { await navigator.keyboard.lock(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ControlLeft', 'Space']); G.kbLock = true; } catch (e) { /* 지원 안 하면 C로 앉기 */ }
+    }
+    return true;
+  } catch (e) { return false; }
+}
+async function toggleFs(el) {
+  if (document.fullscreenElement) { try { await document.exitFullscreen(); } catch (e) { /* 무시 */ } return; }
+  await enterFs(el);
+}
+if (!document.fullscreenEnabled) document.documentElement.classList.add('no-fs');
+$('gFs').addEventListener('click', () => toggleFs(gView));
+$('gPauseFs').addEventListener('click', e => { e.stopPropagation(); toggleFs(gView); });
+$('gStartFs').addEventListener('click', async () => { await enterFs(gView); startDrill(); });
+ui.pause.addEventListener('click', e => { if (!e.target.closest('button')) $('gResumeBtn').click(); });   // 일시정지 화면 아무 데나 클릭해도 이어서
 document.addEventListener('fullscreenchange', () => {
-  if (!document.fullscreenElement) { G.kbLock = false; if (navigator.keyboard && navigator.keyboard.unlock) navigator.keyboard.unlock(); }
-  $('gFs').textContent = document.fullscreenElement ? '전체 화면 끄기' : '전체 화면';
+  const fs = document.fullscreenElement;
+  if (fs !== gView) { G.kbLock = false; if (navigator.keyboard && navigator.keyboard.unlock) navigator.keyboard.unlock(); }
+  $('gFs').textContent = $('gPauseFs').textContent = fs === gView ? '전체 화면 끄기' : '전체 화면';
+  $('rxFs').textContent = fs === $('rxView') ? '전체 화면 끄기' : '전체 화면';
 });
 function look(dxDeg, dyDeg) {
   PL.yaw -= deg(dxDeg);
@@ -3051,6 +3123,160 @@ mapSel.value = MAPS[cfg.map] ? cfg.map : 'range';
 renderSpotChips(); updateInfo(); setMode('hold');
 syncXhUI(); drawXhPreview();
 
+/* ================= 반응 속도 테스트 ================= */
+const RX_TRIES = 5;
+const RX = { mode: 'color', state: 'idle', goAt: 0, startAt: 0, t0: null, times: [] };
+const rxEl = { view: $('rxView'), screen: $('rxScreen'), top: $('rxTop'), big: $('rxBig'), sub: $('rxSub'), rounds: $('rxRounds'), desc: $('rxDesc'),
+  avg: $('rxAvg'), best: $('rxBest'), med: $('rxMed'), rec: $('rxRecord'), recSub: $('rxRecordSub') };
+const RX_DESC = {
+  color: '화면이 초록색으로 바뀌는 순간 클릭. 사람 눈·손의 기본 반응 속도다.',
+  peek: '홀더 자리에서 벽 모서리를 잡고 있다. 제트가 튀어나와 몸이 보이는 순간 클릭(조준은 안 해도 된다). 실제 교전의 반응에 더 가깝다.',
+};
+const RX_GRADE = { color: [180, 220, 270], peek: [220, 270, 330] };   // 대략적인 기준 (ms)
+// 적 등장 모드용 3D 장면은 처음 고를 때 만든다
+let rx3 = null;
+function rxInit3d() {
+  if (rx3) return rx3;
+  let r;
+  try { r = new THREE.WebGLRenderer({ antialias: true }); } catch (e) { return null; }
+  r.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  rxEl.view.prepend(r.domElement);
+  const sc = new THREE.Scene();
+  sc.background = new THREE.Color(BG_POV); sc.fog = new THREE.Fog(BG_POV, 18, 60);
+  buildEnv(sc, null, true);
+  const H = holderAtWall(6), lane = 1.3;
+  const xs = crossX(x => visiblePoint(H.x, H.z, x, lane) !== null);     // 몸이 처음 보이는 위치
+  const cam = new THREE.PerspectiveCamera(70, 2, 0.05, 120);
+  cam.position.set(H.x, EYE, H.z);
+  cam.lookAt(xs + 0.05, EYE, lane);                                    // 조준점은 적이 나올 모서리에 걸어 둔다
+  const enemy = enemyAgent('jett', sc);
+  enemy.root.visible = true;
+  rx3 = { r, sc, cam, H, lane, xs, x0: xs - 1.3, enemy, x: xs - 1.3 };
+  new ResizeObserver(() => {
+    const w = Math.max(1, rxEl.view.clientWidth), h = Math.max(1, rxEl.view.clientHeight);
+    r.setSize(w, h); cam.aspect = w / h; cam.fov = vfovFor(cam.aspect); cam.updateProjectionMatrix();
+  }).observe(rxEl.view);
+  rxPlaceEnemy(rx3.x0, false);
+  return rx3;
+}
+function rxPlaceEnemy(x, moving) {
+  rx3.x = x;
+  placeAgent(rx3.enemy, x, rx3.lane, rx3.H.x, rx3.H.z, moving);
+}
+function rxShow(top, big, sub, opt = {}) {
+  rxEl.top.textContent = top || '';
+  rxEl.big.textContent = big;
+  rxEl.big.className = 'num' + (opt.ms ? ' ms' : '');
+  rxEl.sub.innerHTML = sub || '';
+  rxEl.screen.className = 'rx-screen' + (opt.live ? ' live' : '') + (opt.dim ? ' dim' : '');
+}
+function rxSetBg(cls) {
+  rxEl.view.classList.remove('wait', 'go', 'early');
+  if (cls && RX.mode === 'color') rxEl.view.classList.add(cls);
+}
+const rxMedian = a => { const s = [...a].sort((p, q) => p - q), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
+function rxStats() {
+  const t = RX.times;
+  rxEl.avg.textContent = t.length ? Math.round(t.reduce((s, v) => s + v, 0) / t.length) : '—';
+  rxEl.best.textContent = t.length ? Math.round(Math.min(...t)) : '—';
+  rxEl.med.textContent = t.length ? Math.round(rxMedian(t)) : '—';
+  const rec = store.get('rx.' + RX.mode, null);
+  rxEl.rec.textContent = rec ? Math.round(rec) : '—';
+  rxEl.recSub.textContent = `ms · ${RX.mode === 'color' ? '색 신호' : '적 등장'} 5회 평균 최고 · 이 브라우저에 저장`;
+  let h = '<span style="margin-right:4px">회차</span>';
+  for (let i = 0; i < RX_TRIES; i++) h += `<i class="${t[i] !== undefined ? 'win' : ''}" style="width:auto;min-width:26px;padding:0 6px">${t[i] !== undefined ? Math.round(t[i]) : i + 1}</i>`;
+  rxEl.rounds.innerHTML = h;
+}
+function rxReset() { RX.times = []; RX.state = 'idle'; rxStats(); }
+function rxIdle() {
+  rxSetBg(null);
+  rxShow(RX.mode === 'color' ? 'COLOR SIGNAL' : 'PEEK', '클릭해서 시작', `${RX_TRIES}번 잰다. 신호가 뜨기 전에 누르면 그 회차는 다시 한다.`, { dim: RX.mode === 'peek' });
+}
+function rxArm() {
+  RX.state = 'wait'; RX.t0 = null;
+  const n = RX.times.length + 1;
+  if (RX.mode === 'color') {
+    RX.goAt = performance.now() + rand(1500, 4000);
+    rxSetBg('wait');
+    rxShow(`${n} / ${RX_TRIES}`, '기다리세요…', '초록색으로 바뀌면 바로 클릭');
+  } else {
+    if (!rxInit3d()) { rxShow('', '3D를 쓸 수 없는 브라우저다', ''); RX.state = 'idle'; return; }
+    rxPlaceEnemy(rx3.x0, false);
+    RX.startAt = performance.now() + rand(1200, 3600);
+    rxShow(`${n} / ${RX_TRIES}`, '적이 보이면 클릭', '', { live: true });
+  }
+}
+function rxEarly(msg) {
+  RX.state = 'early'; rxSetBg('early');
+  if (rx3 && RX.mode === 'peek') rxPlaceEnemy(rx3.x0, false);
+  rxShow('', '너무 빨랐다', msg + ' 클릭해서 이 회차를 다시 한다.', { dim: RX.mode === 'peek' });
+}
+function rxHit(ts) {
+  const ms = ts - RX.t0;
+  if (ms < 100) { rxEarly('100ms보다 빠른 클릭은 신호를 보고 누른 게 아니라 예측이라 빼고 다시 잰다.'); return; }
+  RX.times.push(ms);
+  rxSetBg(null);
+  rxStats();
+  if (RX.times.length < RX_TRIES) {
+    RX.state = 'result';
+    rxShow(`${RX.times.length} / ${RX_TRIES}`, Math.round(ms) + ' ms', '클릭해서 다음 회차', { ms: true, dim: RX.mode === 'peek' });
+    return;
+  }
+  RX.state = 'done';
+  const avg = RX.times.reduce((s, v) => s + v, 0) / RX.times.length;
+  const g = RX_GRADE[RX.mode], grade = avg < g[0] ? '매우 빠름' : avg < g[1] ? '빠름' : avg < g[2] ? '보통' : '느린 편';
+  const rec = store.get('rx.' + RX.mode, null), isRec = rec === null || avg < rec;
+  if (isRec) store.set('rx.' + RX.mode, avg);
+  rxStats();
+  const net = Math.round(D.net);
+  rxShow(`평균 · ${grade}${isRec ? ' · 내 최고 기록' : ''}`, Math.round(avg) + ' ms',
+    `피커가 얻는 <b>${net}ms</b>(1부, 핑 ${state.ping})는 네 평균 반응의 약 <b>${Math.round(net / avg * 100)}%</b>다. 홀더라면 이만큼을 앵글·프리에임으로 메워야 한다.<br>클릭하면 다시 잰다.`,
+    { ms: true, dim: RX.mode === 'peek' });
+}
+rxEl.view.addEventListener('pointerdown', e => {
+  if (e.button !== 0 || e.target.closest('.rx-fs')) return;
+  const ts = e.timeStamp;                                // performance.now()와 같은 기준의 정밀 시각
+  if (RX.state === 'go') { rxHit(ts); return; }
+  if (RX.state === 'wait') { rxEarly('신호가 뜬 뒤에 클릭하자.'); return; }
+  if (RX.state === 'idle' || RX.state === 'done') rxReset();
+  rxArm();
+});
+// 매 프레임: 신호를 띄우는 순간을 프레임 단위로 정하고, 그 프레임의 시각을 기준(t0)으로 삼는다
+function rxFrame() {
+  const now = performance.now();
+  if (RX.mode === 'color') {
+    if (RX.state === 'wait' && now >= RX.goAt) {
+      RX.state = 'go'; rxSetBg('go');
+      rxShow(`${RX.times.length + 1} / ${RX_TRIES}`, '클릭!', '');
+      RX.t0 = performance.now();
+    }
+    return;
+  }
+  if (!rx3) return;
+  if (RX.state === 'wait' || RX.state === 'go') {
+    const x = now >= RX.startAt ? Math.min(rx3.x0 + (now - RX.startAt) / 1000 * MOVE.run, rx3.xs + 2.2) : rx3.x0;
+    rxPlaceEnemy(x, x < rx3.xs + 2.2 && now >= RX.startAt);
+    if (RX.state === 'wait' && visiblePoint(rx3.H.x, rx3.H.z, x, rx3.lane) !== null) { RX.state = 'go'; RX.t0 = performance.now(); }
+    if (RX.state === 'go' && now - RX.t0 > 1500) {
+      RX.state = 'miss';
+      rxShow('', '놓쳤다', '1.5초 안에 클릭하지 못했다. 클릭해서 이 회차를 다시 한다.', { dim: true });
+    }
+  }
+  rx3.r.render(rx3.sc, rx3.cam);
+}
+function rxSetMode(mode) {
+  RX.mode = mode;
+  document.querySelectorAll('#rxTabs button').forEach(b => { const on = b.dataset.mode === mode; b.classList.toggle('on', on); b.setAttribute('aria-selected', on); });
+  rxEl.view.classList.toggle('c-mode', mode === 'color');
+  rxEl.view.classList.toggle('p-mode', mode === 'peek');
+  rxEl.desc.textContent = RX_DESC[mode];
+  if (mode === 'peek') rxInit3d();
+  rxReset(); rxIdle();
+}
+document.querySelectorAll('#rxTabs button').forEach(b => b.addEventListener('click', () => rxSetMode(b.dataset.mode)));
+$('rxFs').addEventListener('click', () => toggleFs(rxEl.view));
+rxSetMode('color');
+
 /* ================= 루프 ================= */
 if (!glOk) {
   document.querySelectorAll('.view').forEach(v => {
@@ -3069,10 +3295,10 @@ window.addEventListener('keydown', e => {
   if (!pick) return;
   e.preventDefault(); pick.S.playing ? pick.pause() : pick.play();
 });
-const visible = { p1: true, p2: false, p3: false, drill: false };   // 화면에 보이는 쪽만 그린다
+const visible = { p1: true, p2: false, p3: false, rx: false, drill: false };   // 화면에 보이는 쪽만 그린다
 const io = new IntersectionObserver(es => es.forEach(e => { visible[e.target.dataset.vis] = e.isIntersecting; }), { rootMargin: '80px' });
 gView.dataset.vis = 'drill';
-[$('stage'), $('aStage'), $('tzGrid'), gView].forEach(x => io.observe(x));
+[$('stage'), $('aStage'), $('tzGrid'), $('rxView'), gView].forEach(x => io.observe(x));
 let last = performance.now();
 function loop(now) {
   const dt = Math.min(now - last, 100); last = now;
@@ -3085,6 +3311,7 @@ function loop(now) {
   if (A2.S.playing) A2.step(dt);
   if (visible.p2 || A2.S.playing) { updateA(dt); A2.sync(); renderAngle(); }
   if (visible.p3) tzTick(dt);
+  if (visible.rx || RX.state === 'wait' || RX.state === 'go') rxFrame();
   tickDrill(Math.min(dt, 50));
   if (visible.drill || G.running) renderDrill();
   requestAnimationFrame(loop);
@@ -3097,6 +3324,7 @@ window.__peek = { state, P1, get D() { return D; }, setT(t) { P1.pause(); P1.S.t
 window.__angle = { AS, A2, get AD() { return AD; }, setT(t) { A2.pause(); A2.S.t = t; },
   set(pw, hw, speed) { $('aPw').value = pw; $('aHw').value = hw; if (speed) AS.speed = speed; onAParam(); aBox.cur = null; } };
 window.__tz = { TZ, get TG() { return TG; }, setT(t) { tzSetPlaying(false); TZ.t = t; tzRender(); }, setAlpha(a) { $('tzAlpha').value = a; TZ.alpha = a; TG = tzGeom(); tzResults(); tzRender(); }, play: () => tzSetPlaying(true) };
+window.__rx = { RX, setMode: rxSetMode, get rx3() { return rx3; } };
 window.__drill = { G, PL, cfg, keys, get RD() { return RD; }, start: startDrill, setMode, shoot: () => playerShoot(tNow()), phys: dt => updatePlayer(dt), MOVE, SHERIFF, vm, VM_POS,
   aimAtBot(part = 'head') { const s = botShownAt(G.t); const y = part === 'head' ? EYE + 0.01 : 1.25; [PL.yaw, PL.pitch] = yawPitchTo(PL.x, eyeY(), PL.z, s.x, y, s.z); },
   aimAtGuide() { const p = guide.position; [PL.yaw, PL.pitch] = yawPitchTo(PL.x, eyeY(), PL.z, p.x, p.y, p.z); } };
