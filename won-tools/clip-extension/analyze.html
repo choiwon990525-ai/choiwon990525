@@ -15,6 +15,7 @@ button,select,input,textarea{font-family:var(--kr)}
 /* 상단 바 */
 header{height:54px;flex:none;background:var(--navy);color:#fff;display:flex;align-items:center;gap:12px;padding:0 14px 0 0}
 .brand{height:100%;display:flex;align-items:center;gap:8px;padding:0 30px 0 16px;background:var(--navy2);clip-path:polygon(0 0,100% 0,calc(100% - 18px) 100%,0 100%);font-weight:700;font-size:15px;flex:none}
+.brand img{height:42px;width:auto;margin:4px 0 -2px -6px;align-self:flex-end}
 .brand small{font:600 10px var(--en);color:var(--sky);letter-spacing:.08em}
 .match{min-width:0;flex:0 1 auto}
 .match .t{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:38vw}
@@ -170,7 +171,7 @@ textarea:focus{border-color:var(--blue)}
 #tagAuto a{color:var(--blue);text-decoration:none;cursor:pointer}
 </style></head><body>
 <header>
-  <div class="brand">분석 <small>ANALYSIS</small></div>
+  <div class="brand"><img src="icons/won-dog.png" alt="">분석 <small>ANALYSIS</small></div>
   <div class="match"><div class="t" id="ttl">경기</div><div class="s" id="sub"></div></div>
   <select id="mapSel" title="맵"></select>
   <div class="grow"></div>

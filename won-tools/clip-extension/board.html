@@ -10,6 +10,7 @@ body{margin:0;background:var(--bg);color:var(--tx);font:13px/1.45 system-ui,"Mal
 header{display:flex;gap:8px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--navy2);flex-wrap:wrap;background:var(--navy)}
 #moreBox{display:none;gap:8px;align-items:center;flex-wrap:wrap;width:100%;padding:6px 0 0;border-top:1px solid var(--navy2)}
 #moreBox.on{display:flex}
+header .dog{height:30px;width:auto;margin:-4px -2px -8px 0}
 header .ttl{font-weight:700;max-width:340px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 button,select,input[type=text]{background:var(--card);border:1px solid var(--line);color:var(--tx);border-radius:2px;padding:5px 9px;font:inherit}
 header button,header select{background:var(--navy2);border-color:var(--blue);color:#fff}
@@ -97,6 +98,7 @@ textarea.memo{min-height:190px}
 #swapBar button.txt{width:auto;height:30px;border-radius:8px;padding:0 10px;font-size:12px}
 </style></head><body>
 <header>
+  <img class="dog" src="icons/won-dog.png" alt="">
   <span class="ttl" id="ttl">라운드 보드</span>
   <select id="mapSel" title="맵"></select>
   <button id="prev" title="이전 라운드 ( , )">◀</button><select id="rSel"></select><button id="next" title="다음 라운드 ( . )">▶</button>

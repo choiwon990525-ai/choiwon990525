@@ -135,6 +135,7 @@
     '.wrap.dim:hover{opacity:1}',
     '.btn{cursor:pointer;border:2px solid #BDD9F2;border-radius:2px;padding:12px 20px;font-size:15px;font-weight:700;background:#132D65;color:#fff;box-shadow:0 4px 16px rgba(0,0,0,.45);transition:transform .08s;display:flex;align-items:center;gap:8px}',
     '.btn:active{transform:scale(.94)}',
+    '.btn .dog{width:30px;height:auto;margin:-8px 0 -8px -6px;flex:none;pointer-events:none}',
     '.cnt{background:#fff;color:#132D65;border-radius:2px;padding:1px 8px;font-size:13px}',
     '.row{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}',
     '.mini{font-size:12px;padding:7px 11px;background:rgba(19,45,101,.94);color:#fff;border-radius:2px;border:1px solid #4A88C7;cursor:pointer;text-align:left;white-space:nowrap}',
@@ -229,7 +230,9 @@
   [bExp, bExpH, bMng, bHide].forEach(b => b.addEventListener('click', () => menu.classList.remove('on')));
   const bCap = mk('button', 'btn');
   const bCapLabel = mk('span', null, '장면 저장');
-  bCap.append(bCapLabel);
+  const dog = mk('img', 'dog');   // 1.11.11 코치 시그니처 강아지
+  dog.alt = ''; dog.src = chrome.runtime.getURL('icons/won-dog.png');
+  bCap.append(dog, bCapLabel);
   const cnt = mk('span', 'cnt', '0');
   bCap.append(cnt);
   wrap.append(menu, row, bCap);
