@@ -1777,6 +1777,27 @@ namespace ClassPen
             catch (Exception) { }
         }
 
+        [DllImport("user32.dll")] static extern short GetAsyncKeyState(int vk);
+        [DllImport("shell32.dll")] static extern int SHQueryUserNotificationState(out int state);
+
+        public delegate void WinEventProc(IntPtr hook, uint eventType, IntPtr hwnd, int idObject, int idChild, uint thread, uint time);
+        [DllImport("user32.dll")] public static extern IntPtr SetWinEventHook(uint eventMin, uint eventMax, IntPtr module, WinEventProc proc, uint process, uint thread, uint flags);
+        [DllImport("user32.dll")] public static extern bool UnhookWinEvent(IntPtr hook);
+        public const uint EVENT_SYSTEM_FOREGROUND = 3, WINEVENT_OUTOFCONTEXT = 0, WINEVENT_SKIPOWNPROCESS = 2;
+
+        // 실제로 눌린 '주 버튼'(왼손잡이 설정이면 오른쪽 버튼) 상태. 포커스와 상관없이 읽힌다.
+        public static bool IsPrimaryButtonDown()
+        {
+            int vk = SystemInformation.MouseButtonsSwapped ? 0x02 : 0x01;
+            try { return (GetAsyncKeyState(vk) & 0x8000) != 0; } catch (Exception) { return false; }
+        }
+
+        // 게임이 '전체 화면'(독점 모드)으로 떠 있으면 다른 창은 그 위에 보일 수 없다.
+        public static bool ExclusiveFullscreenActive()
+        {
+            try { int state; return SHQueryUserNotificationState(out state) == 0 && state == 3; } catch (Exception) { return false; }
+        }
+
         public static bool IsOwnWindow(IntPtr hwnd)
         {
             uint pid;
@@ -2449,7 +2470,12 @@ namespace ClassPen
         readonly Settings settings;
         readonly float uiScale;
         readonly int showMessage;
-        readonly System.Windows.Forms.Timer renderTimer, topTimer;
+        readonly System.Windows.Forms.Timer renderTimer, topTimer, raiseTimer, passTimer;
+        Native.WinEventProc foregroundProc; // 콜백이 GC 되지 않도록 붙잡아 둔다
+        IntPtr foregroundHook;
+        bool passPending, passSawDown, fullscreenSeen, fullscreenWarned;
+        DateTime passStarted;
+        Tool passReturnTool = Tool.Pen;
 
         // 그리기 표면: frame 은 화면에 보이는 DIB, baked 는 확정된 그림
         Rectangle screenRect;
@@ -2501,8 +2527,14 @@ namespace ClassPen
             renderTimer.Interval = 10;
             renderTimer.Tick += OnRenderTick;
             topTimer = new System.Windows.Forms.Timer();
-            topTimer.Interval = 1500;
-            topTimer.Tick += delegate { KeepOnTop(); };
+            topTimer.Interval = 1000;
+            topTimer.Tick += delegate { KeepOnTop(); CheckFullscreen(); };
+            raiseTimer = new System.Windows.Forms.Timer();
+            raiseTimer.Interval = 150;
+            raiseTimer.Tick += delegate { raiseTimer.Stop(); KeepOnTop(); };
+            passTimer = new System.Windows.Forms.Timer();
+            passTimer.Interval = 15;
+            passTimer.Tick += OnPassTick;
         }
 
         // ---- 상태 (툴바에서 읽음) ----
@@ -2575,6 +2607,14 @@ namespace ClassPen
             toolbar.RefreshState();
             CreateTray();
             SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
+            try
+            {
+                // 다른 창(게임 등)이 앞으로 나오는 순간 펜과 툴바를 다시 맨 위로 올린다.
+                foregroundProc = OnForegroundChanged;
+                foregroundHook = Native.SetWinEventHook(Native.EVENT_SYSTEM_FOREGROUND, Native.EVENT_SYSTEM_FOREGROUND, IntPtr.Zero,
+                    foregroundProc, 0, 0, Native.WINEVENT_OUTOFCONTEXT | Native.WINEVENT_SKIPOWNPROCESS);
+            }
+            catch (Exception) { foregroundHook = IntPtr.Zero; }
             topTimer.Start();
             RefreshCursor();
             RegisterHotkeys();
@@ -2605,6 +2645,9 @@ namespace ClassPen
             settings.Save();
             for (int id = HkDraw; id <= HkCapture; id++) Native.UnregisterHotKey(Handle, id);
             SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
+            if (foregroundHook != IntPtr.Zero) { Native.UnhookWinEvent(foregroundHook); foregroundHook = IntPtr.Zero; }
+            raiseTimer.Stop();
+            passTimer.Stop();
             renderTimer.Stop();
             topTimer.Stop();
             if (tray != null) { tray.Visible = false; tray.Dispose(); tray = null; }
@@ -2636,6 +2679,26 @@ namespace ClassPen
             const uint flags = Native.SWP_NOMOVE | Native.SWP_NOSIZE | Native.SWP_NOACTIVATE;
             Native.SetWindowPos(Handle, Native.HWND_TOPMOST, 0, 0, 0, 0, flags);
             if (toolbar != null && toolbar.Visible) Native.SetWindowPos(toolbar.Handle, Native.HWND_TOPMOST, 0, 0, 0, 0, flags);
+        }
+
+        void OnForegroundChanged(IntPtr hook, uint eventType, IntPtr hwnd, int idObject, int idChild, uint thread, uint time)
+        {
+            KeepOnTop();
+            // 게임은 앞으로 나온 직후 자기 창을 한 번 더 올리기도 해서, 잠시 뒤에 한 번 더 올린다.
+            raiseTimer.Stop();
+            raiseTimer.Start();
+        }
+
+        void CheckFullscreen()
+        {
+            if (fullscreenWarned) return;
+            if (Native.ExclusiveFullscreenActive()) { fullscreenSeen = true; return; }
+            if (!fullscreenSeen) return;
+            // 전체 화면 게임에서 빠져나와 알림이 보이는 순간 한 번만 알려 준다.
+            fullscreenWarned = true;
+            ShowToast("게임이 '전체 화면' 모드라서 ClassPen 이 게임 뒤로 가려졌어요.\n" +
+                      "게임 설정에서 화면 모드를 '창 모드 전체 화면'으로 바꾸면\n" +
+                      "게임 위에 툴바와 펜이 항상 보여요.", 9000);
         }
 
         void SetClickThrough(bool on)
@@ -2757,6 +2820,7 @@ namespace ClassPen
         // ---- 도구/설정 변경 ----
         public void SetTool(Tool t)
         {
+            StopPassThrough(); // 직접 도구를 고르면 우클릭 '한 번 통과'는 취소
             CloseTextEntry();
             FinishActive();
             bool wasDrawing = IsDrawing, wasHidden = inkHidden;
@@ -3047,9 +3111,44 @@ namespace ClassPen
         protected override void OnMouseUp(MouseEventArgs e)
         {
             base.OnMouseUp(e);
+            if (e.Button == MouseButtons.Right) { StartPassThrough(); return; }
             if (e.Button != MouseButtons.Left) return;
             erasing = false;
             EndStroke();
+        }
+
+        // 그리는 중 우클릭: 다음 클릭 한 번은 아래 화면(게임·영상)으로 보내고, 클릭이 끝나면 쓰던 펜으로 돌아온다.
+        void StartPassThrough()
+        {
+            if (!IsDrawing || active != null || erasing) return;
+            passReturnTool = tool;
+            SetTool(Tool.Mouse);
+            passPending = true;
+            passSawDown = false;
+            passStarted = DateTime.UtcNow;
+            passTimer.Start();
+            ShowToast("클릭 한 번은 아래 화면으로 — 누르고 나면 다시 펜", 1400);
+        }
+
+        void OnPassTick(object sender, EventArgs e)
+        {
+            // 그 사이 다른 도구를 고르거나 단축키로 바꿨으면 그 선택을 따른다.
+            if (!passPending || tool != Tool.Mouse) { StopPassThrough(); return; }
+            if (Native.IsPrimaryButtonDown()) { passSawDown = true; return; }
+            if (passSawDown)
+            {
+                StopPassThrough();
+                SetTool(passReturnTool);
+                return;
+            }
+            // 10초 동안 클릭이 없으면 그냥 마우스 모드로 둔다.
+            if ((DateTime.UtcNow - passStarted).TotalSeconds > 10) StopPassThrough();
+        }
+
+        void StopPassThrough()
+        {
+            passPending = false;
+            passTimer.Stop();
         }
 
         protected override void OnMouseCaptureChanged(EventArgs e)
@@ -3284,6 +3383,7 @@ namespace ClassPen
                 "R 사각형 · O 원 · T 텍스트 · E 지우개 · S 강아지 도장 · Esc 마우스\n" +
                 "1~8 색 · [ ] 굵기 · B 보드 · Delete 전체 지우기\n" +
                 "Ctrl+Z 실행 취소 · Ctrl+Y 다시 실행\n" +
+                "우클릭: 다음 클릭 한 번은 게임·영상으로 (누르고 나면 다시 펜)\n" +
                 "Shift 누르고 그리기: 45° 직선 · 정사각형 · 정원";
             IWin32Window owner = toolbar != null && toolbar.Visible ? (IWin32Window)toolbar : this;
             MessageBox.Show(owner, help, "ClassPen 단축키");
@@ -3519,7 +3619,7 @@ namespace ClassPen
         static readonly string[] ToolTips =
         {
             "마우스 (Esc)\n그림은 그대로 두고 클릭은 아래 화면으로",
-            "펜 (P)",
+            "펜 (P)\n그리는 중 우클릭: 다음 클릭 한 번은 게임·영상으로",
             "형광펜 (H)",
             "레이저 펜 (L · 어디서나 Ctrl+Alt+L)\n그리고 나면 잠시 후 저절로 사라져요",
             "직선 (I)\nShift: 45° 고정",
